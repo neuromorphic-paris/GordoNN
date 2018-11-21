@@ -4,11 +4,10 @@ from scipy.spatial.distance import cdist
 
 def assign_closest_center(spikes_files, centers, tau, context_size, metric_pdist):
     
-    #closest_centers = np.zeros((len(spikes_files), []))
     closest_centers = []
     
     for ind in range(len(spikes_files)):
-        events_buffer = np.zeros(context_size) #NOTE: adding offset to extract the context easily
+        events_buffer = np.zeros(context_size) 
         spikes = spikes_files[ind]
         ctx_spikes = np.zeros((len(spikes), context_size))
         cntx_id = 0
@@ -23,6 +22,6 @@ def assign_closest_center(spikes_files, centers, tau, context_size, metric_pdist
             events_buffer[0] = t_ev
             cntx_id += 1
         
-        closest_centers_file = np.argmin(cdist(ctx_spikes, centers), axis=1)
+        closest_centers_file = np.argmin(cdist(ctx_spikes, centers, metric = metric_pdist), axis=1)
         closest_centers.append(closest_centers_file)
     return closest_centers
