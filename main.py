@@ -20,9 +20,9 @@ from scipy import optimize
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from Libs.readwriteatis_kaerdat import readATIS_td
-from Libs.Time_Surface_generators import Time_Surface_all, Time_Surface_event
-from Libs.HOTS_Sparse_Network import HOTS_Sparse_Net, events_from_activations
+#from Libs.readwriteatis_kaerdat import readATIS_td
+#from Libs.Time_Surface_generators import Time_Surface_all, Time_Surface_event
+#from Libs.HOTS_Sparse_Network import HOTS_Sparse_Net, events_from_activations
 from scipy.spatial import distance 
 
 
@@ -77,9 +77,15 @@ class_train = class_train[number_files_to_train_features:len(spikes_train)]
 spikes_train = spikes_train[number_files_to_train_features:len(spikes_train)]
 
 
-data_array = [[] for i in range(len(spikes_train))]  #Data array for Marco
+#data_array = [[] for i in range(len(spikes_train))]  #Data array for Marco
+data_array = []
 
-for ind in range(n_channels*2): #For each address (that's why n_channels*2. Remember that each channel has two addresses: ON and OFF)
+data_prep_ts = []
+data_prep_addrs = []
+data_prep_centers = []
+count = 0
+
+for ind in range(n_channels*2/32): #For each address (that's why n_channels*2. Remember that each channel has two addresses: ON and OFF)
 
     ## Training feature extractor
     print ('\n--- TRAINING FEATURE EXTRACTOR ---')
@@ -159,17 +165,34 @@ for ind in range(n_channels*2): #For each address (that's why n_channels*2. Reme
     rate = np.float(rate) / len(truth)
     print rate """
     
+    
+    ## Preparing data for Marco    
+    addr_array = []
 
-    ## Preparing data for Marco
-    for file in range(len(spikes_train_channelled)):
-        for spike in range(len(spikes_train_channelled[file])):
-            array_sp = [class_train[file], spikes_train_channelled[file][spike], ind, spikes_train_channelled_closest_centers[file][spike]]
-            data_array[file].append(array_sp)
+    for f in range(len(spikes_train_channelled)):
+        addr_array.append([ind for i in range(len(spikes_train_channelled[f]))])
+
+
+    if count == 0:
+        data_prep_ts = spikes_train_channelled
+        data_prep_centers = spikes_train_channelled_closest_centers
+        data_prep_addrs = addr_array
+        count +=1
+    else:
+        for file in range(len(spikes_train_channelled)):
+            data_prep_ts[file] = np.concatenate((data_prep_ts[file], spikes_train_channelled[file]), axis=0)
+            data_prep_centers[file] = np.concatenate((data_prep_centers[file], spikes_train_channelled_closest_centers[file]), axis=0)
+            data_prep_addrs[file] = np.concatenate((data_prep_addrs[file], addr_array[file]), axis=0)
 
 
 ##Sorting spikes based on the timestamp value for each of the files
-for i in range(len(spikes_train)):
-    data_array[i] = sorted(data_array[i], key=itemgetter(1))
+for f in range(len(spikes_train)):
+    sorted_indices = np.argsort(data_prep_ts[f])
+    data_prep_ts[f] = data_prep_ts[f][sorted_indices]
+    data_prep_centers[f] = data_prep_centers[f][sorted_indices]
+    data_prep_addrs[f] = data_prep_addrs[f][sorted_indices]
+    data_array.append([data_prep_ts[f], map(list,zip(data_prep_addrs[f], data_prep_centers[f]))])
+    
     
     
 #%% Generate 2D net
