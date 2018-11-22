@@ -4,7 +4,7 @@ import math
 
 def get_filenames_dataset(number_of_files = -1, train_test_ratio = 0.75):
     used_classes = ['off', 'on']
-    folders = ['D:\Repositorios\SVN\SVN_Personal\Estancia Paris\Datasets\Speech Commands dataset\on-off-minus12db_att_100vol\off_aedats', 'D:\Repositorios\SVN\SVN_Personal\Estancia Paris\Datasets\Speech Commands dataset\on-off-minus12db_att_100vol\on_aedats']
+    folders = ['/home/marcorax/Desktop/off_aedats', '/home/marcorax/Desktop/on_aedats']
     
     filenames_train = []
     filenames_test = []
@@ -13,13 +13,13 @@ def get_filenames_dataset(number_of_files = -1, train_test_ratio = 0.75):
 
     for i in range(len(used_classes)):
         aedats_in_folder = glob.glob(folders[i] + '/*.aedat')
-        print 'No. of files of class', used_classes[i], ': ', len(aedats_in_folder)
+        print ('No. of files of class'), used_classes[i], ': ', len(aedats_in_folder)
 
         if number_of_files > 0:
-            print 'Func:get_filenames_dataset(): Getting', number_of_files, 'files from the', used_classes[i], 'folder'
+            print ('Func:get_filenames_dataset(): Getting', number_of_files, 'files from the', used_classes[i], 'folder')
             aedats_in_folder = random.sample(aedats_in_folder, number_of_files)
         elif number_of_files > len(aedats_in_folder):
-            print 'Func:get_filenames_dataset(): Error: the number of files selected is bigger than the number of .aedat file in the folder. Getting the whole dataset'
+            print ('Func:get_filenames_dataset(): Error: the number of files selected is bigger than the number of .aedat file in the folder. Getting the whole dataset')
 
         aedats_for_training = int(math.ceil(len(aedats_in_folder)*train_test_ratio))
         aedats_for_testing = len(aedats_in_folder) - aedats_for_training

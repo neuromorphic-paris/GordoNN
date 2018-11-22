@@ -16,15 +16,22 @@ from get_filenames_dataset import *
 from loadAERDATA import *
 from time_context_generation import *
 from operator import itemgetter
-
+from scipy import optimize 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+from Libs.readwriteatis_kaerdat import readATIS_td
+from Libs.Time_Surface_generators import Time_Surface_all, Time_Surface_event
+from Libs.HOTS_Sparse_Network import HOTS_Sparse_Net, events_from_activations
+from scipy.spatial import distance 
 
 
 ## Parameters
-number_files_dataset = 100 #Number of files to use from the dataset for each class.
-number_files_to_train_features = 20 #Number of files to train context.
+number_files_dataset = 10 #Number of files to use from the dataset for each class.
+number_files_to_train_features = 5 #Number of files to train context.
 n_channels = 32 #Number of channels of the sensor used. 
 
-nb_clusters = 50
+nb_clusters = 20
 ratio_empty_ctx = 0.3 # below this ratio the context will be discarded #CURRENTLY NOT BEING USED
 
 
@@ -34,7 +41,7 @@ random.seed(0)
 
 
 ## Getting filenames from the dataset
-print '\n--- GETTING FILENAMES FROM THE DATASET ---'
+print ('\n--- GETTING FILENAMES FROM THE DATASET ---')
 start_time = time.time()
 [filenames_train, class_train, filenames_test, class_test] = get_filenames_dataset(number_files_dataset)
 print("Getting filenames from the dataset took %s seconds." % (time.time() - start_time))
@@ -44,7 +51,7 @@ print("Getting filenames from the dataset took %s seconds." % (time.time() - sta
 
 
 ## Reading spikes from each of the files
-print '\n--- READING SPIKES ---'
+print ('\n--- READING SPIKES ---')
 start_time = time.time()
 spikes_train = [0] * len(filenames_train)
 spikes_test = [0] * len(filenames_test)
@@ -75,7 +82,7 @@ data_array = [[] for i in range(len(spikes_train))]  #Data array for Marco
 for ind in range(n_channels*2): #For each address (that's why n_channels*2. Remember that each channel has two addresses: ON and OFF)
 
     ## Training feature extractor
-    print '\n--- TRAINING FEATURE EXTRACTOR ---'
+    print ('\n--- TRAINING FEATURE EXTRACTOR ---')
     start_time = time.time()
     spikes_feature_train_channelled = [0] * len(spikes_feature_train)    
     for file in range(len(spikes_feature_train)): #Extract timestamps of a specific address for each file in spikes_feature_train
@@ -90,7 +97,7 @@ for ind in range(n_channels*2): #For each address (that's why n_channels*2. Reme
 
 
     ## Clustering
-    print '\n--- CLUSTERING ---'
+    print ('\n--- CLUSTERING ---')
     start_time = time.time()
     #[~, centers.data] = kmeans(all_train_context, nb_clusters, 'Distance', 'cosine');
     kmeans = KMeans(n_clusters=nb_clusters).fit(all_train_context)
@@ -100,7 +107,7 @@ for ind in range(n_channels*2): #For each address (that's why n_channels*2. Reme
 
 
     ## Assign closest center
-    print '\n--- ASSIGN CLOSEST CENTER ---'
+    print ('\n--- ASSIGN CLOSEST CENTER ---')
     start_time = time.time()
 
     spikes_train_channelled = [0] * len(spikes_train)
@@ -163,3 +170,39 @@ for ind in range(n_channels*2): #For each address (that's why n_channels*2. Reme
 ##Sorting spikes based on the timestamp value for each of the files
 for i in range(len(spikes_train)):
     data_array[i] = sorted(data_array[i], key=itemgetter(1))
+    
+    
+#%% Generate 2D net
+
+
+# Plotting settings
+plt.style.use("dark_background")
+
+# Network settings
+# =============================================================================
+# nbasis is a list containing the number of basis used for each layer
+# ldim: is a list containing the linear dimension of every base for each layer
+# taus: is a list containing the time coefficient used for the time surface creations
+#       for each layer, all three lists need to share the same lenght obv.
+# shuffle_seed, net_seed : seed used for dataset shuffling and net generation,
+#                       if set to 0 the process will be totally random
+# 
+# =============================================================================
+
+basis_number = [3]
+basis_dimension = [[5,5]] 
+taus = [5000]
+# I won't use polarity information because is not informative for the given task
+first_layer_polarities = 1
+shuffle_seed = 7
+net_seed = 25
+
+delay_coeff = 15000    
+    
+# Print an element to check if it's all right
+tsurface=Time_Surface_all(xdim=35, ydim=35, timestamp=0, timecoeff=taus[0], dataset=dataset_learning[2], num_polarities=1, minv=0.1, verbose=True)
+
+# Generate the network
+Net = HOTS_Sparse_Net(basis_number, basis_dimension, taus, first_layer_polarities, delay_coeff, net_seed)
+plt.show()
+    
