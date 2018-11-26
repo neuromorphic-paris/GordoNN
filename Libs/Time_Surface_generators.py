@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+from bisect import bisect_left, bisect_right
 
 
 
@@ -33,14 +34,16 @@ import pandas as pd
 # =============================================================================
 def Time_Surface_all(xdim, ydim, timestamp, timecoeff, dataset, num_polarities, minv=0.1, verbose=False):
     tmpdata = [dataset[0].copy(), dataset[1].copy(), dataset[2].copy()]
-    #taking only the timestamps after the reference 
-    ind_subset = tmpdata[0]>=timestamp
+    #taking only the timestamps before the reference 
+    ind = bisect_right(tmpdata[0],timestamp)
+    ind_subset = np.concatenate((np.ones(ind-1,bool), np.zeros(len(tmpdata[0])-(ind-1),bool)))
     tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]    
-    tsurface_array = np.exp(-(tmpdata[0]-timestamp)/timecoeff)
-    #removing all values below minv 
-    ind_subset = tsurface_array>minv
-    tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]] 
-    tsurface_array = tsurface_array[ind_subset]
+    #removing all the timestamps that will generate values below minv
+    min_timestamp = timestamp + timecoeff*np.log(minv) #timestamps<min_timestamp WILL BE DISCARDED 
+    ind = bisect_left(tmpdata[0],min_timestamp)
+    ind_subset = np.concatenate((np.zeros(ind,bool), np.ones(len(tmpdata[0])-(ind),bool)))
+    tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]    
+    tsurface_array = np.exp((tmpdata[0]-timestamp)/timecoeff)
     #now i need to build a matrix that will represents my surface, i will take 
     #only the highest value for each x and y as the other ar less informative
     #and we want each layer be dependant on the timecoeff of the timesurface
@@ -79,21 +82,21 @@ def Time_Surface_event(xdim, ydim, event, timecoeff, dataset, num_polarities, mi
     y0 = event[1][1]
     tmpdata[1][:,0] = tmpdata[1][:,0] - x0
     tmpdata[1][:,1] = tmpdata[1][:,1] - y0
+    #taking only the timestamps before the reference 
+    timestamp = event[0]
+    ind_subset = tmpdata[0]<=timestamp
+    tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]    
+    #removing all the timestamps that will generate values below minv
+    min_timestamp = tmpdata[0] + timecoeff*np.log(minv) #timestamps<min_timestamp WILL BE DISCARDED 
+    ind_subset = tmpdata[0]>=min_timestamp
+    tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]   
     #removing all events outside the region of interest defined as the xdim*ydim
     # centered on the event
     border = [np.floor(xdim/2),np.floor(ydim/2)]
     ind_subset = ((tmpdata[1][:,0]>=-border[0]) & (tmpdata[1][:,0]<=border[0]) &
         (tmpdata[1][:,1]>=-border[1]) & (tmpdata[1][:,1]<=border[1]))
     tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]   
-    #taking only the timestamps after the reference 
-    timestamp = event[0]
-    ind_subset = tmpdata[0]>=timestamp
-    tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]    
-    tsurface_array = np.exp(-(tmpdata[0]-timestamp)/timecoeff)
-    #removing all values below minv 
-    ind_subset = tsurface_array>minv
-    tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]] 
-    tsurface_array = tsurface_array[ind_subset]
+    tsurface_array = np.exp((tmpdata[0]-timestamp)/timecoeff)
     #now i need to build a matrix that will represents my surface, i will take 
     #only the highest value for each x and y as the other ar less informative
     #and we want each layer be dependant on the timecoeff of the timesurface
@@ -111,29 +114,3 @@ def Time_Surface_event(xdim, ydim, event, timecoeff, dataset, num_polarities, mi
 
     return tsurface
 
-#TODO look at it and see if it still useful ur piece of shit
-## generate_sparse_HOTS_net : a function for generating a randomic
-# sparse HOTS net, with sets of random basis and a_j parameters
-# =============================================================================
-# nbasis_list : A list containing the number of basis for each layer
-# ldim_list : A list containing the linear dimension of the basis for each layer
-# ldim_list and nbasis_list need to have same lenght
-# seed : The seed used for generating the values, if set to 0 it will be disabled 
-# =============================================================================
-def generate_sparse_HOTS_net(nbasis_list, ldim_list, seed=0):
-    Basis_set = []
-    Basis_set_temp = []
-    aj_set = []
-    aj_set_temp = []
-    #setting the seed
-    rng = np.random.RandomState()         
-    if (seed!=0):
-        rng.seed(seed)
-    for i, nbasis in enumerate(nbasis_list):
-        for j in range(nbasis):
-            Basis_set_temp.append(rng.rand(ldim_list[i],ldim_list[i]))
-            #aj are set to be between -1 and 1
-            aj_set_temp.append((rng.rand()-0.5)*2)
-        Basis_set.append(Basis_set_temp.copy())
-        aj_set.append(aj_set_temp.copy())
-    return Basis_set, aj_set

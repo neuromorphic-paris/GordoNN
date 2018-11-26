@@ -5,12 +5,14 @@ Created on Fri Oct 12 13:51:42 2018
 
 @author: marcorax
 
-This file contains the HOTS_Sparse_Net class 
+This file contains a modified version of HOTS_Sparse_Net class 
+with some differencies to work with channeled data, as building time surfaces,
+with reference timestamps only from a referenced channel, 
+and looking at past events rather than upcoming ones 
+ 
+The original repo can be found on :
+https://github.com/neuromorphic-paris/Sparse-HOTS
 
-To better understand the math behind classification an optimization please take a look
-to the original Sparse Hots paper and the new one by myself
-
-The links:
  
 """
 import numpy as np 
@@ -18,7 +20,7 @@ from scipy import optimize
 from scipy.spatial import distance 
 import matplotlib.pyplot as plt
 import seaborn as sns
-from Libs.Time_Surface_generators import Time_Surface_event
+from Libs.Time_Surface_generators import Time_Surface_all
 from Libs.HOTS_Sparse_Libs import error_func, error_func_deriv_a_j,\
 error_func_phi_full_batch, error_func_phi_grad_full_batch, update_basis_online,\
 update_basis_online_hard_treshold, update_basis_offline_CG, events_from_activations,\
@@ -105,6 +107,8 @@ class HOTS_Sparse_Net:
     # will hit the shelfs soon)
     # =============================================================================
     # dataset: the initial dataset used for learning
+    # channel: the idea behind multi channel rapresentation is to build surfaces
+    #          synchronizing only with lower frequency activities.
     # method : string with the method you want to use :
     #          "CG" for Coniugate Gradient Descent
     #          "Exp distance" for the model with lateral inhibition and explicit
@@ -138,7 +142,7 @@ class HOTS_Sparse_Net:
     # verbose : If verbose is on, it will display graphs to assest the ongoing,
     #           learning algorithm
     # =============================================================================        
-    def learn_online(self, dataset, method="Exp distance", base_norm="Thresh", 
+    def learn_online(self, dataset, channel, method="Exp distance", base_norm="Thresh", 
                      noise_ratio=[0,0,1], sparsity_coeff=[0,0,1], sensitivity=[0,0,1],
                      learning_rate=[0,0,1], base_norm_coeff=0, verbose=False): 
         # The list of all data batches devided for sublayer 
@@ -199,19 +203,28 @@ class HOTS_Sparse_Net:
                 # Counter of surfaces that will be used to update evolution parameters
                 time = 0
                 sub_layer_surfaces = []
+                sub_layer_reference_events = []
                 sub_layer_errors = []
            
                 for batch in range(len(batches[sublayer])):
                     batch_surfaces = []
+                    batch_reference_events = []
                     for k in range(len(batches[sublayer][batch][0])):
                         single_event = [batches[sublayer][batch][0][k], batches[sublayer][batch][1][k]]
-                        tsurface = Time_Surface_event(xdim = self.basis_dimensions[layer][0],
-                                                      ydim = self.basis_dimensions[layer][1],
-                                                      event=single_event,
-                                                      timecoeff=self.taus[layer],
-                                                      dataset=batches[sublayer][batch],
-                                                      num_polarities=num_polarities,
-                                                      verbose=False)
+                        if layer == 0:
+                            # If the reference event is not from the selected channel ditch 
+                            # the process and move to the next one
+                            # This process is not needed in other layers as 
+                            # the synchronization has already happened
+                            if single_event[1][1] != channel:
+                                continue
+                        tsurface = Time_Surface_all(xdim = self.basis_dimensions[layer][0],
+                                                    ydim = self.basis_dimensions[layer][1],
+                                                    timestamp=single_event[0],
+                                                    timecoeff=self.taus[layer],
+                                                    dataset=batches[sublayer][batch],
+                                                    num_polarities=num_polarities,
+                                                    verbose=False)
                         if method=="CG" :
                             sub_layer_errors.append(self.sublayer_response_CG(layer, sublayer,
                                                                                       tsurface,
@@ -224,7 +237,7 @@ class HOTS_Sparse_Net:
                                                                                         noise_evolution[time], 
                                                                                         sensitivity_evolution[time]))
                         batch_surfaces.append(tsurface)
-
+                        batch_reference_events.append(single_event)
                         # Run a single step of the gradient descent
                         if base_norm=="L2":
                             update_basis_online(self.basis[layer][sublayer], self.activations[layer][sublayer],
@@ -242,8 +255,8 @@ class HOTS_Sparse_Net:
                             plt.pause(0.0001)
                         time += 1
                     sub_layer_surfaces.append(batch_surfaces)
-                
-                    print("Layer:"+np.str(layer)+"  Sublayer:"+np.str(sublayer)+"  Base optimization process per batch:"+np.str((batch/len(batches[sublayer]))*100)+"%")
+                    sub_layer_reference_events.append(batch_reference_events)
+                    print("Layer:"+np.str(layer)+"  Sublayer:"+np.str(sublayer)+"  Base optimization process per batch:"+np.str(((batch+1)/len(batches[sublayer]))*100)+"%")
 
                 # Check if we are at the last layer or we need to recompute the activations
                 # to train the next layer
@@ -274,8 +287,7 @@ class HOTS_Sparse_Net:
 
                         # Obtaining the events resulting from the activations in a single batch
                         outevents = events_from_activations(batch_activations,
-                                                            [batches[sublayer][batch][0],
-                                                             batches[sublayer][batch][1]],
+                                                            sub_layer_reference_events[batch],
                                                              self.delay_coeff)
                         sub_layer_outevents_on.append(outevents[0])
                         sub_layer_outevents_on.append(outevents[1])
@@ -310,7 +322,8 @@ class HOTS_Sparse_Net:
     # looking at the code will simplify things...... ahahah just kidding it's a mess
     # =============================================================================
     # dataset: the initial dataset used for learning
-    #                     
+    # channel: the idea behind multi channel rapresentation is to build surfaces
+    #          synchronizing only with lower frequency activities.                    
     # sparsity_coeff: reported as lambda in the Sparse Hots paper, is the norm
     # coefficient used to impose sparseness on the net activations aj
     # learning_rate : a list of the learning rates for basis learning for each                                
@@ -323,7 +336,8 @@ class HOTS_Sparse_Net:
     # verbose : If verbose is on, it will display graphs to assest the ongoing,
     #           learning algorithm
     # =============================================================================      
-    def learn_offline(self, dataset, sparsity_coeff, learning_rate, max_steps, base_norm_coeff, precision, verbose=False):
+    def learn_offline(self, dataset, channel, sparsity_coeff, learning_rate,
+                      max_steps, base_norm_coeff, precision, verbose=False):
         # The list of all data batches devided for sublayer 
         # batches[sublayer][actual_batch][timestamp if 0 or xy coordinates if 1]
         batches = []
@@ -346,16 +360,25 @@ class HOTS_Sparse_Net:
                 # A single array containing all the generated surfaces 
                 # for a single sublayer used for full batch learning 
                 all_surfaces = []
+                all_reference_events = []
                 # Plot basis if required 
                 if verbose is True:
-                    figures, axes = create_figures(surfaces=self.basis[layer][sublayer], num_of_plots=self.basis_number[layer])
+                    figures, axes = create_figures(surfaces=self.basis[layer][sublayer],
+                                                   num_of_plots=self.basis_number[layer])
                 for batch in range(len(batches[sublayer])):
                     batch_surfaces = []
                     for k in range(len(batches[sublayer][batch][0])):
                         single_event = [batches[sublayer][batch][0][k], batches[sublayer][batch][1][k]]
-                        tsurface = Time_Surface_event(xdim = self.basis_dimensions[layer][0],
+                        if layer == 0:
+                            # If the reference event is not from the selected channel ditch 
+                            # the process and move to the next one
+                            # This process is not needed in other layers as 
+                            # the synchronization has already happened
+                            if single_event[1][1] != channel:
+                                continue
+                        tsurface = Time_Surface_all(xdim = self.basis_dimensions[layer][0],
                                                       ydim = self.basis_dimensions[layer][1],
-                                                      event=single_event,
+                                                      timestamp=single_event[0],
                                                       timecoeff=self.taus[layer],
                                                       dataset=batches[sublayer][batch],
                                                       num_polarities=num_polarities,
@@ -363,7 +386,8 @@ class HOTS_Sparse_Net:
                         batch_surfaces.append(tsurface)
                         # A single array containing all the generated surfaces 
                         # for a single sublayer used for full batch learning
-                        all_surfaces.append(tsurface)                    
+                        all_surfaces.append(tsurface) 
+                        all_reference_events.append(single_event)
                     sub_layer_surfaces.append(batch_surfaces)
                 
                 # Learning time
@@ -376,14 +400,15 @@ class HOTS_Sparse_Net:
                     for i in range(len(all_surfaces)):
                         self.sublayer_response_CG(layer, sublayer, all_surfaces[i], sparsity_coeff, 0)
                         sub_layer_activations.append(self.activations[layer][sublayer].copy())    
-#TODO change x and y order here 
                     #Let's compute the basis
-                    opt_res = update_basis_offline_CG(self.basis[layer][sublayer], self.basis_dimensions[layer][1]*num_polarities,
-                                            self.basis_dimensions[layer][0], 
-                                            self.basis_number[layer], sub_layer_activations,
-                                            all_surfaces, base_norm_coeff)
+                    opt_res = update_basis_offline_CG(self.basis[layer][sublayer],
+                                                      self.basis_dimensions[layer][1]*num_polarities,
+                                                      self.basis_dimensions[layer][0], 
+                                                      self.basis_number[layer], sub_layer_activations,
+                                                      all_surfaces, base_norm_coeff)
+                    
                     self.basis[layer][sublayer] = opt_res.x.reshape(self.basis_number[layer],
-                              self.basis_dimensions[layer][1], self.basis_dimensions[layer][0]*num_polarities)
+                              self.basis_dimensions[layer][0], self.basis_dimensions[layer][1]*num_polarities)
                     sub_layer_errors.append(opt_res.fun)
                     # Plot updated basis at each cycle if required
                     if verbose is True:
@@ -412,8 +437,7 @@ class HOTS_Sparse_Net:
                     current_batch_length = len(batches[sublayer][batch][0])       
                     # Obtaining the events resulting from the activations in a single batch
                     outevents = events_from_activations(sub_layer_activations[current_position:(current_position+current_batch_length)],
-                                                        [batches[sublayer][batch][0],
-                                                         batches[sublayer][batch][1]],
+                                                        all_reference_events[current_position:(current_position+current_batch_length)],
                                                          self.delay_coeff)
                     sub_layer_outevents_on.append(outevents[0])
                     sub_layer_outevents_off.append(outevents[1])
@@ -502,6 +526,8 @@ class HOTS_Sparse_Net:
     # =============================================================================
     # dataset: the dataset that you want to compute divided in batches,
     #          that you want to classificate
+    # channel: the idea behind multi channel rapresentation is to build surfaces
+    #          synchronizing only with lower frequency activities. 
     # method : string with the method you want to use :
     #          "CG" for Coniugate Gradient Descent
     #          "Exp distance" for the model with lateral inhibition and explicit
@@ -523,7 +549,7 @@ class HOTS_Sparse_Net:
     #            
     # It returns the whole history of the network activity
     # =============================================================================  
-    def full_net_dataset_response(self, dataset, method="Exp distance", noise_ratio=0, sparsity_coeff=0,
+    def full_net_dataset_response(self, dataset, channel, method="Exp distance", noise_ratio=0, sparsity_coeff=0,
                      sensitivity=0):
         # The list of all data batches devided for sublayer 
         # batches[sublayer][actual_batch][events, timestamp if 0 or xy coordinates if 1]
@@ -544,18 +570,26 @@ class HOTS_Sparse_Net:
                 sub_layer_activations = []
                 for batch in range(len(batches[sublayer])):
                     batch_surfaces = []
+                    batch_reference_events = []
                     batch_activations = []
                     for k in range(len(batches[sublayer][batch][0])):
                         single_event = [batches[sublayer][batch][0][k], batches[sublayer][batch][1][k]]
-                        tsurface = Time_Surface_event(xdim = self.basis_dimensions[layer][0],
+                        if layer == 0:
+                            # If the reference event is not from the selected channel ditch 
+                            # the process and move to the next one
+                            # This process is not needed in other layers as 
+                            # the synchronization has already happened
+                            if single_event[1][1] != channel:
+                                continue
+                        tsurface = Time_Surface_all(xdim = self.basis_dimensions[layer][0],
                                                       ydim = self.basis_dimensions[layer][1],
-                                                      event=single_event,
+                                                      timestamp=single_event[0],
                                                       timecoeff=self.taus[layer],
                                                       dataset=batches[sublayer][batch],
                                                       num_polarities=num_polarities,
                                                       verbose=False)
                         batch_surfaces.append(tsurface)
-
+                        batch_reference_events.append(single_event)
                         if method == "CG":
                             sub_layer_errors.append(self.sublayer_response_CG(layer, sublayer,
                                                                               tsurface,
@@ -572,13 +606,12 @@ class HOTS_Sparse_Net:
                         batch_activations.append(self.activations[layer][sublayer])
                     # Obtaining the events resulting from the activations in a single batch
                     outevents = events_from_activations(batch_activations,
-                                                        [batches[sublayer][batch][0],
-                                                         batches[sublayer][batch][1]],
+                                                        batch_reference_events,
                                                          self.delay_coeff)
                     sub_layer_outevents_on.append(outevents[0])
                     sub_layer_outevents_off.append(outevents[1])
                     sub_layer_activations.append(batch_activations)
-                    print("Layer:"+np.str(layer)+"  Sublayer:"+np.str(sublayer)+"  Batch processing:"+np.str((batch/len(batches[sublayer]))*100)+"%")
+                    print("Layer:"+np.str(layer)+"  Sublayer:"+np.str(sublayer)+"  Batch processing:"+np.str(((batch+1)/len(batches[sublayer]))*100)+"%")
                 layer_activations.append(sub_layer_activations)
                 outbatches.append(sub_layer_outevents_on)       
                 outbatches.append(sub_layer_outevents_off)
@@ -694,6 +727,8 @@ class HOTS_Sparse_Net:
     # https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7508476
     # =============================================================================
     # dataset: the input dataset the network will respond to
+    # channel: the idea behind multi channel rapresentation is to build surfaces
+    #          synchronizing only with lower frequency activities. 
     # labels: the labels used for the classification task (positive integers from 0 to N)
     # number_of_labels: the maximum number of labels of the dataset
     # method : string with the method you want to use :
@@ -715,10 +750,10 @@ class HOTS_Sparse_Net:
     #               to their encoded feature (Feature present only on Exp distance)   
     #  
     # =============================================================================      
-    def histogram_classification_train(self, dataset, labels, number_of_labels,
+    def histogram_classification_train(self, dataset, channel, labels, number_of_labels,
                                        method, noise_ratio, sparsity_coeff,
                                          sensitivity):
-        net_activity = self.full_net_dataset_response(dataset, method, 
+        net_activity = self.full_net_dataset_response(dataset, channel, method, 
                                                       noise_ratio, 
                                                       sparsity_coeff,
                                                       sensitivity)
@@ -737,7 +772,7 @@ class HOTS_Sparse_Net:
                 current_label = labels[batch]
                 batch_histogram = sum(last_layer_activity[sublayer][batch])
                 if len(last_layer_activity[sublayer][batch]) != 0 :
-                    normalized_bach_histogram = batch_histogram/len(last_layer_activity[sublayer][batch])
+                    normalized_bach_histogram = batch_histogram/len(last_layer_activity[sublayer][batch]) 
                 else:   
                     normalized_bach_histogram = batch_histogram
                 histograms[current_label][n_basis*sublayer:n_basis*(sublayer+1)] += batch_histogram
@@ -755,6 +790,8 @@ class HOTS_Sparse_Net:
     # https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7508476
     # =============================================================================
     # dataset: the input dataset the network will respond to
+    # channel: the idea behind multi channel rapresentation is to build surfaces
+    #          synchronizing only with lower frequency activities. 
     # labels: the labels used for the classification task (positive integers from 0 to N)
     # number_of_labels: the maximum number of labels of the dataset
     # method : string with the method you want to use :
@@ -778,10 +815,10 @@ class HOTS_Sparse_Net:
     # It returns the computed distances per batch (Euclidean, normalized Euclidean
     # and Bhattacharyyan) and the predicted_labels per batch and per metric(distance)
     # =============================================================================      
-    def histogram_classification_test(self, dataset, labels, number_of_labels, 
+    def histogram_classification_test(self, dataset, channel, labels, number_of_labels, 
                                       method, noise_ratio, sparsity_coeff,
                                          sensitivity):
-        net_activity = self.full_net_dataset_response(dataset, method, 
+        net_activity = self.full_net_dataset_response(dataset, channel, method, 
                                                       noise_ratio, 
                                                       sparsity_coeff,
                                                       sensitivity)

@@ -5,6 +5,14 @@ Created on Fri Oct 12 13:51:42 2018
 
 @author: marcorax
 
+This file is a modified version of HOTS_Sparse_Libs 
+with some differencies to work with channeled data, as building time surfaces,
+with reference timestamps only from a referenced channel, 
+and looking at past events rather than upcoming ones 
+ 
+The original repo can be found on :
+https://github.com/neuromorphic-paris/Sparse-HOTS
+
 This file contains the HOTS_Sparse_Net class complementary functions that are used
 inside the network with have no pratical use outside the context of the class
 therefore is advised to import only the class itself and to use its method to perform
@@ -147,23 +155,23 @@ def update_basis_offline_CG(Phi_j, Phi_j_dim_x, Phi_j_dim_y, Phi_j_num, a_j, S_l
 # the previously mentioned polarities 
 # =============================================================================    
 def events_from_activations(activations, events, delay_coeff):
-    timestamps = events[0]
     out_timestamps_on = []
     out_positions_on = []
     out_polarities_on = []
     out_timestamps_off = []
     out_positions_off = []
     out_polarities_off = []
-    for i,t in enumerate(timestamps):
+    for i in range(len(events)):
+        t = events[i][0]
         for j,a_j in enumerate(activations[i]):
             tout = t + delay_coeff*(1-abs(a_j))
             if (a_j > 0):
                 out_timestamps_on.append(tout)
-                out_positions_on.append(events[1][i])
+                out_positions_on.append(events[i][1])
                 out_polarities_on.append(j)
             if (a_j < 0):
                 out_timestamps_off.append(tout)
-                out_positions_off.append(events[1][i])
+                out_positions_off.append(events[i][1])
                 out_polarities_off.append(j)
 
     # The output data need to be sorted like the original dataset in respect to

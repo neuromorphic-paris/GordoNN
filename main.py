@@ -20,15 +20,15 @@ from scipy import optimize
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-#from Libs.readwriteatis_kaerdat import readATIS_td
-#from Libs.Time_Surface_generators import Time_Surface_all, Time_Surface_event
-#from Libs.HOTS_Sparse_Network import HOTS_Sparse_Net, events_from_activations
+from Libs.readwriteatis_kaerdat import readATIS_td
+from Libs.Time_Surface_generators import Time_Surface_all, Time_Surface_event
+from Libs.HOTS_Sparse_Network import HOTS_Sparse_Net, events_from_activations
 from scipy.spatial import distance 
 
 
 ## Parameters
-number_files_dataset = 10 #Number of files to use from the dataset for each class.
-number_files_to_train_features = 5 #Number of files to train context.
+number_files_dataset = 30 #Number of files to use from the dataset for each class.300
+number_files_to_train_features = 5 #Number of files to train context.75
 n_channels = 32 #Number of channels of the sensor used. 
 
 nb_clusters = 20
@@ -78,14 +78,12 @@ spikes_train = spikes_train[number_files_to_train_features:len(spikes_train)]
 
 
 #data_array = [[] for i in range(len(spikes_train))]  #Data array for Marco
-data_array = []
+data_array_train = []
+data_array_test = []
 
-data_prep_ts = []
-data_prep_addrs = []
-data_prep_centers = []
 count = 0
 
-for ind in range(n_channels*2/32): #For each address (that's why n_channels*2. Remember that each channel has two addresses: ON and OFF)
+for ind in range(n_channels*2): #For each address (that's why n_channels*2. Remember that each channel has two addresses: ON and OFF)
 
     ## Training feature extractor
     print ('\n--- TRAINING FEATURE EXTRACTOR ---')
@@ -167,55 +165,89 @@ for ind in range(n_channels*2/32): #For each address (that's why n_channels*2. R
     
     
     ## Preparing data for Marco    
-    addr_array = []
-
+    addr_array_train = []
+    pol_array_train = []
     for f in range(len(spikes_train_channelled)):
-        addr_array.append([ind for i in range(len(spikes_train_channelled[f]))])
+        addr_array_train.append([ind for i in range(len(spikes_train_channelled[f]))])
+        pol_array_train.append([0 for i in range(len(spikes_train_channelled[f]))])
 
+    ## Preparing data for Marco    
+    addr_array_test = []
+    pol_array_test = []
+    for f in range(len(spikes_test_channelled)):
+        addr_array_test.append([ind for i in range(len(spikes_test_channelled[f]))])
+        pol_array_test.append([0 for i in range(len(spikes_test_channelled[f]))])
 
     if count == 0:
-        data_prep_ts = spikes_train_channelled
-        data_prep_centers = spikes_train_channelled_closest_centers
-        data_prep_addrs = addr_array
+        data_prep_ts_train = spikes_train_channelled
+        data_prep_ts_test = spikes_test_channelled
+        data_prep_centers_train = spikes_train_channelled_closest_centers
+        data_prep_centers_test = spikes_test_channelled_closest_centers
+        data_prep_addrs_train = addr_array_train
+        data_prep_pol_train = pol_array_train
+        data_prep_addrs_test = addr_array_test
+        data_prep_pol_test = pol_array_test
         count +=1
     else:
         for file in range(len(spikes_train_channelled)):
-            data_prep_ts[file] = np.concatenate((data_prep_ts[file], spikes_train_channelled[file]), axis=0)
-            data_prep_centers[file] = np.concatenate((data_prep_centers[file], spikes_train_channelled_closest_centers[file]), axis=0)
-            data_prep_addrs[file] = np.concatenate((data_prep_addrs[file], addr_array[file]), axis=0)
-
+            data_prep_ts_train[file] = np.concatenate((data_prep_ts_train[file], spikes_train_channelled[file]), axis=0)
+            data_prep_centers_train[file] = np.concatenate((data_prep_centers_train[file], spikes_train_channelled_closest_centers[file]), axis=0)
+            data_prep_addrs_train[file] = np.concatenate((data_prep_addrs_train[file], addr_array_train[file]), axis=0)
+            data_prep_pol_train[file] = np.concatenate((data_prep_pol_train[file], pol_array_train[file]), axis=0)
+        for file in range(len(spikes_test_channelled)):
+            data_prep_ts_test[file] = np.concatenate((data_prep_ts_test[file], spikes_test_channelled[file]), axis=0)
+            data_prep_centers_test[file] = np.concatenate((data_prep_centers_test[file], spikes_test_channelled_closest_centers[file]), axis=0)
+            data_prep_addrs_test[file] = np.concatenate((data_prep_addrs_test[file], addr_array_test[file]), axis=0)
+            data_prep_pol_test[file] = np.concatenate((data_prep_pol_test[file], pol_array_test[file]), axis=0)
 
 ##Sorting spikes based on the timestamp value for each of the files
 for f in range(len(spikes_train)):
-    sorted_indices = np.argsort(data_prep_ts[f])
-    data_prep_ts[f] = data_prep_ts[f][sorted_indices]
-    data_prep_centers[f] = data_prep_centers[f][sorted_indices]
-    data_prep_addrs[f] = data_prep_addrs[f][sorted_indices]
-    data_array.append([data_prep_ts[f], map(list,zip(data_prep_addrs[f], data_prep_centers[f]))])
-    
+    sorted_indices = np.argsort(data_prep_ts_train[f])
+    data_prep_ts_train[f] = data_prep_ts_train[f][sorted_indices]
+    data_prep_centers_train[f] = data_prep_centers_train[f][sorted_indices]
+    data_prep_addrs_train[f] = data_prep_addrs_train[f][sorted_indices]
+    data_prep_pos = np.array([data_prep_centers_train[f],data_prep_addrs_train[f]]).transpose()
+    data_prep_pol_train[f]=np.array(data_prep_pol_train[f])
+    data_array_train.append([data_prep_ts_train[f], data_prep_pos, data_prep_pol_train[f]])
+
+##Sorting spikes based on the timestamp value for each of the files
+for f in range(len(spikes_test)):
+    sorted_indices = np.argsort(data_prep_ts_test[f])
+    data_prep_ts_test[f] = data_prep_ts_test[f][sorted_indices]
+    data_prep_centers_test[f] = data_prep_centers_test[f][sorted_indices]
+    data_prep_addrs_test[f] = data_prep_addrs_test[f][sorted_indices]
+    data_prep_pos = np.array([data_prep_centers_test[f],data_prep_addrs_test[f]]).transpose()
+    data_prep_pol_test[f]=np.array(data_prep_pol_test[f])
+    data_array_test.append([data_prep_ts_test[f], data_prep_pos, data_prep_pol_test[f]])    
     
     
 #%% Generate 2D net
 
+# TODO unify naming and conventions to avoid renaming like this
+# dataset renaming
+dataset_learning = data_array_train
+dataset_testing = data_array_test
 
 # Plotting settings
 plt.style.use("dark_background")
 
-# Network settings
+# 2D Network settings
 # =============================================================================
-# nbasis is a list containing the number of basis used for each layer
-# ldim: is a list containing the linear dimension of every base for each layer
+# basis_number is a list containing the number of basis used for each layer
+# basis_dimension: is a list containing the dimension of every base for each layer
 # taus: is a list containing the time coefficient used for the time surface creations
 #       for each layer, all three lists need to share the same lenght obv.
+# first_layer_polarities : the number of distinct polarities in the input layer 
 # shuffle_seed, net_seed : seed used for dataset shuffling and net generation,
 #                       if set to 0 the process will be totally random
-# 
+# delay_coeff : the coefficient used to linearly adress delay to outputs of each layer
+#               out_timestamp = in_timestamp + delay_coeff*(1-abs(a_j))
 # =============================================================================
 
-basis_number = [3]
-basis_dimension = [[5,5]] 
+basis_number = [10]
+basis_dimension = [[nb_clusters,n_channels*2]] 
 taus = [5000]
-# I won't use polarity information because is not informative for the given task
+# The output of the first layer Hots is monopolar
 first_layer_polarities = 1
 shuffle_seed = 7
 net_seed = 25
@@ -223,9 +255,67 @@ net_seed = 25
 delay_coeff = 15000    
     
 # Print an element to check if it's all right
-tsurface=Time_Surface_all(xdim=35, ydim=35, timestamp=0, timecoeff=taus[0], dataset=dataset_learning[2], num_polarities=1, minv=0.1, verbose=True)
+tsurface=Time_Surface_all(xdim=nb_clusters, ydim=n_channels*2, timestamp=dataset_learning[2][0][1000], timecoeff=taus[0], dataset=dataset_learning[2], num_polarities=1, minv=0.1, verbose=True)
+plt.show()
 
 # Generate the network
 Net = HOTS_Sparse_Net(basis_number, basis_dimension, taus, first_layer_polarities, delay_coeff, net_seed)
-plt.show()
     
+#%% Learning-online-Exp distance and Thresh
+print ('\n--- 2D HOTS feature extraction ---')
+start_time = time.time()
+
+sparsity_coeff = [0.2, 0.5, 2000000]
+learning_rate = [0.8, 0.02, 2000000]
+noise_ratio = [1, 0, 10000]
+sensitivity = [0.2, 0.7, 2000000]
+channel = 41
+
+Net.learn_online(dataset=dataset_learning,
+                 channel = channel,
+                 method="Exp distance", base_norm="Thresh",
+                 noise_ratio=noise_ratio, sparsity_coeff=sparsity_coeff,
+                 sensitivity=sensitivity,
+                 learning_rate=learning_rate, verbose=False)
+
+elapsed_time = time.time()-start_time
+print("Learning elapsed time : "+str(elapsed_time))
+
+# Taking the steady state values to perform the other tests
+sparsity_coeff = sparsity_coeff[1]
+noise_ratio = noise_ratio[1]
+sensitivity = sensitivity[1]
+
+#%% Plot Basis 
+
+layer = 0
+sublayer = 0
+Net.plot_basis(layer, sublayer)
+plt.show()    
+
+#%% Classification train
+Net.histogram_classification_train(dataset_learning, channel,
+                                   class_train, 
+                                   2, "Exp distance", noise_ratio,
+                                   sparsity_coeff, sensitivity)
+
+
+
+#%% Classification test 
+
+test_results = Net.histogram_classification_test(dataset_testing, channel,
+                                                 class_test,
+                                                 2, "Exp distance", noise_ratio,
+                                                 sparsity_coeff, sensitivity) 
+hist = np.transpose(Net.histograms)
+norm_hist = np.transpose(Net.normalized_histograms)
+test_hist = np.transpose(test_results[2])
+test_norm_hist = np.transpose(test_results[3])
+
+eucl = 0
+norm_eucl = 0
+bhatta = 0
+for i,right_label in enumerate(class_test):
+    eucl += (test_results[1][i][0] == right_label)/len(class_test)
+    norm_eucl += (test_results[1][i][1] == right_label)/len(class_test)
+    bhatta += (test_results[1][i][2] == right_label)/len(class_test)
