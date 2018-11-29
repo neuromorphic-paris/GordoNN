@@ -98,7 +98,7 @@ def update_basis_online_hard_treshold(Phi_j, a_j, eta, S, max_steps, precision):
 def error_func_phi_full_batch(a_j, Phi_j, Phi_j_dim_x, Phi_j_dim_y, Phi_j_num, S_list, lam_phi):
     #scipy optimize minimze will input a monodimensional array
     #for the Phi_j, thus i need to reconstruct the matrixes 
-    Phi_j = np.reshape(Phi_j, (Phi_j_num, Phi_j_dim_y, Phi_j_dim_x))    
+    Phi_j = np.reshape(Phi_j, (Phi_j_num, Phi_j_dim_x, Phi_j_dim_y))    
     err = 0
     for k in range(len(S_list)):
         S_tilde = sum([a*b for a,b in zip(Phi_j,a_j[k])])
@@ -111,7 +111,7 @@ def error_func_phi_full_batch(a_j, Phi_j, Phi_j_dim_x, Phi_j_dim_y, Phi_j_num, S
 def error_func_phi_grad_full_batch(a_j, Phi_j, Phi_j_dim_x, Phi_j_dim_y, Phi_j_num, S_list, lam_phi):
     #scipy optimize minimze will input a monodimensional array
     #for the Phi_j, thus i need to reconstruct the matrixes  
-    Phi_j = np.reshape(Phi_j, (Phi_j_num, Phi_j_dim_y, Phi_j_dim_x))    
+    Phi_j = np.reshape(Phi_j, (Phi_j_num, Phi_j_dim_x, Phi_j_dim_y))    
     #initialize the gradient result
     grad = []
     for i in range(len(Phi_j)):
@@ -207,13 +207,13 @@ def create_figures(surfaces, num_of_plots, fig_names="Base N : "):
     if fig_names=="Base N : ":
         for i in range(num_of_plots):
             fig = plt.figure(fig_names+str(i))
-            ax = sns.heatmap(surfaces[i], annot=True, cbar=False, vmin=0, vmax=1)
+            ax = sns.heatmap(surfaces[i], annot=False, cbar=False, vmin=0, vmax=1)
             figures.append(fig)
             axes.append(ax)
     # I am plotting a single general tsurface 
     else:
         fig = plt.figure(fig_names)
-        ax = sns.heatmap(surfaces, annot=True, cbar=False, vmin=0, vmax=1)
+        ax = sns.heatmap(surfaces, annot=False, cbar=False, vmin=0, vmax=1)
         figures.append(fig)
         axes.append(ax)
     return figures, axes
@@ -221,11 +221,11 @@ def create_figures(surfaces, num_of_plots, fig_names="Base N : "):
 def update_figures(figures, axes, surfaces):
     if len(figures) is 1:
         axes[0].clear()
-        sns.heatmap(data=surfaces, ax=axes[0], annot=True, cbar=False, vmin=0, vmax=1)
+        sns.heatmap(data=surfaces, ax=axes[0], annot=False, cbar=False, vmin=0, vmax=1)
     else:
         for i in range(len(figures)):
             axes[i].clear()
-            sns.heatmap(data=surfaces[i], ax=axes[i], annot=True, cbar=False, vmin=0, vmax=1)
+            sns.heatmap(data=surfaces[i], ax=axes[i], annot=False, cbar=False, vmin=0, vmax=1)
 
 # Function to compute and exponential decay
 # =============================================================================

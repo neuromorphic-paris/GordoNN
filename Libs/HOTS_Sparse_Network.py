@@ -183,19 +183,19 @@ class HOTS_Sparse_Net:
                 
                 # Plot evolution parameters and basis if required 
                 if verbose is True:
-                    figures, axes = create_figures(surfaces=self.basis[layer][sublayer], num_of_plots=self.basis_number[layer])
+#                    figures, axes = create_figures(surfaces=self.basis[layer][sublayer], num_of_plots=self.basis_number[layer])
                     tsurface_fig, tsurface_ax = create_figures(surfaces=self.basis[layer][sublayer][0], num_of_plots=1, fig_names="Input surface")
-                    net_evolution_fig = plt.figure('Network parameters evolution, Layer: '+str(layer)+' Sublayer: '+str(sublayer))
-                    net_evolution_ax = []
-                    net_evolution_ax.append(net_evolution_fig.add_subplot(311))
-                    net_evolution_ax.append(net_evolution_fig.add_subplot(312))
-                    net_evolution_ax.append(net_evolution_fig.add_subplot(313))
-                    net_evolution_ax[0].plot(noise_evolution)
-                    net_evolution_ax[0].set_title('Activity Noise ratio')
-                    net_evolution_ax[1].plot(learning_evolution)
-                    net_evolution_ax[1].set_title('Learning step size')
-                    net_evolution_ax[2].plot(sparsity_evolution)
-                    net_evolution_ax[2].set_title('Sparsity coefficient')
+#                    net_evolution_fig = plt.figure('Network parameters evolution, Layer: '+str(layer)+' Sublayer: '+str(sublayer))
+#                    net_evolution_ax = []
+#                    net_evolution_ax.append(net_evolution_fig.add_subplot(311))
+#                    net_evolution_ax.append(net_evolution_fig.add_subplot(312))
+#                    net_evolution_ax.append(net_evolution_fig.add_subplot(313))
+#                    net_evolution_ax[0].plot(noise_evolution)
+#                    net_evolution_ax[0].set_title('Activity Noise ratio')
+#                    net_evolution_ax[1].plot(learning_evolution)
+#                    net_evolution_ax[1].set_title('Learning step size')
+#                    net_evolution_ax[2].plot(sparsity_evolution)
+#                    net_evolution_ax[2].set_title('Sparsity coefficient')
                     plt.show()
                     plt.draw()
 
@@ -249,7 +249,7 @@ class HOTS_Sparse_Net:
                         
                         # Plot updated basis at each cycle if required
                         if verbose is True:
-                            update_figures(figures=figures, axes=axes, surfaces=self.basis[layer][sublayer])
+#                            update_figures(figures=figures, axes=axes, surfaces=self.basis[layer][sublayer])
                             update_figures(figures=tsurface_fig, axes=tsurface_ax, surfaces=tsurface)
                             plt.draw()
                             plt.pause(0.0001)
@@ -408,7 +408,7 @@ class HOTS_Sparse_Net:
                                                       all_surfaces, base_norm_coeff)
                     
                     self.basis[layer][sublayer] = opt_res.x.reshape(self.basis_number[layer],
-                              self.basis_dimensions[layer][0], self.basis_dimensions[layer][1]*num_polarities)
+                              self.basis_dimensions[layer][1]*num_polarities, self.basis_dimensions[layer][0])
                     sub_layer_errors.append(opt_res.fun)
                     # Plot updated basis at each cycle if required
                     if verbose is True:
@@ -503,7 +503,7 @@ class HOTS_Sparse_Net:
         euclidean_distances = []
         for i, base in enumerate(self.basis[layer][sublayer]):
             euclidean_distances.append(np.sum(np.abs(base-timesurface)**2))
-        activations = np.exp(-sparsity_coeff*np.array(euclidean_distances))
+        activations = np.exp(-sensitivity*np.array(euclidean_distances))
         # Here I mix noise with the activations
         activations = activations*(1-noise_coeff) + (noise_coeff)*np.exp(-np.random.rand(len(activations)))
         # Here I implement the lateral inhibition
@@ -513,6 +513,8 @@ class HOTS_Sparse_Net:
         # I kill the basis too inhibited (with negative values) and update the activities
         activations[activations<=0] = 0
         self.activations[layer][sublayer] = activations
+        #print(str(np.max(activations))+" "+str(np.argmax(activations)))
+        #print(activations)
         # Here i compute the error as the euclidean distance between a reconstruced
         # Time surface and the original one
         S_tilde = sum([a*b for a,b in zip(self.basis[layer][sublayer], activations)])

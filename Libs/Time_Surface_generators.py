@@ -51,13 +51,12 @@ def Time_Surface_all(xdim, ydim, timestamp, timecoeff, dataset, num_polarities, 
     #values of the dataset will be the lowest too
     tsurface = np.zeros([ydim,xdim*num_polarities])
     for i in range(len(tsurface_array)):
-        if tsurface[tmpdata[1][i][1],tmpdata[1][i][0]+xdim*tmpdata[2][i]]==0:
-            tsurface[tmpdata[1][i][1],tmpdata[1][i][0]+xdim*tmpdata[2][i]]=tsurface_array[i]  
+        tsurface[tmpdata[1][i][1],tmpdata[1][i][0]+xdim*tmpdata[2][i]]=tsurface_array[i]
+
     #plot graphs if verbose is set "True"
     if (verbose==True):
         plt.figure()
         sns.heatmap(tsurface)
-
     return tsurface
 
 ## Time_Surface_event: function that computes the Time_surface around a single event
@@ -84,12 +83,14 @@ def Time_Surface_event(xdim, ydim, event, timecoeff, dataset, num_polarities, mi
     tmpdata[1][:,1] = tmpdata[1][:,1] - y0
     #taking only the timestamps before the reference 
     timestamp = event[0]
-    ind_subset = tmpdata[0]<=timestamp
+    ind = bisect_right(tmpdata[0],timestamp)
+    ind_subset = np.concatenate((np.ones(ind-1,bool), np.zeros(len(tmpdata[0])-(ind-1),bool)))
     tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]    
     #removing all the timestamps that will generate values below minv
-    min_timestamp = tmpdata[0] + timecoeff*np.log(minv) #timestamps<min_timestamp WILL BE DISCARDED 
-    ind_subset = tmpdata[0]>=min_timestamp
-    tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]   
+    min_timestamp = timestamp + timecoeff*np.log(minv) #timestamps<min_timestamp WILL BE DISCARDED 
+    ind = bisect_left(tmpdata[0],min_timestamp)
+    ind_subset = np.concatenate((np.zeros(ind,bool), np.ones(len(tmpdata[0])-(ind),bool)))
+    tmpdata = [tmpdata[0][ind_subset], tmpdata[1][ind_subset], tmpdata[2][ind_subset]]     
     #removing all events outside the region of interest defined as the xdim*ydim
     # centered on the event
     border = [np.floor(xdim/2),np.floor(ydim/2)]
@@ -105,8 +106,7 @@ def Time_Surface_event(xdim, ydim, event, timecoeff, dataset, num_polarities, mi
     tsurface = np.zeros([ydim,xdim*num_polarities])
     offs = [np.int(np.floor(xdim/2)),np.int(np.floor(ydim/2))]
     for i in range(len(tsurface_array)):
-        if tsurface[tmpdata[1][i][1]+offs[1],tmpdata[1][i][0]+offs[0]+xdim*tmpdata[2][i]]==0:
-            tsurface[tmpdata[1][i][1]+offs[1],tmpdata[1][i][0]+offs[0]+xdim*tmpdata[2][i]]=tsurface_array[i]  
+        tsurface[tmpdata[1][i][1]+offs[1],tmpdata[1][i][0]+offs[0]+xdim*tmpdata[2][i]]=tsurface_array[i]  
     #plot graphs if verbose is set "True"
     if (verbose==True):
         plt.figure()

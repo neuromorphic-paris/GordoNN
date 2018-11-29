@@ -38,7 +38,11 @@ ratio_empty_ctx = 0.3 # below this ratio the context will be discarded #CURRENTL
 #Let's be deterministic
 random.seed(0)
 
-
+# tau is an exponential decay, in microseconds
+taus = [45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
+        1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
+         20126, 25227, 31621, 39636, 49682]
+taucoeff = 0.5
 
 ## Getting filenames from the dataset
 print ('\n--- GETTING FILENAMES FROM THE DATASET ---')
@@ -82,33 +86,34 @@ data_array_train = []
 data_array_test = []
 
 count = 0
+all_train_context = []
 
-for ind in range(n_channels*2): #For each address (that's why n_channels*2. Remember that each channel has two addresses: ON and OFF)
-
+for ind in range(n_channels): #For each address (that's why n_channels*2. Remember that each channel has two addresses: ON and OFF)
+    
     ## Training feature extractor
     print ('\n--- TRAINING FEATURE EXTRACTOR ---')
     start_time = time.time()
     spikes_feature_train_channelled = [0] * len(spikes_feature_train)    
     for file in range(len(spikes_feature_train)): #Extract timestamps of a specific address for each file in spikes_feature_train
-        spikes_feature_train_channelled[file] = extract_channel_activity(spikes_feature_train[file], ind)
+        spikes_feature_train_channelled[file] = extract_channel_activity(spikes_feature_train[file], ind*2)
 
-    tau = 200; # tau is an exponential decay, in microseconds
     context_size = 20
 
-    all_train_context = time_context_generation(spikes_feature_train_channelled, tau, context_size)
+    all_train_context.append(time_context_generation(spikes_feature_train_channelled, taus[ind]*taucoeff, context_size))
     print("Training feature extractor took %s seconds." % (time.time() - start_time))
 
 
 
-    ## Clustering
-    print ('\n--- CLUSTERING ---')
-    start_time = time.time()
-    #[~, centers.data] = kmeans(all_train_context, nb_clusters, 'Distance', 'cosine');
-    kmeans = KMeans(n_clusters=nb_clusters).fit(all_train_context)
-    centroids = kmeans.cluster_centers_
-    print("Clustering took %s seconds." % (time.time() - start_time))
+## Clustering
+print ('\n--- CLUSTERING ---')
+start_time = time.time()
+#[~, centers.data] = kmeans(all_train_context, nb_clusters, 'Distance', 'cosine');
+kmeans = KMeans(n_clusters=nb_clusters).fit([j for i in all_train_context for j in i])
+centroids = kmeans.cluster_centers_
+print("Clustering took %s seconds." % (time.time() - start_time))
 
 
+for ind in range(n_channels): #For each address (that's why n_channels*2. Remember that each channel has two addresses: ON and OFF)
 
     ## Assign closest center
     print ('\n--- ASSIGN CLOSEST CENTER ---')
@@ -116,14 +121,14 @@ for ind in range(n_channels*2): #For each address (that's why n_channels*2. Reme
 
     spikes_train_channelled = [0] * len(spikes_train)
     for file in range(len(spikes_train)): #Extract timestamps of a specific address for each file in spikes_train
-        spikes_train_channelled[file] = extract_channel_activity(spikes_train[file], ind) 
+        spikes_train_channelled[file] = extract_channel_activity(spikes_train[file], ind*2) 
     spikes_test_channelled = [0] * len(spikes_test)
     for file in range(len(spikes_test)): #Extract timestamps of a specific address for each file in spikes_test
-        spikes_test_channelled[file] = extract_channel_activity(spikes_test[file], ind)
+        spikes_test_channelled[file] = extract_channel_activity(spikes_test[file], ind*2)
 
     metric_dist_assignement = 'cosine' #euclidean
-    spikes_train_channelled_closest_centers = assign_closest_center(spikes_train_channelled, centroids, tau, context_size, metric_dist_assignement)
-    spikes_test_channelled_closest_centers = assign_closest_center(spikes_test_channelled, centroids, tau, context_size, metric_dist_assignement)
+    spikes_train_channelled_closest_centers = assign_closest_center(spikes_train_channelled, centroids, taus[ind]*taucoeff, context_size, metric_dist_assignement)
+    spikes_test_channelled_closest_centers = assign_closest_center(spikes_test_channelled, centroids, taus[ind]*taucoeff, context_size, metric_dist_assignement)
     print("Assign closest center took %s seconds." % (time.time() - start_time))
     
 
@@ -244,9 +249,9 @@ plt.style.use("dark_background")
 #               out_timestamp = in_timestamp + delay_coeff*(1-abs(a_j))
 # =============================================================================
 
-basis_number = [10]
-basis_dimension = [[nb_clusters,n_channels*2]] 
-taus = [5000]
+basis_number = [30]
+basis_dimension = [[nb_clusters,n_channels]] 
+taus = [2000]
 # The output of the first layer Hots is monopolar
 first_layer_polarities = 1
 shuffle_seed = 7
@@ -255,8 +260,18 @@ net_seed = 25
 delay_coeff = 15000    
     
 # Print an element to check if it's all right
-tsurface=Time_Surface_all(xdim=nb_clusters, ydim=n_channels*2, timestamp=dataset_learning[2][0][1000], timecoeff=taus[0], dataset=dataset_learning[2], num_polarities=1, minv=0.1, verbose=True)
+file = 3
+
+tsurface=Time_Surface_all(xdim=nb_clusters, ydim=n_channels, timestamp=dataset_learning[file][0][10], timecoeff=taus[0], dataset=dataset_learning[file], num_polarities=1, minv=0.1, verbose=False)
+ax = sns.heatmap(tsurface, annot=False, cbar=False, vmin=0, vmax=1)
 plt.show()
+
+for i in range(10030,10170):
+    print(i)
+    tsurface=Time_Surface_all(xdim=nb_clusters, ydim=n_channels, timestamp=dataset_learning[file][0][i], timecoeff=taus[0], dataset=dataset_learning[file], num_polarities=1, minv=0.1, verbose=False)
+    sns.heatmap(data=tsurface, ax=ax, annot=False, cbar=False, vmin=0, vmax=1)
+    plt.draw()
+    plt.pause(0.001)
 
 # Generate the network
 Net = HOTS_Sparse_Net(basis_number, basis_dimension, taus, first_layer_polarities, delay_coeff, net_seed)
@@ -265,11 +280,11 @@ Net = HOTS_Sparse_Net(basis_number, basis_dimension, taus, first_layer_polaritie
 print ('\n--- 2D HOTS feature extraction ---')
 start_time = time.time()
 
-sparsity_coeff = [0.2, 0.5, 2000000]
-learning_rate = [0.8, 0.02, 2000000]
-noise_ratio = [1, 0, 10000]
-sensitivity = [0.2, 0.7, 2000000]
-channel = 41
+sparsity_coeff = [0.5, 0.5, 2000000]
+learning_rate = [1, 1, 6000]
+noise_ratio = [1, 0, 50]
+sensitivity = [0.1, 0.5, 12000]
+channel = 9
 
 Net.learn_online(dataset=dataset_learning,
                  channel = channel,
@@ -286,6 +301,23 @@ sparsity_coeff = sparsity_coeff[1]
 noise_ratio = noise_ratio[1]
 sensitivity = sensitivity[1]
 
+#%% Learning offline full batch
+
+start_time = time.time()
+
+sparsity_coeff = 0.8
+learning_rate = 0.2        
+max_steps = 5
+base_norm_coeff = 0.0005
+precision = 0.01
+channel = 5
+
+Net.learn_offline(dataset_learning, channel, sparsity_coeff, learning_rate, max_steps, base_norm_coeff, precision, verbose=False)
+    
+elapsed_time = time.time()-start_time
+print("Learning elapsed time : "+str(elapsed_time))           
+sensitivity = 0   
+noise_ratio = 0 
 #%% Plot Basis 
 
 layer = 0
@@ -294,8 +326,14 @@ Net.plot_basis(layer, sublayer)
 plt.show()    
 
 #%% Classification train
-Net.histogram_classification_train(dataset_learning, channel,
-                                   class_train, 
+
+#net_activity = Net.full_net_dataset_response(dataset_testing, channel, "Exp distance", 
+#                                                      noise_ratio, 
+#                                                      sparsity_coeff,
+#                                                      sensitivity)
+
+Net.histogram_classification_train(dataset_learning[0:40], channel,
+                                   class_train[0:40], 
                                    2, "Exp distance", noise_ratio,
                                    sparsity_coeff, sensitivity)
 
