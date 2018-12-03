@@ -1,10 +1,30 @@
-import glob
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Dic 2 13:51:42 2018
+
+@author: pedro
+
+This file contains AERDATA_load function, used to read an AERDATA file and
+create an AERDATA_file as result.
+
+"""
+
 import struct
 import math
 import gc
-from AERDATAfile import *
+from AERDATA_file import AERDATA_file
 
-def loadAERDATA(path):
+"""A simple function that reads events from AERDATA file
+
+Args:
+    path(string): file name and its path
+
+
+Returns:
+    AERDATA_file: Object containing events extracted from the file
+"""
+def AERDATA_load(path):
 
     with open(path, 'rb') as f:
         ## Check header ##
@@ -40,7 +60,8 @@ def loadAERDATA(path):
             f.close()
             gc.collect()
         except Exception as inst:
+            print(inst)
             f.close()
             gc.collect()
             pass
-    return AERDATAfile(addresses, timestamps)
+    return AERDATA_file(addresses, timestamps)
