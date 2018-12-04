@@ -11,52 +11,61 @@ At this moment it contains only a function for the "on and off" dataset
 but in the case of additional tests with different datasets it will be updated.
  
 """
-
+import numpy as np
 import random
 import glob
 import math
 from pathlib import Path
 
 
-"""A simple function that reads file names from a binary dataset (two words:
-"On" and "Off") 
-
-Args:
-    number_of_files(int): number of files for each class of the dataset (ON and OFF),
-                          a number bigger than the number of files per each class 
-                          in the dataset will result in the extraction of all 
-                          available names
+# A simple function that reads file names from a binary dataset (two words:
+# "On" and "Off") 
+# =============================================================================
+#    Args:
+#        number_of_files(int): number of files for each class of the dataset (ON and OFF),
+#                              a number bigger than the number of files per each class 
+#                              in the dataset will result in the extraction of all 
+#                              available names
+#        
+#        train_test_ratio(float): ratio between the amount of files used to train
+#                                 and test the algorithm, 0.5 will mean that the 
+#                                 half of the files wiil be used for training.
+#        
+#        shuffle_seed : The seed used to shuffle the data, if 0 it will be totally 
+#                       random (no seed used)
+#    
+#    Returns:
+#        filenames_train(string list): The filenames plus path for the training files
+#        class_train(int list) : The class of each train filename (as a 0 or 1)
+#        filenames_test(string list): The filenames plus path for the test files
+#        class_test(int list) : The class of each test filename (as a 0 or 1)
+# =============================================================================
     
-    train_test_ratio(float): ratio between the amount of files used to train
-                             and test the algorithm, 0.5 will mean that the 
-                             train files will be half the test ones.
-
-Returns:
-    filenames_train(string list): The filenames plus path for the training files
-    class_train(int list) : The class of each train filename (as a 0 or 1)
-    filenames_test(string list): The filenames plus path for the test files
-    class_test(int list) : The class of each test filename (as a 0 or 1)
-    
-"""
-def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75):
+def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, shuffle_seed = 0):
+ 
     used_classes = ['off', 'on']
     #Find the Repository folder to then look for the data folder
-    parent_folder=str(Path().resolve().parent.parent)
+    parent_folder=str(Path().resolve())
     
-    folders = [parent_folder+'Data/On_Off/off_aedats', parent_folder+'Data/On_Off/on_aedats']
+    folders = [parent_folder+'/Data/On_Off/off_aedats', parent_folder+'/Data/On_Off/on_aedats']
     
     filenames_train = []
     filenames_test = []
     class_train = []
     class_test = []
 
+    # Setting the random state for data shuffling
+    rng = np.random.RandomState()
+    if(shuffle_seed!=0):
+        rng.seed(shuffle_seed)
+
     for i in range(len(used_classes)):
         aedats_in_folder = glob.glob(folders[i] + '/*.aedat')
-        print ('No. of files of class'), used_classes[i], ': ', len(aedats_in_folder)
+        print ('No. of files of class', used_classes[i], ': ', len(aedats_in_folder))
 
         if number_of_files > 0:
             print ('Func:get_filenames_dataset(): Getting', number_of_files, 'files from the', used_classes[i], 'folder')
-            aedats_in_folder = random.sample(aedats_in_folder, number_of_files)
+            aedats_in_folder = rng.choice(aedats_in_folder, number_of_files)
         elif number_of_files > len(aedats_in_folder):
             print ('Func:get_filenames_dataset(): Error: the number of files selected is bigger than the number of .aedat file in the folder. Getting the whole dataset')
 

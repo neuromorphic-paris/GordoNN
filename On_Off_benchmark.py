@@ -1,48 +1,134 @@
-import gc
-import glob
-import math
-import random
-import struct
-import time
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Oct 12 13:51:42 2018
 
+@author: marcorax, pedro
+
+This file serve a benchmark for different implementations of HOTS under the name
+of gordoNN to be tested with a simple binary classification test.
+Two class of recordings are used. The first class is composed by files containing
+a single word each ("ON"), the second class is equal but the spelled word is OFF
+
+HOTS (The type of neural network implemented in this project) is a machine learning
+method totally unsupervised.
+
+To test if the algorithm is learning features from the dataset, a simple classification
+task is accomplished with the use of histogram classification, taking the activity
+of the last layer.
+
+If by looking at the activities of the last layer we can sort out the class of the
+input data, it means that the network has managed to separate the classes.
+
+If the results are good enough, more tests more complicated than this might follow.
+   
+ 
+"""
+# General Porpouse Libraries
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.utils import shuffle
-
-from AERDATAfile import *
-from assign_closest_center import *
-from extract_channel_activity import *
-from get_filenames_dataset import *
-from loadAERDATA import *
-from time_context_generation import *
-from operator import itemgetter
-from scipy import optimize 
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
-from Libs.readwriteatis_kaerdat import readATIS_td
-from Libs.Time_Surface_generators import Time_Surface_all, Time_Surface_event
-from Libs.HOTS_Sparse_Network import HOTS_Sparse_Net, events_from_activations
-from scipy.spatial import distance 
+import time
+
+# Data loading Libraries
+from Libs.Data_loading.AERDATA_file import AERDATA_file
+from Libs.Data_loading.AERDATA_load import AERDATA_load
+from Libs.Data_loading.get_filenames_dataset import get_filenames_on_off_dataset
+
+# 0 dimensional HOTS
+from Libs.HOTS_0D.HOTS_0D_Network import HOTS_0D_Net
+from sklearn.cluster import KMeans
 
 
-## Parameters
-number_files_dataset = 30 #Number of files to use from the dataset for each class.300
-number_files_to_train_features = 5 #Number of files to train context.75
-n_channels = 32 #Number of channels of the sensor used. 
+# Dataset Parameters
+# =============================================================================
+# number_files_dataset : the number of files to be loaded for each class (On, Off)
+# train_test_ratio: ratio between the amount of files used to train
+#                                 and test the algorithm, 0.5 will mean that the 
+#                                 half of the files wiil be used for training.
+# shuffle_seed : The seed used to shuffle the data, if 0 it will be totally 
+#                random (no seed used)
+# use_all_addr : if False all off events will be dropped, and the total addresses
+#                number will correspond to the number of channel of the cochlea
+# =============================================================================
 
-nb_clusters = 20
-ratio_empty_ctx = 0.3 # below this ratio the context will be discarded #CURRENTLY NOT BEING USED
+number_files_dataset = 60
+train_test_ratio = 0.75
+shuffle_seed = 12
+use_all_addr = False
+
+## Data Loading
+
+print ('\n--- GETTING FILENAMES FROM THE DATASET ---')
+start_time = time.time()
+[filenames_train, labels_train, filenames_test, labels_test] = get_filenames_on_off_dataset(number_files_dataset, train_test_ratio, shuffle_seed)
+print("Getting filenames from the dataset took %s seconds." % (time.time() - start_time))
+
+## Reading spikes from each of the files
+print ('\n--- READING SPIKES ---')
+start_time = time.time()
+
+dataset_train = []
+dataset_test = []
+
+for train_file in range(len(filenames_train)):
+    addresses, timestamps = AERDATA_load(filenames_train[train_file], use_all_addr)
+    dataset_train.append([np.array(timestamps), np.array(addresses)])
+for test_file in range(len(filenames_test)):
+    addresses, timestamps = AERDATA_load(filenames_test[test_file], use_all_addr)
+    dataset_test.append([np.array(timestamps), np.array(addresses)])
+
+# Shuffle data
+# Setting the random state for data shuffling
+rng = np.random.RandomState()
+if(shuffle_seed!=0):
+    rng.seed(shuffle_seed+1)
+
+# Shuffle the dataset and the labels with the same order
+combined_data = list(zip(dataset_train, labels_train))
+rng.shuffle(combined_data)
+dataset_train[:], labels_train[:] = zip(*combined_data)
+
+combined_data = list(zip(dataset_test, labels_test))
+rng.shuffle(combined_data)
+dataset_test[:], labels_test[:] = zip(*combined_data)
+
+print("Reading spikes took %s seconds." % (time.time() - start_time))
 
 
-#Let's be deterministic
-random.seed(0)
+
+#%% 0D Network setting and feature exctraction (aka basis learning)
+
+# 0D Network settings
+# =============================================================================
+# feat_number: is the number of feature or centers used by the 0D network
+# feat_size: is the length of the time context generated per each spike
+# taus: is a list containing the time coefficient used for the time surface creations
+#       for each channel
+# =============================================================================
+
+feat_number = 20 
+feat_size = 8
 
 # tau is an exponential decay, in microseconds
-taus = [45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
+taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
         1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
-         20126, 25227, 31621, 39636, 49682]
-taucoeff = 0.5
+         20126, 25227, 31621, 39636, 49682])
+taucoeff = 0.5 # Moltiplication factor for all taus
+
+
+Net_0D = HOTS_0D_Net(feat_number, feat_size, taucoeff*taus)
+
+Net_0D.learn_offline(dataset_train)
+
+dataset_train = Net_0D.net_response
+
+#%% 
+Net_0D.compute_response(dataset_test)
+
+dataset_test = Net_0D.net_response
+
+
+#%%
 
 ## Getting filenames from the dataset
 print ('\n--- GETTING FILENAMES FROM THE DATASET ---')
