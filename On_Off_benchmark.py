@@ -131,13 +131,25 @@ dataset_train = Net_0D.net_response
 
 #%%  Histograms computation and test 
 
+# Test result
+# =============================================================================
+# total_net_result : the recognition rate of the entire network, computed using
+#                    three different distances 1:euclidean 
+#                    2:euclidean normalized on the number of spikes                   
+#                    3: bhattacharyya distance between normalized histograms
+# 
+# total_net_result : same as total_net_result but per each address
+# =============================================================================
+
 # The total number of labels for the given problem
 number_of_labels = 2
-
+# Computing the two signatures for the entire network and for each address
 Net_0D.histogram_classification_train(labels_train, number_of_labels, addresess_number)
-
+# Computing the rate per each channel and for the entire network
 total_net_result, channeled_results = Net_0D.histogram_classification_test(labels_test, number_of_labels, addresess_number,dataset_test)
 
+# Update the dataset test with polarity (bunch of zeros) and 0D features
+# to be computed by the second half of GordoNN
 dataset_test = Net_0D.net_response
 
 #%% Generate 2D net
@@ -168,7 +180,7 @@ net_seed = 25
 
 delay_coeff = 15000    
     
-# Print an element to check if it's all right
+# Print a series of elements to check if it's all right
 #file = 3
 #
 #tsurface=Time_Surface_all(xdim=basis_dimension[0][0], ydim=basis_dimension[0][1], timestamp=dataset_train[file][0][10], timecoeff=taus[0], dataset=dataset_train[file], num_polarities=1, minv=0.1, verbose=False)

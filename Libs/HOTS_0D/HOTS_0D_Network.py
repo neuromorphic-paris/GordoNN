@@ -96,6 +96,8 @@ class HOTS_0D_Net:
         print("\n Response computing took %s seconds." % (time.time() - start_time))
 
     def histogram_classification_train(self, labels, number_of_labels, number_of_adresses, dataset=0):
+        print('\n--- SIGNATURES COMPUTING ---')
+        start_time = time.time()
         if dataset != 0:
             self.compute_response(dataset)
         net_response=self.net_response
@@ -122,8 +124,11 @@ class HOTS_0D_Net:
         self.norm_histograms = norm_histograms
         self.ch_histograms = ch_histograms
         self.ch_norm_histograms = ch_norm_histograms                
-    
+        print("\n Signature computing took %s seconds." % (time.time() - start_time))
+        
     def histogram_classification_test(self, labels, number_of_labels, number_of_adresses, dataset=0):
+        print('\n--- TEST HISTOGRAMS COMPUTING ---')
+        start_time = time.time()
         if dataset != 0:
             self.compute_response(dataset)
         net_response=self.net_response
@@ -189,6 +194,6 @@ class HOTS_0D_Net:
             predicted_labels.append(single_batch_predicted_labels)
             ch_distances.append(ch_single_batch_distances)
             ch_predicted_labels.append(ch_single_batch_predicted_labels)
-        
+        print("\n Test histograms computing took %s seconds." % (time.time() - start_time))
         return prediction_rate, ch_prediction_rate#, ch_distances, ch_predicted_labels, ch_histograms, ch_norm_histograms, distances, predicted_labels, histograms, norm_histograms
             
