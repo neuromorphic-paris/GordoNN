@@ -29,7 +29,7 @@ from scipy import optimize
 from scipy.spatial import distance 
 import matplotlib.pyplot as plt
 import seaborn as sns
-from Libs.Time_Surface_generators import Time_Surface_event
+from Libs.HOTS_2D.Time_Surface_generators import Time_Surface_event
 
 # Error functions and update basis (for online algorithms)
 # =============================================================================

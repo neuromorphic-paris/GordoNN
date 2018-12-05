@@ -20,8 +20,8 @@ from scipy import optimize
 from scipy.spatial import distance 
 import matplotlib.pyplot as plt
 import seaborn as sns
-from Libs.Time_Surface_generators import Time_Surface_all
-from Libs.HOTS_Sparse_Libs import error_func, error_func_deriv_a_j,\
+from Libs.HOTS_2D.Time_Surface_generators import Time_Surface_all
+from Libs.HOTS_2D.HOTS_Sparse_Libs import error_func, error_func_deriv_a_j,\
 error_func_phi_full_batch, error_func_phi_grad_full_batch, update_basis_online,\
 update_basis_online_hard_treshold, update_basis_offline_CG, events_from_activations,\
 create_figures, update_figures, exp_decay
@@ -840,6 +840,7 @@ class HOTS_Sparse_Net:
                     normalized_bach_histogram = batch_histogram
                 histograms[batch][n_basis*sublayer:n_basis*(sublayer+1)] = batch_histogram
                 normalized_histograms[batch][n_basis*sublayer:n_basis*(sublayer+1)] = normalized_bach_histogram
+        
         # compute the distances per each histogram from the models
         distances = []
         predicted_labels = []
