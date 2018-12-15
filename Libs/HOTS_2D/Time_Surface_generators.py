@@ -61,7 +61,7 @@ def Time_Surface_all(xdim, ydim, timestamp, timecoeff, dataset, num_polarities, 
 
 ## Time_Surface_event: function that computes the Time_surface around a single event
 # =============================================================================
-# ldim : linear dim of the timesurface, only square surfaces are considered
+# ydim,xdim : dimensions of the timesurface
 # event : single event defined as [timestamp, [x, y]]. It is the reference even 
 #         for the time surface
 # timecoeff : the time coeff expressing the time decay

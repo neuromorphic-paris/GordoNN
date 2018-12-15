@@ -44,8 +44,8 @@ class HOTS_Sparse_Net:
     # of sublayers of this layer will be 2**i 
     # =============================================================================
     # basis_number: it is a list containing the number of basis used for each layer
-    # basis_dimension: it is a list containing the linear dimension of the base set
-    #                for each layer (they are expected to be squared)
+    # basis_dimensions: it is a list containing the linear dimension of the base set
+    #                for each layer 
     # taus: it is a list containing the time coefficient used for the time surface creations
     #       for each layer, all three lists need to share the same lenght obv.
     # first_layer_polarities : The number of polarities that the first layer will
@@ -763,26 +763,24 @@ class HOTS_Sparse_Net:
         histograms = []
         normalized_histograms = []
         n_basis = self.basis_number[-1]
+        # Normalization factor for building normalized histograms
+        input_spikes_per_label = np.zeros(number_of_labels)
+        batch_per_label  = np.zeros(number_of_labels)
         # this array it's used to count the number of batches with a certain label,
-        # the values will be then used to compute normalized histograms
+        # the values will be then used to compute mean histograms
         for label in range(number_of_labels):
             histograms.append(np.zeros(n_basis*(2**(self.layers-1))))
             normalized_histograms.append(np.zeros(n_basis*(2**(self.layers-1))))
-        for sublayer in range(len(last_layer_activity)):
-            num_of_batch_per_labels = np.zeros(number_of_labels)
-            for batch in range(len(dataset)):
-                current_label = labels[batch]
+        for batch in range(len(dataset)):
+            current_label = labels[batch]
+            input_spikes_per_label[current_label] += len(dataset[batch][0])
+            batch_per_label[current_label] += 1            
+            for sublayer in range(len(last_layer_activity)):
                 batch_histogram = sum(last_layer_activity[sublayer][batch])
-                if len(last_layer_activity[sublayer][batch]) != 0 :
-                    normalized_bach_histogram = batch_histogram/len(last_layer_activity[sublayer][batch]) 
-                else:   
-                    normalized_bach_histogram = batch_histogram
-                histograms[current_label][n_basis*sublayer:n_basis*(sublayer+1)] += batch_histogram
-                normalized_histograms[current_label][n_basis*sublayer:n_basis*(sublayer+1)] += normalized_bach_histogram
-                num_of_batch_per_labels[current_label] += 1
+                histograms[current_label][n_basis*sublayer:n_basis*(sublayer+1)] += batch_histogram               
         for label in range(number_of_labels):
-            normalized_histograms[label] = normalized_histograms[label]/num_of_batch_per_labels[label]
-            histograms[label] = histograms[label]/num_of_batch_per_labels[label]
+            normalized_histograms[label] = histograms[label]/input_spikes_per_label[label]
+            histograms[label] = histograms[label]/batch_per_label[label]
         self.histograms = histograms
         self.normalized_histograms = normalized_histograms
         print("Training ended, you can now look at the histograms with in the attribute .histograms and .normalized_histograms")
@@ -828,19 +826,18 @@ class HOTS_Sparse_Net:
         histograms = []
         normalized_histograms = []
         n_basis = self.basis_number[-1]
+        # Normalization factor for building normalized histograms
+        input_spikes_per_batch = np.zeros(len(dataset))
         for batch in range(len(dataset)):
             histograms.append(np.zeros(n_basis*(2**(self.layers-1))))
             normalized_histograms.append(np.zeros(n_basis*(2**(self.layers-1))))
-        for sublayer in range(len(last_layer_activity)):
-            for batch in range(len(dataset)):
+        for batch in range(len(dataset)):
+            input_spikes_per_batch[batch] += len(dataset[batch][0])
+            for sublayer in range(len(last_layer_activity)):
                 batch_histogram = sum(last_layer_activity[sublayer][batch])
-                if len(last_layer_activity[sublayer][batch]) != 0 :
-                    normalized_bach_histogram = batch_histogram/len(last_layer_activity[sublayer][batch])
-                else:
-                    normalized_bach_histogram = batch_histogram
-                histograms[batch][n_basis*sublayer:n_basis*(sublayer+1)] = batch_histogram
-                normalized_histograms[batch][n_basis*sublayer:n_basis*(sublayer+1)] = normalized_bach_histogram
-        
+                histograms[batch][n_basis*sublayer:n_basis*(sublayer+1)] += batch_histogram               
+        for batch in range(len(dataset)):
+            normalized_histograms[batch] = histograms[batch]/input_spikes_per_batch[batch]
         # compute the distances per each histogram from the models
         distances = []
         predicted_labels = []
