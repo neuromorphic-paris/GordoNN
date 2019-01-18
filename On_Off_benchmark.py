@@ -52,7 +52,7 @@ from Libs.HOTS_2D.Time_Surface_generators import Time_Surface_all
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 10
+number_files_dataset = 80
 train_test_ratio = 0.75
 shuffle_seed = 12
 use_all_addr = False
@@ -110,7 +110,7 @@ print("Reading spikes took %s seconds." % (time.time() - start_time))
 # taucoef : Moltiplication factor for all taus
 # =============================================================================
 
-feat_number = 10 
+feat_number = 20 
 feat_size = 8
 
 taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
@@ -131,7 +131,7 @@ dataset_train = Net_0D.net_response
 
 #%%  Histograms computation and test 
 
-# Test result
+# Test result]
 # =============================================================================
 # total_net_result : the recognition rate of the entire network, computed using
 #                    three different distances 1:euclidean 
@@ -170,9 +170,9 @@ plt.style.use("dark_background")
 #               out_timestamp = in_timestamp + delay_coeff*(1-abs(a_j))
 # =============================================================================
 
-basis_number = [30]
+basis_number = [10]
 basis_dimension = [[Net_0D.feat_number, addresess_number]] 
-taus = [2000]
+taus = [10000]
 # The output of the first layer Hots is monopolar
 first_layer_polarities = 1
 shuffle_seed = 7
@@ -202,10 +202,10 @@ Net = HOTS_Sparse_Net(basis_number, basis_dimension, taus, first_layer_polaritie
 print ('\n--- 2D HOTS feature extraction ---')
 start_time = time.time()
 
-sparsity_coeff = [0.5, 0.5, 2000000]
+sparsity_coeff = [1, 1, 2000000]
 learning_rate = [1, 1, 6000]
-noise_ratio = [1, 0, 50]
-sensitivity = [0.1, 0.5, 12000]
+noise_ratio = [1, 0, 500]
+sensitivity = [0.01, 0.01, 400000]
 channel = 9
 
 Net.learn_online(dataset=dataset_train,
@@ -257,7 +257,7 @@ sensitivity = sensitivity[1]
 Net.histogram_classification_train(dataset_train, channel,
                                    labels_train, 
                                    2, "Exp distance", noise_ratio,
-                                   sparsity_coeff, sensitivity)
+                                   0, sensitivity)
 
 
 
@@ -266,7 +266,7 @@ Net.histogram_classification_train(dataset_train, channel,
 test_results = Net.histogram_classification_test(dataset_test, channel,
                                                  labels_test,
                                                  2, "Exp distance", noise_ratio,
-                                                 sparsity_coeff, sensitivity) 
+                                                 0, sensitivity) 
 hist = np.transpose(Net.histograms)
 norm_hist = np.transpose(Net.normalized_histograms)
 test_hist = np.transpose(test_results[2])

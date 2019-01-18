@@ -15,6 +15,7 @@ import numpy as np
 import random
 import glob
 import math
+import time
 from pathlib import Path
 
 
@@ -42,7 +43,8 @@ from pathlib import Path
 # =============================================================================
     
 def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, shuffle_seed = 0):
- 
+    print ('\n--- GETTING FILENAMES FROM THE DATASET ---')
+    start_time = time.time()
     used_classes = ['off', 'on']
     #Find the Repository folder to then look for the data folder
     parent_folder=str(Path().resolve())
@@ -79,5 +81,6 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
         for ind_test in range(aedats_for_training, len(aedats_in_folder)):
             filenames_test.append(aedats_in_folder[ind_test])
             class_test.append(i)        
-
+    
+    print("Getting filenames from the dataset took %s seconds." % (time.time() - start_time))
     return filenames_train, class_train, filenames_test, class_test
