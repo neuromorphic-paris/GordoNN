@@ -25,7 +25,6 @@ If the results are good enough, more tests more complicated than this might foll
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import time
 import os
 import pickle
 
@@ -57,9 +56,14 @@ shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will
 # use_all_addr : if False all off events will be dropped, and the total addresses
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
+
 number_files_dataset = 80
 train_test_ratio = 0.75
 use_all_addr = False
+number_of_labels = 2
+
+legend = ("On","Off") # Legend containing the labes used for plots
+
 
 [dataset_train, dataset_test, labels_train, labels_test] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
 
@@ -96,3 +100,22 @@ Net = Solid_HOTS_Net(basis_number, context_lengths, input_channels, taus_T, taus
 
 # Learn the feature
 Net.learn(dataset_train)
+
+#%% Classification train
+
+number_of_labels = len(legend)
+Net.histogram_classification_train(labels_train,number_of_labels)
+
+# Plotting results
+Net.plot_histograms(legend)
+plt.show()  
+#%% Classification test 
+prediction_rate = Net.histogram_classification_test(labels_test,number_of_labels,dataset_test)
+
+# Plotting results
+print("Euclidean distance recognition rate :             "+str(prediction_rate[0]))
+print("Normalsed euclidean distance recognition rate :   "+str(prediction_rate[1]))
+print("Bhattachaya distance recognition rate :           "+str(prediction_rate[2]))
+
+Net.plot_histograms(legend, labels=labels_test)
+plt.show()  

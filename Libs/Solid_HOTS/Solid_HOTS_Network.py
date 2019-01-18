@@ -31,7 +31,22 @@ class Solid_HOTS_Net:
     # with random basis and activations to define a starting point for the 
     # optimization algorithms
     # =============================================================================
-    #
+    # basis_number(list of int lists): the number of feature or centers used by the Solid network
+    #                             the first index identifies the layer, the second one
+    #                             is 0 for the centers of the 0D sublayer, and 1 for 
+    #                             the 2D centers
+    # context(list of int): the length of the time context generatef per each layer
+    # input_channels(int): the total number of channels of the cochlea in the input files 
+    # taus_T(list of float lists):  a list containing the time coefficient used for 
+    #                              the context creations for each layer (first index)
+    #                              and each channel (second index) 
+    # taus_2D(list of float):  a list containing the time coefficients used for the 
+    #                          creation of timesurfaces per each layer
+    # exploring(boolean) : If True, the network will output messages to inform the 
+    #                      the users about the current states and will save the 
+    #                      basis at each update to build evolution plots (currently not 
+    #                      available cos the learning is offline)
+    # net_seed : seed used for net generation, if set to 0 the process will be totally random
     # =============================================================================            
     def __init__(self, basis_number, context_lengths, input_channels, taus_T, taus_2D, 
                  exploring=False, net_seed = 0):
@@ -71,8 +86,12 @@ class Solid_HOTS_Net:
                 self.polarities.append(basis_number[layer][1])
             self.basis_2D.append(rng.rand(basis_number[layer][1], self.polarities[layer]*basis_number[layer][0]))
             self.activations_2D.append(rng.rand(1,basis_number[layer][1]))         
-            
-    #TODO Check it and comment it
+    
+    # Network learning method, for now it based on kmeans and it is offline
+    # =============================================================================  
+    # dataset : the dataset used to learn the network features in a unsupervised 
+    #           manner      
+    # =============================================================================  
     def learn(self, dataset):
         layer_dataset = dataset
         del dataset
@@ -81,7 +100,7 @@ class Solid_HOTS_Net:
             for batch in range(len(layer_dataset)):
                 context_num += len(layer_dataset[batch][0])       
             all_contexts = np.zeros([context_num, self.context_lengths[layer]],dtype=float) # Preallocating is FUN!
-            all_surfaces = np.zeros([context_num, self.polarities[layer]*self.basis_number[layer][0]],dtype=float)*7. 
+            all_surfaces = np.zeros([context_num, self.polarities[layer]*self.basis_number[layer][0]],dtype=float)
             
             # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
             if self.exploring is True:
@@ -154,138 +173,124 @@ class Solid_HOTS_Net:
             layer_dataset = net_2D_response
             # clearing some variables
             del kmeans, net_2D_response, all_surfaces
+        
         self.last_layer_activity = layer_dataset
         
-        
+    # Method used to compute the full network response to a dataset
+    # =============================================================================  
+    # dataset : the input dataset for the network
+    #
+    # The last layer output is stored in .last_layer_activity
+    # =============================================================================         
     def compute_response(self, dataset):
         layer_dataset = dataset
+        del dataset
         for layer in range(self.layers):
-            context_num = 0
-            for batch in range(len(layer_dataset)):
-                context_num += len(layer_dataset[batch][0])       
-            all_contexts = np.zeros([context_num, self.context_lengths[layer]],dtype=float) # Preallocating is FUN!
-            all_surfaces = np.zeros([context_num, self.polarities[layer]*self.basis_number[layer][0]],dtype=float) 
-            
+            net_T_response = []
             # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
             if self.exploring is True:
-                print('\n--- LAYER '+str(layer)+' T RESPONSE COMPUTING ---')
+                print('\n--- LAYER '+str(layer)+' 0D COMPUTATION ---')
                 start_time = time.time()
             pos = 0
             for batch in range(len(layer_dataset)):
+                features=np.zeros(len(layer_dataset[batch][0]))
                 for ind in range(len(layer_dataset[batch][0])):
                     event_polarity = layer_dataset[batch][1][ind]
-                    all_contexts[pos, :] = Time_context(ind, layer_dataset[batch],
+                    context = Time_context(ind, layer_dataset[batch],
                                                               self.taus_T[layer][event_polarity],
                                                               self.context_lengths[layer])
+                    dist = np.sum((self.basis_T-context)**2,axis=1)
+                    features[ind] = np.argmin(dist)
                     pos +=1
-                if self.exploring is True:
-                    print("\r","Temporal sublayer response computing :", (batch+1)/len(layer_dataset)*100,"%", end="")
-            if self.exploring is True:    
-                print("Computing temporal sublayer response took %s seconds." % (time.time() - start_time))
-
-            # Obtain Net activations
-            pos = 0
-            net_T_response = []
-            for batch in range(len(layer_dataset)):
                 polarities = layer_dataset[batch][1]
-                features = kmeans.labels_[pos:pos+len(dataset[batch][0])]
                 net_T_response.append([layer_dataset[batch][0], polarities, features])
-                pos += len(layer_dataset[batch][0])
+                gc.collect()
+                if self.exploring is True:
+                    print("\r","Response computation :", (batch+1)/len(layer_dataset)*100,"%", end="")
+            if self.exploring is True:    
+                print("0D response computation took %s seconds." % (time.time() - start_time))
+            
+            # clearing some variables
+            del layer_dataset
             
             # GENERATING AND COMPUTING SURFACES RESPONSES
             if self.exploring is True:
-                print('\n--- LAYER '+str(layer)+' SURFACES GENERATION ---')
+                print('\n--- LAYER '+str(layer)+' 2D COMPUTATION ---')
             start_time = time.time()
             pos = 0
             ydim,xdim = [self.polarities[layer], self.basis_number[layer][0]]
+            net_2D_response = []
             for batch in range(len(net_T_response)):
                 for ind in range(len(net_T_response[batch][0])):
-                    all_surfaces[pos, :] = Time_Surface(xdim, ydim, ind,
+                    surface = Time_Surface(xdim, ydim, ind,
                                 self.taus_2D[layer], net_T_response[batch],
                                 minv=0.1)
+                    dist = np.sum((self.basis_2D-surface)**2,axis=1)
+                    features[ind] = np.argmin(dist)
                     pos +=1
+                net_2D_response.append([net_T_response[batch][0], features])
+                gc.collect()
                 if self.exploring is True:
-                    print("\r","Contexts generation :", (batch+1)/len(net_T_response)*100,"%", end="")
+                    print("\r","Response computation :", (batch+1)/len(net_T_response)*100,"%", end="")
             if self.exploring is True:
-                print("Generating contexts took %s seconds." % (time.time() - start_time))
-                print('\n--- LAYER '+str(layer)+' SURFACES CLUSTERING ---')
-            start_time = time.time()
-            # Training the features (the basis)
-            kmeans = KMeans(n_clusters=self.self.basis_number[layer][1]).fit(all_surfaces)
-            self.self.basis_2D[layer] = kmeans.cluster_centers_
-            if self.exploring is True:
-                print("\n Clustering took %s seconds." % (time.time() - start_time))
-            # Obtain Net activations
-            pos = 0
-            net_2D_response = []
-            for batch in range(len(layer_dataset)):
-                features = kmeans.labels_[pos:pos+len(dataset[batch][0])]
-                net_2D_response.append([layer_dataset[batch][0], features])
-                pos += len(layer_dataset[batch][0])
+                print("2D response computation took %s seconds." % (time.time() - start_time))
             
             layer_dataset = net_2D_response
+            # clearing some variables
+            del net_2D_response
+        
+        self.last_layer_activity = layer_dataset
 
-    def histogram_classification_train(self, labels, number_of_labels, number_of_adresses, dataset=0):
+    # Method used to train the network histograms or signatures per each channel
+    # =============================================================================  
+    # labels
+    # number_of_labels
+    # dataset : the input dataset for the network
+    #
+    # The last layer output is stored in .last_layer_activity
+    # =============================================================================       
+    def histogram_classification_train(self, labels, number_of_labels, dataset=0):
         if self.exploring is True:
             print('\n--- SIGNATURES COMPUTING ---')
             start_time = time.time()
         if dataset != 0:
             self.compute_response(dataset)
-        net_response=self.net_response
+        net_response=self.last_layer_activity
         # Normalization factors
-        spikes_per_channel_and_label = np.zeros([number_of_adresses, number_of_labels])
         spikes_per_label = np.zeros([number_of_labels])
-        ch_histograms = np.zeros([number_of_adresses, number_of_labels, self.feat_number])
-        ch_norm_histograms = np.zeros([number_of_adresses, number_of_labels, self.feat_number])
         histograms = np.zeros([number_of_labels, self.feat_number])
         norm_histograms = np.zeros([number_of_labels, self.feat_number])
         for batch in range(len(net_response)):
             current_label = labels[batch]
             for ind in range(len(net_response[batch][0])):
-                histograms[current_label, net_response[batch][1][ind,0]] += 1
+                histograms[current_label, net_response[batch][1][ind]] += 1
                 spikes_per_label[current_label] += 1
-                ch_histograms[net_response[batch][1][ind,1], current_label, net_response[batch][1][ind,0]] +=1 
-                spikes_per_channel_and_label[net_response[batch][1][ind,1], current_label] += 1
         # Compute the Normalised histograms
         for label in range(number_of_labels):
             norm_histograms[label,:] = histograms[label,:]/spikes_per_label[label]
-            for address in range(number_of_adresses):
-                ch_norm_histograms[address,label,:] = ch_histograms[address,label,:]/spikes_per_channel_and_label[address,label]
         self.histograms = histograms
         self.norm_histograms = norm_histograms
-        self.ch_histograms = ch_histograms
-        self.ch_norm_histograms = ch_norm_histograms 
         if self.exploring is True:
             print("\n Signature computing took %s seconds." % (time.time() - start_time))
         
-    def histogram_classification_test(self, labels, number_of_labels, number_of_adresses, dataset=0):
+    def histogram_classification_test(self, labels, number_of_labels, dataset=0):
         print('\n--- TEST HISTOGRAMS COMPUTING ---')
         start_time = time.time()
         if dataset != 0:
             self.compute_response(dataset)
         net_response=self.net_response
-        ch_histograms = np.zeros([number_of_adresses, len(net_response), self.feat_number])
-        ch_norm_histograms = np.zeros([number_of_adresses, len(net_response), self.feat_number])
         histograms = np.zeros([len(net_response), self.feat_number])
         norm_histograms = np.zeros([len(net_response), self.feat_number])
         for batch in range(len(net_response)):
             # Normalization factor
-            spikes_per_channel = np.zeros([number_of_adresses])
             for ind in range(len(net_response[batch][0])):
                 histograms[batch, net_response[batch][1][ind,0]] += 1
-                ch_histograms[net_response[batch][1][ind,1], batch, net_response[batch][1][ind,0]] +=1 
-                spikes_per_channel[net_response[batch][1][ind,1]] += 1
             norm_histograms[batch,:] = histograms[batch,:]/len(net_response[batch][0])                
-            for address in range(number_of_adresses):
-                ch_norm_histograms[address, batch, :] = ch_histograms[address, batch, :]/spikes_per_channel[address]
         
         # compute the distances per each histogram from the models
         distances = []
         predicted_labels = []
         prediction_rate = np.zeros(3)
-        ch_distances = []
-        ch_predicted_labels = []
-        ch_prediction_rate = np.zeros([number_of_adresses,3])
         for batch in range(len(dataset)):
             single_batch_distances = []
             for label in range(number_of_labels):
@@ -296,25 +301,6 @@ class Solid_HOTS_Net:
                 single_label_distances.append(-np.log(sum(Bhattacharyya_array)))
                 single_batch_distances.append(single_label_distances)
             
-            ch_single_batch_distances = []
-            ch_single_batch_predicted_labels = []
-            for address in range(number_of_adresses):
-                single_batch_distances_per_address = []
-                for label in range(number_of_labels):
-                    single_label_distances = []  
-                    single_label_distances.append(distance.euclidean(ch_histograms[address,batch], self.ch_histograms[address,label]))
-                    single_label_distances.append(distance.euclidean(ch_norm_histograms[address,batch], self.ch_norm_histograms[address,label]))
-                    Bhattacharyya_array = np.array([np.sqrt(a*b) for a,b in zip(ch_norm_histograms[address,batch], self.ch_norm_histograms[address,label])])
-                    single_label_distances.append(-np.log(sum(Bhattacharyya_array)))
-                    single_batch_distances_per_address.append(single_label_distances)
-                single_batch_distances_per_address = np.array(single_batch_distances_per_address)
-                ch_single_batch_distances.append(single_batch_distances_per_address)
-                single_batch_predicted_labels_per_address = np.argmin(single_batch_distances_per_address, 0)
-                ch_single_batch_predicted_labels.append(single_batch_predicted_labels_per_address)
-                for dist in range(3):
-                    if single_batch_predicted_labels_per_address[dist] == labels[batch]:
-                        ch_prediction_rate[address, dist] += 1/len(dataset)
-
                 
             single_batch_distances = np.array(single_batch_distances)
             single_batch_predicted_labels = np.argmin(single_batch_distances, 0)
@@ -324,7 +310,6 @@ class Solid_HOTS_Net:
                 
             distances.append(single_batch_distances)
             predicted_labels.append(single_batch_predicted_labels)
-            ch_distances.append(ch_single_batch_distances)
-            ch_predicted_labels.append(ch_single_batch_predicted_labels)
+
         print("\n Test histograms computing took %s seconds." % (time.time() - start_time))
-        return prediction_rate, ch_prediction_rate#, ch_distances, ch_predicted_labels, ch_histograms, ch_norm_histograms, distances, predicted_labels, histograms, norm_histograms
+        return prediction_rate
