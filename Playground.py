@@ -71,11 +71,22 @@ legend = ("On","Off") # Legend containing the labes used for plots
 
 # Network settings
 # =============================================================================
-# feat_number: is the number of feature or centers used by the 0D network
-# feat_size: is the length of the time context generated per each spikeoo
-# taus: is a list containing the time coefficient used for the time surface creations
-#       for each channel
-# taucoef : Moltiplication factor for all taus
+# basis_number(list of int lists): the number of feature or centers used by the Solid network
+#                             the first index identifies the layer, the second one
+#                             is 0 for the centers of the 0D sublayer, and 1 for 
+#                             the 2D centers
+# context(list of int): the length of the time context generatef per each layer
+# input_channels(int): the total number of channels of the cochlea in the input files 
+# taus_T(list of float lists):  a list containing the time coefficient used for 
+#                              the context creations for each layer (first index)
+#                              and each channel (second index) 
+# taus_2D(list of float):  a list containing the time coefficients used for the 
+#                          creation of timesurfaces per each layer
+# exploring(boolean) : If True, the network will output messages to inform the 
+#                      the users about the current states and will save the 
+#                      basis at each update to build evolution plots (currently not 
+#                      available cos the learning is offline)
+# net_seed : seed used for net generation, if set to 0 the process will be totally random
 # =============================================================================
 
 
