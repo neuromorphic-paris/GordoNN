@@ -47,7 +47,7 @@ runs = 150
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 10
+number_files_dataset = 40
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -68,6 +68,8 @@ net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D
 #%% Execute benchmark
 start_time = time.time()
 bench_results =  Parallel(n_jobs=threads)(delayed(bench)(dataset[run],net_parameters,len(labels)) for run in range(runs))   
+#bench_results = bench(dataset[0],net_parameters,len(labels))
+
 elapsed_time = time.time()-start_time
 print("Learning elapsed time : "+str(elapsed_time))
 #%% Compute mean and variance of the scores of each nework

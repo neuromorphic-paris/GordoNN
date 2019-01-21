@@ -409,7 +409,7 @@ class Solid_HOTS_Net:
         for i in range(self.basis_number[layer][sublayer]):
             if sublayer==1:
                 plt.figure("Context prototype N: "+str(i)+" layer: "+str(layer))
-                sns.heatmap(self.basis_2D[layer][i].reshape(self.basis_number[layer-1][1],self.basis_number[layer][0]))
+                sns.heatmap(self.basis_2D[layer][i].reshape(self.polarities[layer],self.basis_number[layer][0]))
             if sublayer==0:
                 plt.figure("Time surface prototype N: "+str(i)+" layer: "+str(layer))
                 sns.heatmap([self.basis_T[layer][i]])

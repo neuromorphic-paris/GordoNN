@@ -58,7 +58,7 @@ shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 10
+number_files_dataset = 20
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -93,8 +93,8 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-basis_number = [[20,20],[10,10]] 
-context_lengths = [20,20]
+basis_number = [[20,20]] 
+context_lengths = [20]
 input_channels = 32 + 32*use_all_addr
 
 channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
@@ -106,7 +106,7 @@ second_layer_taus = np.ones(basis_number[0][1]) # The taus for this layer are ho
 taus_T_coeff = np.array([0.5,60000]) # Multiplicative coefficients to help to change quickly the taus_T
 
 taus_T = (taus_T_coeff*[channel_taus,second_layer_taus]).tolist()
-taus_2D = [5000,5000]
+taus_2D = [50000,50000]
 
 # Create the network
 Net = Solid_HOTS_Net(basis_number, context_lengths, input_channels, taus_T, taus_2D,
@@ -137,10 +137,10 @@ plt.show()
 
 #%% Plot Basis 
 #TODO add more information, time or channel and feature axes 
-#layer = 1
-#sublayer = 0
-#Net.plot_basis(layer, sublayer)
-#plt.show()    
+layer = 0
+sublayer = 1
+Net.plot_basis(layer, sublayer)
+plt.show()    
 
 #%% Save network parameters
 
