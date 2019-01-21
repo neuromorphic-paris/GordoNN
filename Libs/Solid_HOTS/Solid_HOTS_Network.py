@@ -85,7 +85,7 @@ class Solid_HOTS_Net:
             if layer == 0:
                 self.polarities.append(input_channels)
             else:
-                self.polarities.append(basis_number[layer][1])
+                self.polarities.append(basis_number[layer-1][1])
             self.basis_2D.append(rng.rand(basis_number[layer][1], self.polarities[layer]*basis_number[layer][0]))
             self.activations_2D.append(rng.rand(1,basis_number[layer][1]))         
     

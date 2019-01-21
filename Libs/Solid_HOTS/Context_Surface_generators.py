@@ -10,7 +10,7 @@ Please note that these functions expect the dataset to be ordered from the
 lower timestamp to the highest!
 """
 import numpy as np
-from bisect import bisect_left, bisect_right
+from bisect import bisect_left
 
 # Time_context is a function used to generate time_contexts starting from a 
 # reference event and an array of events 

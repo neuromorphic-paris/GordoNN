@@ -25,14 +25,14 @@ from Libs.Benchmark_Libs import  bench, compute_m_v
 os.environ['MKL_NUM_THREADS'] = '1'
 
 # Simultaneus threads you want to utilise on your machine 
-threads = 50
+threads = 6
 
 # Plotting settings
 sns.set()
 
 
 # Number of runs 
-runs = 50
+runs = 6
 
 
 #%% ON OFF Dataset
@@ -47,7 +47,7 @@ runs = 50
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 80
+number_files_dataset = 10
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
