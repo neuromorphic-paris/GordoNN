@@ -12,14 +12,16 @@ used to exctract features from serialised tipe of data as speech
 
 import numpy as np 
 import time
-from scipy import optimize
 from scipy.spatial import distance 
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import seaborn as sns
 import gc
 from Libs.Solid_HOTS.Context_Surface_generators import Time_context, Time_Surface
 
+#TODO change this as soon we will have the new timesurfaces
+channel = 9
 
 # Class for Solid_HOTS_Net
 # =============================================================================
@@ -117,6 +119,7 @@ class Solid_HOTS_Net:
                 gc.collect()
                 if self.exploring is True:
                     print("\r","Contexts generation :", (batch+1)/len(layer_dataset)*100,"%", end="")
+                        
             if self.exploring is True:    
                 print("Generating contexts took %s seconds." % (time.time() - start_time))
                 print('\n--- LAYER '+str(layer)+' CONTEXTS CLUSTERING ---')
@@ -144,31 +147,51 @@ class Solid_HOTS_Net:
             start_time = time.time()
             pos = 0
             ydim,xdim = [self.polarities[layer], self.basis_number[layer][0]]
+            events_per_batch = [] # How many surfaces are generated per each batch
+            timestamps_2D = []
             for batch in range(len(net_T_response)):
+                number_of_e = 0
+                timestamps_2D_batch = []
                 for ind in range(len(net_T_response[batch][0])):
+                    #TODO change this as soon we will have the new timesurfaces
+                    # If the reference event is not from the selected channel ditch 
+                    # the process and move to the next one
+                    # This process is not needed in other layers as 
+                    # the synchronization has already happened
+                    if net_T_response[batch][1][ind] != channel & layer==0:
+                        continue
                     all_surfaces[pos, :] = Time_Surface(xdim, ydim, ind,
                                 self.taus_2D[layer], net_T_response[batch],
                                 minv=0.1)
+                    timestamps_2D_batch.append(net_T_response[batch][0][ind])
                     pos +=1
+                    number_of_e += 1
+                timestamps_2D.append(timestamps_2D_batch)
+                events_per_batch.append(number_of_e)
                 gc.collect()
                 if self.exploring is True:
                     print("\r","Contexts generation :", (batch+1)/len(net_T_response)*100,"%", end="")
+            
+            #TODO change this as soon we will have the new timesurfaces
+            if layer==0:
+                all_surfaces= all_surfaces[:pos,:]
+
             if self.exploring is True:
                 print("Generating contexts took %s seconds." % (time.time() - start_time))
                 print('\n--- LAYER '+str(layer)+' SURFACES CLUSTERING ---')
             start_time = time.time()
             # Training the features (the basis)
             kmeans = KMeans(n_clusters=self.basis_number[layer][1]).fit(all_surfaces)
-            self.self.basis_2D[layer] = kmeans.cluster_centers_
+            self.basis_2D[layer] = kmeans.cluster_centers_
             if self.exploring is True:
                 print("\n Clustering took %s seconds." % (time.time() - start_time))
             # Obtain Net activations
             pos = 0
             net_2D_response = []
             for batch in range(len(net_T_response)):
-                features = kmeans.labels_[pos:pos+len(net_T_response[batch][0])]
-                net_2D_response.append([net_T_response[batch][0], features])
-                pos += len(net_T_response[batch][0])
+                features = kmeans.labels_[pos:pos+events_per_batch[batch]]
+                net_2D_response.append([np.array(timestamps_2D[batch]), features])
+                pos += events_per_batch[batch]
             
             layer_dataset = net_2D_response
             # clearing some variables
@@ -193,13 +216,13 @@ class Solid_HOTS_Net:
                 start_time = time.time()
             pos = 0
             for batch in range(len(layer_dataset)):
-                features=np.zeros(len(layer_dataset[batch][0]))
+                features=np.zeros(len(layer_dataset[batch][0]),dtype=int)
                 for ind in range(len(layer_dataset[batch][0])):
                     event_polarity = layer_dataset[batch][1][ind]
                     context = Time_context(ind, layer_dataset[batch],
                                                               self.taus_T[layer][event_polarity],
                                                               self.context_lengths[layer])
-                    dist = np.sum((self.basis_T-context)**2,axis=1)
+                    dist = np.sum((self.basis_T[layer]-context)**2,axis=1)
                     features[ind] = np.argmin(dist)
                     pos +=1
                 polarities = layer_dataset[batch][1]
@@ -220,15 +243,30 @@ class Solid_HOTS_Net:
             pos = 0
             ydim,xdim = [self.polarities[layer], self.basis_number[layer][0]]
             net_2D_response = []
+            events_per_batch = [] # How many surfaces are generated per each batch
+            timestamps_2D = []
             for batch in range(len(net_T_response)):
+                number_of_e = 0
+                timestamps_2D_batch = []
+                features = []
                 for ind in range(len(net_T_response[batch][0])):
+                    #TODO change this as soon we will have the new timesurfaces
+                    # If the reference event is not from the selected channel ditch 
+                    # the process and move to the next one
+                    # This process is not needed in other layers as 
+                    # the synchronization has already happened
+                    if net_T_response[batch][1][ind] != channel & layer==0:
+                        continue
                     surface = Time_Surface(xdim, ydim, ind,
                                 self.taus_2D[layer], net_T_response[batch],
                                 minv=0.1)
-                    dist = np.sum((self.basis_2D-surface)**2,axis=1)
-                    features[ind] = np.argmin(dist)
+                    timestamps_2D_batch.append(net_T_response[batch][0][ind])
+                    dist = np.sum((self.basis_2D[layer]-surface)**2,axis=1)
+                    features.append(np.argmin(dist))
                     pos +=1
-                net_2D_response.append([net_T_response[batch][0], features])
+                timestamps_2D.append(timestamps_2D_batch)
+                events_per_batch.append(number_of_e)
+                net_2D_response.append([np.array(timestamps_2D[batch]), np.array(features)])
                 gc.collect()
                 if self.exploring is True:
                     print("\r","Response computation :", (batch+1)/len(net_T_response)*100,"%", end="")
@@ -243,9 +281,10 @@ class Solid_HOTS_Net:
 
     # Method used to train the network histograms or signatures per each channel
     # =============================================================================  
-    # labels
-    # number_of_labels
-    # dataset : the input dataset for the network
+    # labels(list of int) : a list containing the ordered labels for each batch
+    # number_of_labels(int) : the total number of labels of the dataset
+    # dataset : the input dataset for the network(if set to 0 the function will
+    #           use the last dataset response computed if available)
     #
     # The last layer output is stored in .last_layer_activity
     # =============================================================================       
@@ -258,8 +297,8 @@ class Solid_HOTS_Net:
         net_response=self.last_layer_activity
         # Normalization factors
         spikes_per_label = np.zeros([number_of_labels])
-        histograms = np.zeros([number_of_labels, self.feat_number])
-        norm_histograms = np.zeros([number_of_labels, self.feat_number])
+        histograms = np.zeros([number_of_labels, self.basis_number[-1][1]])
+        norm_histograms = np.zeros([number_of_labels, self.basis_number[-1][1]])
         for batch in range(len(net_response)):
             current_label = labels[batch]
             for ind in range(len(net_response[batch][0])):
@@ -269,29 +308,38 @@ class Solid_HOTS_Net:
         for label in range(number_of_labels):
             norm_histograms[label,:] = histograms[label,:]/spikes_per_label[label]
         self.histograms = histograms
-        self.norm_histograms = norm_histograms
+        self.normalized_histograms = norm_histograms
         if self.exploring is True:
             print("\n Signature computing took %s seconds." % (time.time() - start_time))
-        
+    
+    # Method used to train the network histograms or signatures per each channel
+    # =============================================================================  
+    # labels(list of int) : a list containing the ordered labels for each batch
+    # number_of_labels(int) : the total number of labels of the dataset
+    # dataset : the input dataset for the network(if set to 0 the function will
+    #           use the last dataset response computed if available)
+    #
+    # The last layer output is stored in .last_layer_activity
+    # =============================================================================     
     def histogram_classification_test(self, labels, number_of_labels, dataset=0):
         print('\n--- TEST HISTOGRAMS COMPUTING ---')
         start_time = time.time()
         if dataset != 0:
             self.compute_response(dataset)
-        net_response=self.net_response
-        histograms = np.zeros([len(net_response), self.feat_number])
-        norm_histograms = np.zeros([len(net_response), self.feat_number])
+        net_response=self.last_layer_activity
+        histograms = np.zeros([len(net_response), self.basis_number[-1][1]])
+        norm_histograms = np.zeros([len(net_response), self.basis_number[-1][1]])
         for batch in range(len(net_response)):
             # Normalization factor
             for ind in range(len(net_response[batch][0])):
-                histograms[batch, net_response[batch][1][ind,0]] += 1
+                histograms[batch, net_response[batch][1][ind]] += 1
             norm_histograms[batch,:] = histograms[batch,:]/len(net_response[batch][0])                
         
         # compute the distances per each histogram from the models
         distances = []
         predicted_labels = []
         prediction_rate = np.zeros(3)
-        for batch in range(len(dataset)):
+        for batch in range(len(net_response)):
             single_batch_distances = []
             for label in range(number_of_labels):
                 single_label_distances = []  
@@ -306,10 +354,62 @@ class Solid_HOTS_Net:
             single_batch_predicted_labels = np.argmin(single_batch_distances, 0)
             for dist in range(3):
                 if single_batch_predicted_labels[dist] == labels[batch]:
-                    prediction_rate[dist] += 1/len(dataset)
+                    prediction_rate[dist] += 1/len(net_response)
                 
             distances.append(single_batch_distances)
             predicted_labels.append(single_batch_predicted_labels)
-
+        self.test_histograms = histograms
+        self.test_normalized_histograms = norm_histograms    
         print("\n Test histograms computing took %s seconds." % (time.time() - start_time))
-        return prediction_rate
+        return prediction_rate, distances, predicted_labels
+    
+    # Method for plotting the histograms of the network, either result of train 
+    # or testing
+    # =============================================================================
+    # label_names : tuple containing the names of each label that will displayed
+    #               in the legend
+    # labels : list containing the labels of the test dataset used to generate
+    #          the histograms, if empty, the function will plot the class histograms
+    #          computed using .histogram_classification_train
+    # =============================================================================
+    def plot_histograms(self, label_names, labels=[]):
+        if labels == []:
+            hist = np.transpose(self.histograms)
+            norm_hist = np.transpose(self.normalized_histograms)
+            eucl_fig, eucl_ax = plt.subplots()
+            eucl_ax.set_title("Train histogram based on euclidean distance")
+            eucl_ax.plot(hist)
+            eucl_ax.legend(label_names)
+
+            norm_fig, norm_ax = plt.subplots()
+            norm_ax.set_title("Train histogram based on normalized euclidean distance")
+            norm_ax.plot(norm_hist)
+            norm_ax.legend(label_names)
+        else:
+            eucl_fig, eucl_ax = plt.subplots()
+            eucl_ax.set_title("Test histogram based on euclidean distance")
+            
+            norm_fig, norm_ax = plt.subplots()
+            norm_ax.set_title("Test histogram based on normalized euclidean distance")
+            custom_lines = [Line2D([0], [0], color="C"+str(label), lw=1) for label in range(len(label_names))]
+            for batch in range(len(labels)):
+                eucl_ax.plot(self.test_histograms[batch].transpose(),"C"+str(labels[batch]))
+                norm_ax.plot(self.test_normalized_histograms[batch].transpose(),"C"+str(labels[batch]))
+            
+            eucl_ax.legend(custom_lines,label_names)
+            norm_ax.legend(custom_lines,label_names)
+
+    
+    # Method for plotting the basis set of a single sublayer
+    # =============================================================================
+    # layer(int) : the index of the selected layer 
+    # sublayer(int) : the index of the selected sublayer (either 0 or 1)
+    # =============================================================================
+    def plot_basis(self, layer, sublayer):
+        for i in range(self.basis_number[layer][sublayer]):
+            if sublayer==1:
+                plt.figure("Context prototype N: "+str(i)+" layer: "+str(layer))
+                sns.heatmap(self.basis_2D[layer][i].reshape(self.basis_number[layer-1][1],self.basis_number[layer][0]))
+            if sublayer==0:
+                plt.figure("Time surface prototype N: "+str(i)+" layer: "+str(layer))
+                sns.heatmap([self.basis_T[layer][i]])

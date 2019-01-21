@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import pickle
+import datetime
 
 # Data loading Libraries
 from Libs.Data_loading.dataset_load import on_off_load
@@ -61,11 +62,13 @@ number_files_dataset = 80
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
+parameter_folder = "Parameters/On_Off/"
 
 legend = ("On","Off") # Legend containing the labes used for plots
 
 
 [dataset_train, dataset_test, labels_train, labels_test] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
+
 
 #%% Network setting and feature exctraction (aka basis learning)
 
@@ -90,20 +93,20 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-basis_number = [[10,10],[10,10]] 
-context_lengths = [8,10]
+basis_number = [[20,20],[10,10]] 
+context_lengths = [20,20]
 input_channels = 32 + 32*use_all_addr
 
 channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
                          1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
                          20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
                                                              # cochlea used for this datasets
-second_layer_taus = np.ones(basis_number[1][0]) # The taus for this layer are homogeneous across all channels
+second_layer_taus = np.ones(basis_number[0][1]) # The taus for this layer are homogeneous across all channels
 #third_layer_taus = np.ones(basis_number[2][0]) # The taus for this layer are homogeneous across all channels
-taus_T_coeff = np.array([0.5,500]) # Multiplicative coefficients to help to change quickly the taus_T
+taus_T_coeff = np.array([0.5,60000]) # Multiplicative coefficients to help to change quickly the taus_T
 
 taus_T = (taus_T_coeff*[channel_taus,second_layer_taus]).tolist()
-taus_2D = [500,500]
+taus_2D = [5000,5000]
 
 # Create the network
 Net = Solid_HOTS_Net(basis_number, context_lengths, input_channels, taus_T, taus_2D,
@@ -119,9 +122,10 @@ Net.histogram_classification_train(labels_train,number_of_labels)
 
 # Plotting results
 Net.plot_histograms(legend)
-plt.show()  
+plt.show() 
+ 
 #%% Classification test 
-prediction_rate = Net.histogram_classification_test(labels_test,number_of_labels,dataset_test)
+prediction_rate, distances, predicted_labels = Net.histogram_classification_test(labels_test,number_of_labels,dataset_test)
 
 # Plotting results
 print("Euclidean distance recognition rate :             "+str(prediction_rate[0]))
@@ -130,3 +134,17 @@ print("Bhattachaya distance recognition rate :           "+str(prediction_rate[2
 
 Net.plot_histograms(legend, labels=labels_test)
 plt.show()  
+
+#%% Plot Basis 
+#TODO add more information, time or channel and feature axes 
+#layer = 1
+#sublayer = 0
+#Net.plot_basis(layer, sublayer)
+#plt.show()    
+
+#%% Save network parameters
+
+now=datetime.datetime.now()
+file_name = "GordoNN_Params_"+str(now)+".pkl"
+with open(parameter_folder+file_name, 'wb') as f:
+    pickle.dump([basis_number, context_lengths, input_channels, taus_T, taus_2D], f)

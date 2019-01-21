@@ -24,7 +24,7 @@ from bisect import bisect_left, bisect_right
 #       context_size(int): the length of the context                
 # =============================================================================
 def Time_context(event_index, events, timecoeff, context_size):
-    context = np.zeros(8,dtype=float)
+    context = np.zeros(context_size,dtype=float)
     context_size_counter = 1
     context[0] = 1 # The first value of each time context will always be 1
     timestamp = events[0][event_index]
@@ -33,11 +33,11 @@ def Time_context(event_index, events, timecoeff, context_size):
 
     while (context_size_counter < context_size) and (ind>-1):
         if events[1][ind] == address:
-            context[context_size_counter]=(np.exp(-(timestamp-events[0][ind])/timecoeff))
+            context[context_size_counter]=np.exp(-(timestamp-events[0][ind])/timecoeff)
             context_size_counter += 1
         ind -= 1
      
-    return np.array(context)
+    return context
 
 ## Time_Surface: function that computes the Time_Surface starting from a 
 # reference event and an array of events 

@@ -71,3 +71,4 @@ def on_off_load(number_files_dataset, train_test_ratio, shuffle_seed=0, use_all_
     print("Reading spikes took %s seconds." % (time.time() - start_time))
     
     return dataset_train, dataset_test, labels_train, labels_test
+
