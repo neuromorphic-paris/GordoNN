@@ -25,14 +25,14 @@ from Libs.Benchmark_Libs import  bench, compute_m_v
 os.environ['MKL_NUM_THREADS'] = '1'
 
 # Simultaneus threads you want to utilise on your machine 
-threads = 150
+threads = 6
 
 # Plotting settings
 sns.set()
 
 
 # Number of runs 
-runs = 150
+runs = 6
 
 
 #%% ON OFF Dataset

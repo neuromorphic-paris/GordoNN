@@ -344,8 +344,8 @@ class Solid_HOTS_Net:
             for label in range(number_of_labels):
                 single_label_distances = []  
                 single_label_distances.append(distance.euclidean(histograms[batch], self.histograms[label]))
-                single_label_distances.append(distance.euclidean(norm_histograms[batch], self.norm_histograms[label]))
-                Bhattacharyya_array = np.array([np.sqrt(a*b) for a,b in zip(norm_histograms[batch], self.norm_histograms[label])]) 
+                single_label_distances.append(distance.euclidean(norm_histograms[batch], self.normalized_histograms[label]))
+                Bhattacharyya_array = np.array([np.sqrt(a*b) for a,b in zip(norm_histograms[batch], self.normalized_histograms[label])]) 
                 single_label_distances.append(-np.log(sum(Bhattacharyya_array)))
                 single_batch_distances.append(single_label_distances)
             
