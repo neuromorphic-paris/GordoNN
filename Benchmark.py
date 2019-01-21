@@ -62,7 +62,7 @@ dataset = Parallel(n_jobs=threads)(delayed(on_off_load)(number_files_dataset, tr
 
 #%% Load Networks parameter saved from the Playground
 file_name = parameter_folder+"GordoNN_Params_2019-01-21 14:30:09.582824.pkl"
-with open(parameter_folder+file_name, 'rb') as f:
+with open(file_name, 'rb') as f:
     [basis_number, context_lengths, input_channels, taus_T, taus_2D] = pickle.load(f)   
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
 #%% Execute benchmark
