@@ -20,6 +20,16 @@ def bench(dataset,net_parameters,number_of_labels):
         
     single_run_results = prediction_rate
         
+    return single_run_results,Net
+
+def refined_bench(Net,dataset,net_parameters,number_of_labels):
+    dataset_learning, dataset_testing, labels_learning, labels_testing = dataset
+    [basis_number, context_lengths, input_channels, taus_T, taus_2D] = net_parameters   
+
+    prediction_rate, distances, predicted_labels = Net.histogram_classification_test(labels_testing,number_of_labels,dataset_testing)
+        
+    single_run_results = prediction_rate
+        
     return single_run_results
 
 def compute_m_v(bench_results):

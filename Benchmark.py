@@ -17,7 +17,7 @@ from Libs.Data_loading.dataset_load import on_off_load
 
 
 # Benchmark functions
-from Libs.Benchmark_Libs import  bench, compute_m_v
+from Libs.Benchmark_Libs import  bench, refined_bench, compute_m_v
 
 
 
@@ -67,13 +67,17 @@ with open(file_name, 'rb') as f:
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
 #%% Execute benchmark
 start_time = time.time()
-bench_results =  Parallel(n_jobs=threads)(delayed(bench)(dataset[run],net_parameters,len(labels)) for run in range(runs))   
+bench_results, networks =  Parallel(n_jobs=threads)(delayed(bench)(dataset[run],net_parameters,len(labels)) for run in range(runs))   
 #bench_results = bench(dataset[0],net_parameters,len(labels))
 
 elapsed_time = time.time()-start_time
 print("Learning elapsed time : "+str(elapsed_time))
+
+#%% Take the best and refine the results
+best_net = np.argmax(np.sum(bench_results,axis=1))
+refined_bench_results =  Parallel(n_jobs=threads)(delayed(refined_bench)(networks[best_net],dataset[run],net_parameters,len(labels)) for run in range(runs))   
 #%% Compute mean and variance of the scores of each nework
-mean,var = compute_m_v(bench_results)
+mean,var = compute_m_v(refined_bench_results)
 #%% Plots
 #x = range(3)
 #distances = ('Euclidean','Normalised Euclidean','Bhattacharya')            
@@ -88,9 +92,10 @@ mean,var = compute_m_v(bench_results)
 now=datetime.datetime.now()
 res_file_name=str(now)+'.pkl'
 with open(result_folder+res_file_name, 'wb') as f:
-    pickle.dump([file_name,mean,var,bench_results], f)
+    pickle.dump([file_name,mean,var,bench_results,refined_bench_results,best_net], f)
 #%% Load Results
-#res_file_name='2019-01-11 13:16:09.768874.pkl'
+#res_file_name='2019-01-22 16:16:32.804131.pkl'
 #result_folder = "Results/On_Off/"
 #with open(result_folder+res_file_name, 'rb') as f:
-#       [file_names,number_of_nets,mean,var,bench_results] = pickle.load(f)
+#       results = pickle.load(f)
+#[file_name,mean,var,bench_results,refined_bench_results,best_net]= results
