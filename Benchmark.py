@@ -17,7 +17,7 @@ from Libs.Data_loading.dataset_load import on_off_load
 
 
 # Benchmark functions
-from Libs.Benchmark_Libs import  generate_nets, bench, refined_bench, compute_m_v
+from Libs.Benchmark_Libs import  bench, refined_bench, compute_m_v
 
 
 
@@ -67,16 +67,15 @@ with open(file_name, 'rb') as f:
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
 #%% Execute benchmark
 start_time = time.time()
-nets = Parallel(n_jobs=threads)(delayed(generate_nets)(net_parameters) for run in range(runs))
-bench_results = Parallel(n_jobs=threads)(delayed(bench)(nets[run], dataset[run],len(labels)) for run in range(runs))   
+bench_results = Parallel(n_jobs=threads)(delayed(bench)(dataset[run],net_parameters,len(labels)) for run in range(runs))   
 elapsed_time = time.time()-start_time
 print("Learning elapsed time : "+str(elapsed_time))
-
+[prediction_rates,nets]=np.transpose(bench_results)
 #%% Take the best and refine the results
-best_net = np.argmax(np.sum(bench_results,axis=1))
-refined_bench_results =  Parallel(n_jobs=threads)(delayed(refined_bench)(nets[best_net],dataset[run],len(labels)) for run in range(runs))   
+best_net = np.argmax(np.sum(prediction_rates,axis=0))
+best_prediction_rates =  Parallel(n_jobs=threads)(delayed(refined_bench)(nets[best_net],dataset[run],len(labels)) for run in range(runs))   
 #%% Compute mean and variance of the scores of each nework
-mean,var = compute_m_v(refined_bench_results)
+mean,var = compute_m_v(best_prediction_rates)
 #%% Plots
 #x = range(3)
 #distances = ('Euclidean','Normalised Euclidean','Bhattacharya')            
@@ -91,7 +90,7 @@ mean,var = compute_m_v(refined_bench_results)
 now=datetime.datetime.now()
 res_file_name=str(now)+'.pkl'
 with open(result_folder+res_file_name, 'wb') as f:
-    pickle.dump([file_name,mean,var,bench_results,refined_bench_results,best_net], f)
+    pickle.dump([file_name,mean,var,bench_results,prediction_rates,best_prediction_rates], f)
 #%% Load Results
 #res_file_name='2019-01-22 16:16:32.804131.pkl'
 #result_folder = "Results/On_Off/"
