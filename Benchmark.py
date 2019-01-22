@@ -67,7 +67,7 @@ with open(file_name, 'rb') as f:
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
 #%% Execute benchmark
 start_time = time.time()
-nets = Parallel(jobs=threads)(delayed(generate_nets)(net_parameters) for run in range(runs))
+nets = Parallel(n_jobs=threads)(delayed(generate_nets)(net_parameters) for run in range(runs))
 bench_results = Parallel(n_jobs=threads)(delayed(bench)(nets[run], dataset[run],len(labels)) for run in range(runs))   
 elapsed_time = time.time()-start_time
 print("Learning elapsed time : "+str(elapsed_time))
