@@ -17,7 +17,7 @@ from Libs.Data_loading.dataset_load import on_off_load
 
 
 # Benchmark functions
-from Libs.Benchmark_Libs import  bench, refined_bench, compute_m_v
+from Libs.Benchmark_Libs import  generate_nets, bench, refined_bench, compute_m_v
 
 
 
@@ -67,15 +67,14 @@ with open(file_name, 'rb') as f:
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
 #%% Execute benchmark
 start_time = time.time()
-bench_results, networks =  Parallel(n_jobs=threads)(delayed(bench)(dataset[run],net_parameters,len(labels)) for run in range(runs))   
-#bench_results = bench(dataset[0],net_parameters,len(labels))
-
+nets = Parallel(jobs=threads)(delayed(generate_nets)(net_parameters) for run in range(runs))
+bench_results = Parallel(n_jobs=threads)(delayed(bench)(nets[run], dataset[run],len(labels)) for run in range(runs))   
 elapsed_time = time.time()-start_time
 print("Learning elapsed time : "+str(elapsed_time))
 
 #%% Take the best and refine the results
 best_net = np.argmax(np.sum(bench_results,axis=1))
-refined_bench_results =  Parallel(n_jobs=threads)(delayed(refined_bench)(networks[best_net],dataset[run],net_parameters,len(labels)) for run in range(runs))   
+refined_bench_results =  Parallel(n_jobs=threads)(delayed(refined_bench)(nets[best_net],dataset[run],net_parameters,len(labels)) for run in range(runs))   
 #%% Compute mean and variance of the scores of each nework
 mean,var = compute_m_v(refined_bench_results)
 #%% Plots
