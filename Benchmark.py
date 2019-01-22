@@ -74,7 +74,7 @@ print("Learning elapsed time : "+str(elapsed_time))
 
 #%% Take the best and refine the results
 best_net = np.argmax(np.sum(bench_results,axis=1))
-refined_bench_results =  Parallel(n_jobs=threads)(delayed(refined_bench)(nets[best_net],dataset[run],net_parameters,len(labels)) for run in range(runs))   
+refined_bench_results =  Parallel(n_jobs=threads)(delayed(refined_bench)(nets[best_net],dataset[run],len(labels)) for run in range(runs))   
 #%% Compute mean and variance of the scores of each nework
 mean,var = compute_m_v(refined_bench_results)
 #%% Plots
