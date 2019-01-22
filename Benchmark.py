@@ -25,14 +25,14 @@ from Libs.Benchmark_Libs import  bench, compute_m_v
 os.environ['MKL_NUM_THREADS'] = '1'
 
 # Simultaneus threads you want to utilise on your machine 
-threads = 150
+threads = 50
 
 # Plotting settings
 sns.set()
 
 
 # Number of runs 
-runs = 150
+runs = 50
 
 
 #%% ON OFF Dataset
@@ -47,7 +47,7 @@ runs = 150
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 40
+number_files_dataset = 20
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -61,7 +61,7 @@ labels = ("On","Off")
 dataset = Parallel(n_jobs=threads)(delayed(on_off_load)(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr) for run in range(runs))
 
 #%% Load Networks parameter saved from the Playground
-file_name = parameter_folder+"GordoNN_Params_2019-01-21 14:30:09.582824.pkl"
+file_name = parameter_folder+"GordoNN_Params_2019-01-22 13:24:17.367409.pkl"
 with open(file_name, 'rb') as f:
     [basis_number, context_lengths, input_channels, taus_T, taus_2D] = pickle.load(f)   
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
