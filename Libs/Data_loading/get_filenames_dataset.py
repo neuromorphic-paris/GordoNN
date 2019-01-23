@@ -49,7 +49,7 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
     #Find the Repository folder to then look for the data folder
     parent_folder=str(Path().resolve())
     
-    folders = [parent_folder+'/Data/On_Off/off_aedats', parent_folder+'/Data/On_Off/on_aedats']
+    folders = [parent_folder+'/Data/On_Off/off_aedats', parent_folder+'/Data/On_Off/on_aedats'] # Where the dataset is supposed to be placed
     
     filenames_train = []
     filenames_test = []
@@ -81,6 +81,11 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
         for ind_test in range(aedats_for_training, len(aedats_in_folder)):
             filenames_test.append(aedats_in_folder[ind_test])
             class_test.append(i)        
+    
+    # Shuffle the train dataset and the labels with the same order
+    combined_data = list(zip(filenames_train, class_train))
+    rng.shuffle(combined_data)
+    filenames_train[:], class_train[:] = zip(*combined_data)
     
     print("Getting filenames from the dataset took %s seconds." % (time.time() - start_time))
     return filenames_train, class_train, filenames_test, class_test

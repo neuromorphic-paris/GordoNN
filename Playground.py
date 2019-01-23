@@ -67,7 +67,7 @@ parameter_folder = "Parameters/On_Off/"
 legend = ("On","Off") # Legend containing the labes used for plots
 
 
-[dataset_train, dataset_test, labels_train, labels_test] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
+[dataset_train, dataset_test, labels_train, labels_test,_,_] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
 
 
 #%% Network setting and feature exctraction (aka basis learning)

@@ -59,7 +59,7 @@ result_folder = "Results/On_Off/"
 labels = ("On","Off") 
 
 dataset = Parallel(n_jobs=threads)(delayed(on_off_load)(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr) for run in range(runs))
-
+[_,_,labels_train, labels_test, filenames_train, labels_train]=np.transpose(dataset)
 #%% Load Networks parameter saved from the Playground
 file_name = parameter_folder+"GordoNN_Params_2019-01-22 13:24:17.367409.pkl"
 with open(file_name, 'rb') as f:
@@ -77,23 +77,28 @@ best_prediction_rates =  Parallel(n_jobs=threads)(delayed(refined_bench)(nets[be
 #%% Compute mean and variance of the scores of each nework
 mean,var = compute_m_v(best_prediction_rates)
 #%% Plots
-#x = range(3)
-#distances = ('Euclidean','Normalised Euclidean','Bhattacharya')            
-#fig, ax = plt.subplots()
-#plt.bar(x,mean*100,yerr=var*100)
-#plt.xticks(x,distances)
-#plt.ylim(0,100)
-#ax.yaxis.set_major_formatter(PercentFormatter())
-#ax.set_title(file_name+" Parameters")
-#plt.show()
+x = range(3)
+distances = ('Euclidean','Normalised Euclidean','Bhattacharya')            
+fig, ax = plt.subplots()
+plt.bar(x,mean*100,yerr=var*100)
+plt.xticks(x,distances)
+plt.ylim(0,100)
+ax.yaxis.set_major_formatter(PercentFormatter())
+ax.set_title(file_name+" Parameters")
+plt.show()
 #%% Save Results
 now=datetime.datetime.now()
 res_file_name=str(now)+'.pkl'
 with open(result_folder+res_file_name, 'wb') as f:
     pickle.dump([file_name,mean,var,bench_results,prediction_rates,best_prediction_rates], f)
+#%% Save Datasets
+now=datetime.datetime.now()
+res_file_name='Dataset_'+str(now)+'.pkl'
+with open(result_folder+res_file_name, 'wb') as f:
+    pickle.dump([labels_train, labels_test, filenames_train, labels_train], f)
 #%% Load Results
-#res_file_name='2019-01-22 16:16:32.804131.pkl'
-#result_folder = "Results/On_Off/"
-#with open(result_folder+res_file_name, 'rb') as f:
-#       results = pickle.load(f)
-#[file_name,mean,var,bench_results,refined_bench_results,best_net]= results
+res_file_name='2019-01-22 20:49:56.999769.pkl'
+result_folder = "Results/On_Off/"
+with open(result_folder+res_file_name, 'rb') as f:
+       results = pickle.load(f)
+[file_name,mean,var,bench_results,refined_bench_results,best_prediction_rates]= results

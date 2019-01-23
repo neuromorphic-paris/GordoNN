@@ -27,8 +27,21 @@ from Libs.Data_loading.AERDATA_load import AERDATA_load
 #        shuffle_seed(int) : The seed used to shuffle the data, if 0 it will be totally 
 #                       random (no seed used)
 #       
-#        use_all_addr : if False all off events will be dropped, and the total addresses
-#                        number will correspond to the number of channel of the cochlea        
+#        use_all_addr(bool) : if False all off events will be dropped, and the total addresses
+#                        number will correspond to the number of channel of the cochlea    
+#
+#        filenames_train(list of strings) : a list of filenames can be provided to 
+#                                           to reproduce the same dataset of a previous
+#                                           experiment 
+#        filenames_test(list of strings) : a list of filenames can be provided to 
+#                                           to reproduce the same dataset of a previous
+#                                           experiment 
+#        labels_train(list of int) : a list of labels (int) can be provided to 
+#                                           to reproduce the same dataset of a previous
+#                                           experiment 
+#        labels_test(list of int) : a list of labels (int) can be provided to 
+#                                           to reproduce the same dataset of a previous
+#                                           experiment 
 #    Returns:
 #        dataset_train(int 2D list): Two equally long lists containing all the 
 #                                    timestamps and channel index for training
@@ -36,10 +49,16 @@ from Libs.Data_loading.AERDATA_load import AERDATA_load
 #        filenames_test(int 2D list): The filenames plus path for the test files
 #        dataset_test(int 2D list): Two equally long lists containing all the 
 #                                    timestamps and channel index for testing
+#        filenames_train(list of strings) : a list of filenames that can be saved and 
+#                                           used to replicate the same experiment
+#        filenames_test(list of strings) :  a list of filenames that can be saved and 
+#                                           used to replicate the same experiment
 # =============================================================================
-def on_off_load(number_files_dataset, train_test_ratio, shuffle_seed=0, use_all_addr=False):
-    
-    [filenames_train, labels_train, filenames_test, labels_test] = get_filenames_on_off_dataset(number_files_dataset, train_test_ratio, shuffle_seed)
+
+def on_off_load(number_files_dataset, train_test_ratio, shuffle_seed=0, use_all_addr=False,
+                filenames_train=[], filenames_test=[], labels_train=[], labels_test=[]):
+    if not filenames_train and not filenames_test and not labels_train and not labels_test:
+        [filenames_train, labels_train, filenames_test, labels_test] = get_filenames_on_off_dataset(number_files_dataset, train_test_ratio, shuffle_seed)
     print ('\n--- READING SPIKES ---')
     start_time = time.time()
     
@@ -52,23 +71,9 @@ def on_off_load(number_files_dataset, train_test_ratio, shuffle_seed=0, use_all_
     for test_file in range(len(filenames_test)):
         addresses, timestamps = AERDATA_load(filenames_test[test_file], use_all_addr)
         dataset_test.append([np.array(timestamps), np.array(addresses)])
-    
-    # Shuffle data
-    # Setting the random state for data shuffling
-    rng = np.random.RandomState()
-    if(shuffle_seed!=0):
-        rng.seed(shuffle_seed+1)
-    
-    # Shuffle the dataset and the labels with the same order
-    combined_data = list(zip(dataset_train, labels_train))
-    rng.shuffle(combined_data)
-    dataset_train[:], labels_train[:] = zip(*combined_data)
-    
-    combined_data = list(zip(dataset_test, labels_test))
-    rng.shuffle(combined_data)
-    dataset_test[:], labels_test[:] = zip(*combined_data)
+      
     
     print("Reading spikes took %s seconds." % (time.time() - start_time))
     
-    return dataset_train, dataset_test, labels_train, labels_test
+    return dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test
 
