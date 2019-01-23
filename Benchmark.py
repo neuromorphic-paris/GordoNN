@@ -47,7 +47,7 @@ runs = 50
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 20
+number_files_dataset = 120 
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
