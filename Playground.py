@@ -93,8 +93,8 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-basis_number = [[5,5],[6,6]] 
-context_lengths = [20,20]
+basis_number = [[20,20],[6,6],[6,6]] 
+context_lengths = [20,30,40]
 input_channels = 32 + 32*use_all_addr
 
 channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
@@ -102,11 +102,11 @@ channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542,
                          20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
                                                              # cochlea used for this datasets
 second_layer_taus = np.ones(basis_number[0][1]) # The taus for this layer are homogeneous across all channels
-#third_layer_taus = np.ones(basis_number[2][0]) # The taus for this layer are homogeneous across all channels
-taus_T_coeff = np.array([0.5,120000]) # Multiplicative coefficients to help to change quickly the taus_T
+third_layer_taus = np.ones(basis_number[1][1]) # The taus for this layer are homogeneous across all channels
+taus_T_coeff = np.array([0.5,120000,500000]) # Multiplicative coefficients to help to change quickly the taus_T
 
-taus_T = (taus_T_coeff*[channel_taus,second_layer_taus]).tolist()
-taus_2D = [20000,120000]
+taus_T = (taus_T_coeff*[channel_taus,second_layer_taus,third_layer_taus]).tolist()
+taus_2D = [20000,120000,500000]
 
 # Create the network
 Net = Solid_HOTS_Net(basis_number, context_lengths, input_channels, taus_T, taus_2D,
