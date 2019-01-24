@@ -58,7 +58,7 @@ shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 20
+number_files_dataset = 10
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -137,8 +137,8 @@ plt.show()
 
 #%% Plot Basis 
 #TODO add more information, time or channel and feature axes 
-layer = 0
-sublayer = 0
+layer = 2
+sublayer = 1
 Net.plot_basis(layer, sublayer)
 plt.show()    
 

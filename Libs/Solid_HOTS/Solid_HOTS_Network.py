@@ -158,7 +158,9 @@ class Solid_HOTS_Net:
                     # the process and move to the next one
                     # This process is not needed in other layers as 
                     # the synchronization has already happened
-                    if net_T_response[batch][1][ind] != channel & layer==0:
+                    current_channel=net_T_response[batch][1][ind]
+                    if not(current_channel == channel or current_channel == channel+ 1 or
+                        current_channel == channel-1) and layer==0:
                         continue
                     all_surfaces[pos, :] = Time_Surface(xdim, ydim, ind,
                                 self.taus_2D[layer], net_T_response[batch],
@@ -255,7 +257,9 @@ class Solid_HOTS_Net:
                     # the process and move to the next one
                     # This process is not needed in other layers as 
                     # the synchronization has already happened
-                    if net_T_response[batch][1][ind] != channel & layer==0:
+                    current_channel=net_T_response[batch][1][ind]
+                    if not(current_channel == channel or current_channel == channel+ 1 or
+                        current_channel == channel-1) and layer==0:
                         continue
                     surface = Time_Surface(xdim, ydim, ind,
                                 self.taus_2D[layer], net_T_response[batch],
@@ -306,7 +310,7 @@ class Solid_HOTS_Net:
                 spikes_per_label[current_label] += 1
         # Compute the Normalised histograms
         for label in range(number_of_labels):
-            norm_histograms[label,:] = histograms[label,:]/spikes_per_label[label]
+            norm_histograms[label,:] = histograms[label,:]/(spikes_per_label[label]+(spikes_per_label[label]==0)) #putting all the zeros to 1 if any
         self.histograms = histograms
         self.normalized_histograms = norm_histograms
         if self.exploring is True:
@@ -333,7 +337,7 @@ class Solid_HOTS_Net:
             # Normalization factor
             for ind in range(len(net_response[batch][0])):
                 histograms[batch, net_response[batch][1][ind]] += 1
-            norm_histograms[batch,:] = histograms[batch,:]/len(net_response[batch][0])                
+            norm_histograms[batch,:] = histograms[batch,:]/(len(net_response[batch][0])+(len(net_response[batch][0])==0)) #putting all the zeros to 1 if any
         
         # compute the distances per each histogram from the models
         distances = []
