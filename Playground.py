@@ -137,7 +137,7 @@ plt.show()
 
 #%% Plot Basis 
 #TODO add more information, time or channel and feature axes 
-layer = 1
+layer = 0
 sublayer = 1
 Net.plot_basis(layer, sublayer)
 plt.show()    
