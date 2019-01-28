@@ -58,7 +58,7 @@ shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 20
+number_files_dataset = 60
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -80,7 +80,7 @@ legend = ("On","Off") # Legend containing the labes used for plots
 #                             the 2D centers
 # context(list of int): the length of the time context generatef per each layer
 # input_channels(int): the total number of channels of the cochlea in the input files 
-# taus_T(list of float lists):  a list containing the time coefficient used for 
+# taus_T(list of float lists):  a list containing the time coefficient used for     
 #                              the context creations for each layer (first index)
 #                              and each channel (second index) 
 # taus_2D(list of float):  a list containing the time coefficients used for the 
@@ -93,8 +93,8 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-basis_number = [[20,20],[6,6],[6,6]] 
-context_lengths = [20,30,40]
+basis_number = [[40,40],[80,10]] 
+context_lengths = [8,30,40]
 input_channels = 32 + 32*use_all_addr
 
 channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
@@ -102,11 +102,11 @@ channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542,
                          20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
                                                              # cochlea used for this datasets
 second_layer_taus = np.ones(basis_number[0][1]) # The taus for this layer are homogeneous across all channels
-third_layer_taus = np.ones(basis_number[1][1]) # The taus for this layer are homogeneous across all channels
-taus_T_coeff = np.array([0.5,120000,500000]) # Multiplicative coefficients to help to change quickly the taus_T
+#third_layer_taus = np.ones(basis_number[1][1]) # The taus for this layer are homogeneous across all channels
+taus_T_coeff = np.array([0.5,50000]) # Multiplicative coefficients to help to change quickly the taus_T
 
-taus_T = (taus_T_coeff*[channel_taus,second_layer_taus,third_layer_taus]).tolist()
-taus_2D = [20000,120000,500000]
+taus_T = (taus_T_coeff*[channel_taus,second_layer_taus]).tolist()
+taus_2D = [3000,3000,500000]
 
 # Create the network
 Net = Solid_HOTS_Net(basis_number, context_lengths, input_channels, taus_T, taus_2D,
@@ -137,14 +137,14 @@ plt.show()
 
 #%% Plot Basis 
 #TODO add more information, time or channel and feature axes 
-layer = 0
-sublayer = 0
+layer = 1
+sublayer = 1
 Net.plot_basis(layer, sublayer)
 plt.show()    
 
 #%% Save network parameters
 
 now=datetime.datetime.now()
-file_name = "GordoNN_Params_"+str(now)+".pkl"
+file_name = "GordoNN_Params_2L_8"+str(now)+".pkl"
 with open(parameter_folder+file_name, 'wb') as f:
     pickle.dump([basis_number, context_lengths, input_channels, taus_T, taus_2D], f)
