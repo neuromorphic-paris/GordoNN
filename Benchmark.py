@@ -47,7 +47,7 @@ runs = 50
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 120 
+number_files_dataset = 60
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -61,7 +61,7 @@ labels = ("On","Off")
 dataset = Parallel(n_jobs=threads)(delayed(on_off_load)(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr) for run in range(runs))
 [_,_,labels_train, labels_test, filenames_train, labels_train]=np.transpose(dataset)
 #%% Load Networks parameter saved from the Playground
-file_name = parameter_folder+"GordoNN_Params_2019-01-23 18:16:45.478439.pkl"
+file_name = parameter_folder+"GordoNN_Params_1L_82019-01-28 09:33:55.493197.pkl"
 with open(file_name, 'rb') as f:
     [basis_number, context_lengths, input_channels, taus_T, taus_2D] = pickle.load(f)   
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
@@ -77,29 +77,29 @@ best_prediction_rates =  Parallel(n_jobs=threads)(delayed(refined_bench)(nets[be
 #%% Compute mean and variance of the scores of each nework
 mean,var = compute_m_v(best_prediction_rates)
 #%% Plots
-x = range(3)
-distances = ('Euclidean','Normalised Euclidean','Bhattacharya')            
-fig, ax = plt.subplots()
-plt.bar(x,mean*100,yerr=var*100)
-plt.xticks(x,distances)
-plt.ylim(0,100)
-ax.yaxis.set_major_formatter(PercentFormatter())
-ax.set_title(file_name+" Parameters")
-plt.show()
+#x = range(3)
+#distances = ('Euclidean','Normalised Euclidean','Bhattacharya')            
+#fig, ax = plt.subplots()
+#plt.bar(x,mean*100,yerr=var*100)
+#plt.xticks(x,distances)
+#plt.ylim(0,100)
+#ax.yaxis.set_major_formatter(PercentFormatter())
+#ax.set_title(file_name+" Parameters")
+#plt.show()
 #%% Save Results
 now=datetime.datetime.now()
-res_file_name=str(now)+'.pkl'
+res_file_name='1L_'+str(now)+'.pkl'
 with open(result_folder+res_file_name, 'wb') as f:
     pickle.dump([file_name,mean,var,bench_results,prediction_rates,best_prediction_rates], f)
 #%% Save Datasets
 now=datetime.datetime.now()
-res_file_name='Dataset_'+str(now)+'.pkl'
+res_file_name='Dataset_1L_'+str(now)+'.pkl'
 with open(result_folder+res_file_name, 'wb') as f:
     pickle.dump([labels_train, labels_test, filenames_train, labels_train,
                  number_files_dataset,train_test_ratio], f)
 #%% Load Results
-res_file_name='2019-01-25 22:12:37.441920.pkl'
-result_folder = "Results/On_Off/"
-with open(result_folder+res_file_name, 'rb') as f:
-       results = pickle.load(f)
-[file_name,mean,var,bench_results,prediction_rates,best_prediction_rates]= results
+#res_file_name='2019-01-25 22:12:37.441920.pkl'
+#result_folder = "Results/On_Off/"
+#with open(result_folder+res_file_name, 'rb') as f:
+#       results = pickle.load(f)
+#[file_name,mean,var,bench_results,prediction_rates,best_prediction_rates]= results
