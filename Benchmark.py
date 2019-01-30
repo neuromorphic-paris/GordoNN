@@ -61,7 +61,7 @@ labels = ("On","Off")
 dataset = Parallel(n_jobs=threads)(delayed(on_off_load)(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr) for run in range(runs))
 [_,_,labels_train, labels_test, filenames_train, labels_train]=np.transpose(dataset)
 #%% Load Networks parameter saved from the Playground
-file_name = parameter_folder+"GordoNN_Params_2L_8_2019-01-30 10:25:07.053386.pkl"
+file_name = parameter_folder+"GordoNN_Params_2L_8_2019-01-30 14:45:49.919097.pkl"
 with open(file_name, 'rb') as f:
     [basis_number, context_lengths, input_channels, taus_T, taus_2D] = pickle.load(f)   
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
