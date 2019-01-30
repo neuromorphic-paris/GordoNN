@@ -93,8 +93,8 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-basis_number = [[8,40]] 
-context_lengths = [8,30,40]
+basis_number = [[8,40],[10,20]] 
+context_lengths = [8,10,40]
 input_channels = 32 + 32*use_all_addr
 
 channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
@@ -145,6 +145,6 @@ plt.show()
 #%% Save network parameters
 
 now=datetime.datetime.now()
-file_name = "GordoNN_Params_1L_40_L_"+str(now)+".pkl"
+file_name = "GordoNN_Params_2L_8_"+str(now)+".pkl"
 with open(parameter_folder+file_name, 'wb') as f:
     pickle.dump([basis_number, context_lengths, input_channels, taus_T, taus_2D], f)
