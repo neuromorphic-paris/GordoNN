@@ -25,7 +25,7 @@ from Libs.Benchmark_Libs import  bench, refined_bench, compute_m_v
 os.environ['MKL_NUM_THREADS'] = '1'
 
 # Simultaneus threads you want to utilise on your machine 
-threads = 50
+threads = 25
 
 # Plotting settings
 sns.set()
@@ -61,7 +61,7 @@ labels = ("On","Off")
 dataset = Parallel(n_jobs=threads)(delayed(on_off_load)(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr) for run in range(runs))
 [_,_,labels_train, labels_test, filenames_train, labels_train]=np.transpose(dataset)
 #%% Load Networks parameter saved from the Playground
-file_name = parameter_folder+"GordoNN_Params_1L_8_2019-01-28 15:33:18.295700.pkl"
+file_name = parameter_folder+"GordoNN_Params_1L_40_L_2019-01-28 15:34:25.934600.pkl"
 with open(file_name, 'rb') as f:
     [basis_number, context_lengths, input_channels, taus_T, taus_2D] = pickle.load(f)   
 net_parameters = [basis_number, context_lengths, input_channels, taus_T, taus_2D]   
@@ -88,12 +88,12 @@ mean,var = compute_m_v(best_prediction_rates)
 #plt.show()
 #%% Save Results
 now=datetime.datetime.now()
-res_file_name='1L_8_'+str(now)+'.pkl'
+res_file_name='1L_40_L_'+str(now)+'.pkl'
 with open(result_folder+res_file_name, 'wb') as f:
     pickle.dump([file_name,mean,var,prediction_rates,best_prediction_rates], f)
 #%% Save Datasets
 now=datetime.datetime.now()
-res_file_name='Dataset_1L_8_'+str(now)+'.pkl'
+res_file_name='Dataset_1L_40_L_'+str(now)+'.pkl'
 with open(result_folder+res_file_name, 'wb') as f:
     pickle.dump([labels_train, labels_test, filenames_train, labels_train,
                  number_files_dataset,train_test_ratio], f)
