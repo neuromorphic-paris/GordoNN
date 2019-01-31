@@ -93,7 +93,7 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-basis_number = [[8,40],[10,40]] 
+basis_number = [[8,40],[12,45]] 
 context_lengths = [8,10,40]
 input_channels = 32 + 32*use_all_addr
 
