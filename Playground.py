@@ -93,8 +93,8 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-basis_number = [[8,40],[12,45]] 
-context_lengths = [8,10,40]
+basis_number = [[8,40],[20,45]] 
+context_lengths = [8,20,40]
 input_channels = 32 + 32*use_all_addr
 
 channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
@@ -103,7 +103,7 @@ channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542,
                                                              # cochlea used for this datasets
 second_layer_taus = np.ones(basis_number[0][1]) # The taus for this layer are homogeneous across all channels
 #third_layer_taus = np.ones(basis_number[1][1]) # The taus for this layer are homogeneous across all channels
-taus_T_coeff = np.array([0.5,50000]) # Multiplicative coefficients to help to change quickly the taus_T
+taus_T_coeff = np.array([0.5,500000]) # Multiplicative coefficients to help to change quickly the taus_T
 
 taus_T = (taus_T_coeff*[channel_taus,second_layer_taus]).tolist()
 taus_2D = [3000,3000,500000]
