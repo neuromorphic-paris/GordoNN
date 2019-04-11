@@ -58,7 +58,7 @@ shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 60
+number_files_dataset = 20
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -70,81 +70,128 @@ legend = ("On","Off") # Legend containing the labes used for plots
 [dataset_train, dataset_test, labels_train, labels_test,_,_] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
 
 
-#%% Network setting and feature exctraction (aka basis learning)
+#%% Network setting and feature exctraction 
 
 # Network settings
 # =============================================================================
-# basis_number(list of int lists): the number of feature or centers used by the Solid network
-#                             the first index identifies the layer, the second one
-#                             is 0 for the centers of the 0D sublayer, and 1 for 
-#                             the 2D centers
-# context(list of int): the length of the time context generatef per each layer
-# input_channels(int): the total number of channels of the cochlea in the input files 
-# taus_T(list of float lists):  a list containing the time coefficient used for     
-#                              the context creations for each layer (first index)
-#                              and each channel (second index) 
-# taus_2D(list of float):  a list containing the time coefficients used for the 
-#                          creation of timesurfaces per each layer
-# exploring(boolean) : If True, the network will output messages to inform the 
-#                      the users about the current states and will save the 
-#                      basis at each update to build evolution plots (currently not 
-#                      available cos the learning is offline)
-# net_seed : seed used for net generation, if set to 0 the process will be totally random
+#   features_number (nested lists of int) : the number of feature or centers used by the Solid network,
+#                               the first index identifies the layer, the second one
+#                               is 0 for the centers of the 0D sublayer, and 1 for 
+#                               the 2D centers
+#   context_lengths (list of int): the length of the time context generatef per each layer
+#   input_channels (int) : the total number of channels of the cochlea in the input files 
+#   taus_T(list of float lists) :  a list containing the time coefficient used for 
+#                                  the context creations for each layer (first index)
+#                                  and each channel (second index) 
+#   taus_2D (list of float) : a list containing the time coefficients used for the 
+#                            creation of timesurfaces per each layer
+#   threads (int) : The network can compute timesurfaces in a parallel way,
+#                   this parameter set the number of multiple threads allowed to run
+#   exploring (boolean) : If True, the network will output messages to inform the 
+#                         the users about the current states and will save the 
+#                         basis at each update to build evolution plots (currently not 
+#                         available cos the learning is offline)
 # =============================================================================
 
 
-basis_number = [[8,40],[20,45]] 
-context_lengths = [8,20,40]
+features_number = [[2,20],[20,10]]
+context_lengths = [200,200]
 input_channels = 32 + 32*use_all_addr
+l1_norm_coeff=0.07
 
 channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
                          1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
                          20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
                                                              # cochlea used for this datasets
-second_layer_taus = np.ones(basis_number[0][1]) # The taus for this layer are homogeneous across all channels
-#third_layer_taus = np.ones(basis_number[1][1]) # The taus for this layer are homogeneous across all channels
-taus_T_coeff = np.array([0.5,500000]) # Multiplicative coefficients to help to change quickly the taus_T
+second_layer_taus = np.ones(features_number[0][1]) # The taus for this layer are homogeneous across all channels
+#third_layer_taus = np.ones(features_number[1][1]) # The taus for this layer are homogeneous across all channels
+taus_T_coeff = np.array([50,80000]) # Multiplicative coefficients to help to change quickly the taus_T
 
-taus_T = (taus_T_coeff*[channel_taus,second_layer_taus]).tolist()
-taus_2D = [3000,3000,500000]
+taus_T = (taus_T_coeff*[channel_taus, second_layer_taus]).tolist()
+taus_2D = [1000,2000]  
 
 # Create the network
-Net = Solid_HOTS_Net(basis_number, context_lengths, input_channels, taus_T, taus_2D,
-                     exploring=True, net_seed = 0)
+Net = Solid_HOTS_Net(features_number, context_lengths, input_channels, taus_T, taus_2D, 
+                 threads=8, exploring=True)
+
+learning_rate = [[0.0005,0.0005],[0.0005,0.0005],[0.0005,0.0005]]
 
 # Learn the feature
-Net.learn(dataset_train)
+Net.learn(dataset_train,learning_rate, l1_norm_coeff)
 
-#%% Classification train
+#%% Print features
 
-number_of_labels = len(legend)
-Net.histogram_classification_train(labels_train,number_of_labels)
+# 2D plots that can be used to analyze the network after learning
+# =============================================================================
+# layer (int) : Layer selected for printing features and latent space
+# variables_ind (list if 2 ind) : A list contining the couple of latent variables
+#                                 that will be used to generate the plots
+# variable_fix (int) : Fixed value for all the non selected state variables used
+#                      used for decoding
+# =============================================================================
 
-# Plotting results
-Net.plot_histograms(legend)
-plt.show() 
- 
-#%% Classification test 
-prediction_rate, distances, predicted_labels = Net.histogram_classification_test(labels_test,number_of_labels,dataset_test)
-
-# Plotting results
-print("Euclidean distance recognition rate :             "+str(prediction_rate[0]))
-print("Normalsed euclidean distance recognition rate :   "+str(prediction_rate[1]))
-print("Bhattachaya distance recognition rate :           "+str(prediction_rate[2]))
-
-Net.plot_histograms(legend, labels=labels_test)
-plt.show()  
-
-#%% Plot Basis 
-#TODO add more information, time or channel and feature axes 
 layer = 0
-sublayer = 1
-Net.plot_basis(layer, sublayer)
-plt.show()    
+sublayer = 0    
+variables_ind = [0,1] 
+variable_fix = 0 
+                    
+Net.plot_vae_decode_2D(layer, sublayer, variables_ind, variable_fix)
+Net.plot_vae_decode_2D(layer, 1, variables_ind, variable_fix)
+Net.plot_vae_decode_2D(1, sublayer, variables_ind, variable_fix)
+Net.plot_vae_decode_2D(1, 1, variables_ind, variable_fix)
+Net.plot_vae_space_2D(layer, variables_ind, legend, labels_train)
+Net.plot_vae_space_2D(1, variables_ind, legend, labels_train, )
 
-#%% Save network parameters
+plt.pause(0.1)
 
-now=datetime.datetime.now()
-file_name = "GordoNN_Params_2L_8_"+str(now)+".pkl"
-with open(parameter_folder+file_name, 'wb') as f:
-    pickle.dump([basis_number, context_lengths, input_channels, taus_T, taus_2D], f)
+#%% Mlp classifier training
+
+number_of_labels=len(legend)
+mlp_learning_rate = 0.001
+Net.mlp_classification_train(labels_train,   
+                                   number_of_labels, mlp_learning_rate)
+
+#%% Mlp classifier testing
+  
+prediction_rate, predicted_labels, predicted_labels_ev = Net.mlp_classification_test(labels_test, number_of_labels, dataset_test)
+print('Prediction rate is '+str(prediction_rate*100)+'%') 
+
+
+
+
+ 
+##%% Plot Basis  
+##TODO add more information, time or channel and feature axes 
+
+#layer = 0
+#sublayer = 1
+#Net.plot_basis(layer, sublayer)
+#plt.show()    
+#
+##%% Save network parameters
+#
+#now=datetime.datetime.now()
+#file_name = "GordoNN_Params_2L_8_"+str(now)+".pkl"
+#with open(parameter_folder+file_name, 'wb') as f:
+#    pickle.dump([basis_number, context_lengths, input_channels, taus_T, taus_2D], f)
+#    
+#    
+##%% Classification train
+#
+#number_of_labels = len(legend)
+#Net.histogram_classification_train(labels_train,number_of_labels)
+#
+## Plotting results
+#Net.plot_histograms(legend)
+#plt.show() 
+# 
+##%% Classification test 
+#prediction_rate, distances, predicted_labels = Net.histogram_classification_test(labels_test,number_of_labels,dataset_test)
+#
+## Plotting results
+#print("Euclidean distance recognition rate :             "+str(prediction_rate[0]))
+#print("Normalsed euclidean distance recognition rate :   "+str(prediction_rate[1]))
+#print("Bhattachaya distance recognition rate :           "+str(prediction_rate[2]))
+#
+#Net.plot_histograms(legend, labels=labels_test)
+#plt.show()  

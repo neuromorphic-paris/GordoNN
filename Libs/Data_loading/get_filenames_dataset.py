@@ -73,8 +73,6 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
 
         aedats_for_training = int(math.ceil(len(aedats_in_folder)*train_test_ratio))
 
-        random.shuffle(aedats_in_folder)
-
         for ind_train in range(aedats_for_training):
             filenames_train.append(aedats_in_folder[ind_train])
             class_train.append(i)

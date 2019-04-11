@@ -9,19 +9,23 @@ This file contains the Solid_HOTS_Net class
 used to exctract features from serialised tipe of data as speech 
  
 """
-
-import numpy as np 
+# General purpouse libraries
 import time
+import numpy as np 
+import keras
 from scipy.spatial import distance 
 from sklearn.cluster import KMeans
+from joblib import Parallel, delayed 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import seaborn as sns
 import gc
-from Libs.Solid_HOTS.Context_Surface_generators import Time_context, Time_Surface
 
-#TODO change this as soon we will have the new timesurfaces
-channel = 9
+# Homemade Fresh Libraries like Gandma taught
+from Libs.Solid_HOTS.Context_Surface_generators import Time_context, Time_Surface
+from Libs.Solid_HOTS.Solid_HOTS_Libs import create_vae, create_mlp, events_from_activations_T, events_from_activations_2D
+
+
 
 # Class for Solid_HOTS_Net
 # =============================================================================
@@ -29,40 +33,49 @@ channel = 9
 # learning, live plotting, and classification of the input data
 # =============================================================================
 class Solid_HOTS_Net:
-    # Network constructor settings, the net is set in a random state,
-    # with random basis and activations to define a starting point for the 
-    # optimization algorithms
-    # =============================================================================
-    # basis_number(list of int lists): the number of feature or centers used by the Solid network
-    #                             the first index identifies the layer, the second one
-    #                             is 0 for the centers of the 0D sublayer, and 1 for 
-    #                             the 2D centers
-    # context(list of int): the length of the time context generatef per each layer
-    # input_channels(int): the total number of channels of the cochlea in the input files 
-    # taus_T(list of float lists):  a list containing the time coefficient used for 
-    #                              the context creations for each layer (first index)
-    #                              and each channel (second index) 
-    # taus_2D(list of float):  a list containing the time coefficients used for the 
-    #                          creation of timesurfaces per each layer
-    # exploring(boolean) : If True, the network will output messages to inform the 
-    #                      the users about the current states and will save the 
-    #                      basis at each update to build evolution plots (currently not 
-    #                      available cos the learning is offline)
-    # net_seed : seed used for net generation, if set to 0 the process will be totally random
-    # =============================================================================            
-    def __init__(self, basis_number, context_lengths, input_channels, taus_T, taus_2D, 
-                 exploring=False, net_seed = 0):
-        self.basis_T = []
-        self.activations_T = []
-        self.basis_2D = []
-        self.activations_2D = []
+    """
+    Network constructor settings, the net is set in a random state,
+    with random basis and activations to define a starting point for the 
+    optimization algorithms
+    Arguments: 
+        features_number (nested lists of int) : the number of feature or centers used by the Solid network,
+                                    the first index identifies the layer, the second one
+                                    is 0 for the centers of the 0D sublayer, and 1 for 
+                                    the 2D centers
+        context_lengths (list of int): the length of the time context generatef per each layer
+        input_channels (int) : the total number of channels of the cochlea in the input files 
+        taus_T(list of float lists) :  a list containing the time coefficient used for 
+                                       the context creations for each layer (first index)
+                                       and each channel (second index) 
+        taus_2D (list of float) : a list containing the time coefficients used for the 
+                                 creation of timesurfaces per each layer
+        threads (int) : The network can compute timesurfaces in a parallel way,
+                        this parameter set the number of multiple threads allowed to run
+        exploring (boolean) : If True, the network will output messages to inform the 
+                              the users about the current states and will save the 
+                              basis at each update to build evolution plots (currently not 
+                              available cos the learning is offline)
+    """
+    def __init__(self, features_number, context_lengths, input_channels, taus_T, taus_2D, 
+                 threads=1, exploring=False):
+
+        self.vaes_T=[]
+        self.vaes_2D=[]
         self.taus_T = taus_T
         self.taus_2D = taus_2D
-        self.layers = len(basis_number)
+        self.layers = len(features_number)
         self.context_lengths = context_lengths
-        self.basis_number = basis_number
+        self.features_number = features_number
         self.polarities = []
+        self.polarities.append(input_channels)
+        for layer in range(self.layers-1): # the number of chanels are considered as 
+                                           # as polarities of a first layer
+                                           # therefore self.polaroties is long
+                                           # as the number of layers+1
+            self.polarities.append(features_number[layer][1])
+        self.threads=threads
         self.exploring = exploring
+        #TODO decide wether this thing is worth the pain 
         ## Set of attributes used only in exploring mode
         if exploring is True:
             # attribute containing all 2D surfaces computed during a run in each layer 
@@ -72,216 +85,666 @@ class Solid_HOTS_Net:
             # attribute containing all optimization errors computed during a run in each layer 
             self.errors = []
        
-        # setting the seed
-        rng = np.random.RandomState()
-        if (net_seed!=0):
-            rng.seed(net_seed)
         
+    # =============================================================================  
+    def learn(self, dataset, learning_rate, l1_norm_coeff):
+        """
+        Network learning method, for now it based on kmeans and it is offline
+        Arguments:
+            dataset (nested lists) : the dataset used to extract features in a unsupervised 
+                                     manner
+            learning_rate (float) : It's the learning rate of ADAM online optimization                 
+        """
         
-        # Random initial conditions 
-        for layer in range(self.layers):
-            self.basis_T.append(rng.rand(basis_number[layer][0], context_lengths[layer]))
-            self.activations_T.append(rng.rand(1,basis_number[layer][0]))
-            if layer == 0:
-                self.polarities.append(input_channels)
-            else:
-                self.polarities.append(basis_number[layer-1][1])
-            self.basis_2D.append(rng.rand(basis_number[layer][1], self.polarities[layer]*basis_number[layer][0]))
-            self.activations_2D.append(rng.rand(1,basis_number[layer][1]))         
-    
-    # Network learning method, for now it based on kmeans and it is offline
-    # =============================================================================  
-    # dataset : the dataset used to learn the network features in a unsupervised 
-    #           manner      
-    # =============================================================================  
-    def learn(self, dataset):
         layer_dataset = dataset
         del dataset
         for layer in range(self.layers):
-            context_num = 0
-            for batch in range(len(layer_dataset)):
-                context_num += len(layer_dataset[batch][0])       
-            all_contexts = np.zeros([context_num, self.context_lengths[layer]],dtype=float) # Preallocating is FUN!
-            all_surfaces = np.zeros([context_num, self.polarities[layer]*self.basis_number[layer][0]],dtype=float)
+            # The code is going to run on gpus, to improve performances rather than 
+            # a pure online algorithm I am going to minibatch 
+            batch_size = 500
+            
+            # Create the varational autoencoder for this layer
+            intermediate_dim = 20
+            self.vaes_T.append(create_vae(self.context_lengths[layer],
+                                          self.features_number[layer][0],
+                                          intermediate_dim, learning_rate[layer][0], l1_norm_coeff))
             
             # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
             if self.exploring is True:
                 print('\n--- LAYER '+str(layer)+' CONTEXTS GENERATION ---')
                 start_time = time.time()
-            pos = 0
-            for batch in range(len(layer_dataset)):
-                for ind in range(len(layer_dataset[batch][0])):
-                    event_polarity = layer_dataset[batch][1][ind]
-                    all_contexts[pos, :] = Time_context(ind, layer_dataset[batch],
-                                                              self.taus_T[layer][event_polarity],
-                                                              self.context_lengths[layer])
-                    pos +=1
+            all_contexts=[]
+            for recording in range(len(layer_dataset)):
+                n_batch = len(layer_dataset[recording][0])//batch_size
+                # Cut the excess data in the first layer : 
+                if layer == 0 :
+                    layer_dataset[recording][0]=layer_dataset[recording][0][:n_batch*batch_size]
+                    layer_dataset[recording][1]=layer_dataset[recording][1][:n_batch*batch_size]
+               
+
+                all_contexts_recording = Parallel(n_jobs=self.threads)(delayed(Time_context)(event_ind, layer_dataset[recording],
+                                                          self.taus_T[layer][layer_dataset[recording][1][event_ind]],
+                                                          self.context_lengths[layer]) for event_ind in range(n_batch*batch_size))
+                all_contexts+=all_contexts_recording
                 gc.collect()
                 if self.exploring is True:
-                    print("\r","Contexts generation :", (batch+1)/len(layer_dataset)*100,"%", end="")
+                    print("\r","Contexts generation :", (recording+1)/len(layer_dataset)*100,"%", end="")
                         
             if self.exploring is True:    
                 print("Generating contexts took %s seconds." % (time.time() - start_time))
-                print('\n--- LAYER '+str(layer)+' CONTEXTS CLUSTERING ---')
+                print('\n--- LAYER '+str(layer)+' CONTEXTS FEATURES EXTRACTION ---')
                 start_time = time.time()
-            # Training the features (the basis)
-            kmeans = KMeans(n_clusters=self.basis_number[layer][0]).fit(all_contexts)
-            self.basis_T[layer]=kmeans.cluster_centers_
+            all_contexts =np.array(all_contexts)
+            # Training the features 
+            self.vaes_T[layer][0].fit(all_contexts, shuffle=False,
+                     epochs=40, batch_size=batch_size,
+                     validation_data=(all_contexts, None))
             if self.exploring is True:
-                print("\n Clustering took %s seconds." % (time.time() - start_time))
+                print("\n Features extraction took %s seconds." % (time.time() - start_time))
             # Obtain Net activations
-            pos = 0
             net_T_response = []
-            for batch in range(len(layer_dataset)):
-                polarities = layer_dataset[batch][1]
-                features = kmeans.labels_[pos:pos+len(layer_dataset[batch][0])]
-                net_T_response.append([layer_dataset[batch][0], polarities, features])
-                pos += len(layer_dataset[batch][0])
-            
+            current_pos = 0
+            for recording in range(len(layer_dataset)):                
+                # Get network activations at steady state (after learning)
+                recording_results = self.vaes_T[layer][1].predict(np.array(all_contexts[current_pos:current_pos+len(layer_dataset[recording][0])]), batch_size=batch_size)
+                current_pos += len(layer_dataset[recording][0])
+                net_T_response.append(events_from_activations_T(recording_results, layer_dataset[recording]))
+
             # clearing some variables
-            del kmeans, layer_dataset, all_contexts
+            del layer_dataset, all_contexts
+            
+            # Create the varational autoencoder for this layer
+            intermediate_dim = 20
+            self.vaes_2D.append(create_vae(self.polarities[layer]*self.features_number[layer][0],
+                                        self.features_number[layer][1], intermediate_dim, learning_rate[layer][1], l1_norm_coeff))
             
             # GENERATING AND COMPUTING SURFACES RESPONSES
             if self.exploring is True:
                 print('\n--- LAYER '+str(layer)+' SURFACES GENERATION ---')
             start_time = time.time()
-            pos = 0
-            ydim,xdim = [self.polarities[layer], self.basis_number[layer][0]]
-            events_per_batch = [] # How many surfaces are generated per each batch
-            timestamps_2D = []
-            for batch in range(len(net_T_response)):
-                number_of_e = 0
-                timestamps_2D_batch = []
-                for ind in range(len(net_T_response[batch][0])):
-                    #TODO change this as soon we will have the new timesurfaces
-                    # If the reference event is not from the selected channel ditch 
-                    # the process and move to the next one
-                    # This process is not needed in other layers as 
-                    # the synchronization has already happened
-                    current_channel=net_T_response[batch][1][ind]
-                    if not(current_channel == channel or current_channel == channel+ 1 or
-                        current_channel == channel-1) and layer==0:
-                        continue
-                    all_surfaces[pos, :] = Time_Surface(xdim, ydim, ind,
-                                self.taus_2D[layer], net_T_response[batch],
-                                minv=0.1)
-                    timestamps_2D_batch.append(net_T_response[batch][0][ind])
-                    pos +=1
-                    number_of_e += 1
-                timestamps_2D.append(timestamps_2D_batch)
-                events_per_batch.append(number_of_e)
+            # 2D timesurface dimension
+            ydim,xdim = [self.polarities[layer], self.features_number[layer][0]]
+            all_surfaces = []
+            for recording in range(len(net_T_response)):
+                # As a single time surface is build on all polarities, there is no need to build a time 
+                # surface per each event with a different polarity and equal time stamp, thus only 
+                # a fraction of the events are extracted here
+                n_batch = len(net_T_response[recording][0])//batch_size               
+                if layer !=0 :
+                    reference_event_jump=self.features_number[layer][0]*self.features_number[layer-1][1]
+                else:
+                    reference_event_jump=self.features_number[layer][0]
+                    
+                all_surfaces_recording = Parallel(n_jobs=self.threads)(delayed(Time_Surface)(xdim, ydim, event_ind,
+                                                  self.taus_2D[layer], net_T_response[recording],
+                                                  minv=0.1) for event_ind in range(0, n_batch*batch_size, reference_event_jump))
+                all_surfaces += all_surfaces_recording
                 gc.collect()
                 if self.exploring is True:
-                    print("\r","Contexts generation :", (batch+1)/len(net_T_response)*100,"%", end="")
+                    print("\r","Surfaces generation :", (recording+1)/len(net_T_response)*100,"%", end="")
             
-            #TODO change this as soon we will have the new timesurfaces
-            if layer==0:
-                all_surfaces= all_surfaces[:pos,:]
-
             if self.exploring is True:
-                print("Generating contexts took %s seconds." % (time.time() - start_time))
-                print('\n--- LAYER '+str(layer)+' SURFACES CLUSTERING ---')
+                print("Generating surfaces took %s seconds." % (time.time() - start_time))
+                print('\n--- LAYER '+str(layer)+' SURFACES FEATURES EXTRACTION ---')
             start_time = time.time()
-            # Training the features (the basis)
-            kmeans = KMeans(n_clusters=self.basis_number[layer][1]).fit(all_surfaces)
-            self.basis_2D[layer] = kmeans.cluster_centers_
+            all_surfaces =np.array(all_surfaces)
+            # Training the features 
+            self.vaes_2D[layer][0].fit(all_surfaces, shuffle=False,
+                     epochs=40, batch_size=batch_size,
+                     validation_data=(all_surfaces, None))
             if self.exploring is True:
-                print("\n Clustering took %s seconds." % (time.time() - start_time))
+                print("\n Features extraction took %s seconds." % (time.time() - start_time))
             # Obtain Net activations
-            pos = 0
             net_2D_response = []
-            for batch in range(len(net_T_response)):
-                features = kmeans.labels_[pos:pos+events_per_batch[batch]]
-                net_2D_response.append([np.array(timestamps_2D[batch]), features])
-                pos += events_per_batch[batch]
-            
+            layer_2D_activations=[]
+            current_pos = 0
+            for recording in range(len(net_T_response)):
+                recording_results = self.vaes_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(net_T_response[recording][0])//reference_event_jump]), batch_size=batch_size)
+                current_pos += len(net_T_response[recording][0])//reference_event_jump
+                # Generate new events only if I am not at the last layer
+                if layer != (self.layers-1):
+                    net_2D_response.append(events_from_activations_2D(recording_results, [net_T_response[recording][0][range(0,len(net_T_response[recording][0]),reference_event_jump)],
+                                                                      net_T_response[recording][1][range(0,len(net_T_response[recording][0]),reference_event_jump)]]))
+                layer_2D_activations.append(recording_results)
             layer_dataset = net_2D_response
             # clearing some variables
-            del kmeans, net_2D_response, all_surfaces
-        
-        self.last_layer_activity = layer_dataset
-        
-    # Method used to compute the full network response to a dataset
+            del net_T_response, all_surfaces
+        self.last_layer_activity = layer_2D_activations
+
     # =============================================================================  
-    # dataset : the input dataset for the network
-    #
-    # The last layer output is stored in .last_layer_activity
-    # =============================================================================         
-    def compute_response(self, dataset):
+    def learn_old(self, dataset, learning_rate):
+        """
+        Network learning method, for now it based on kmeans and it is offline
+        Arguments:
+            dataset (nested lists) : the dataset used to extract features in a unsupervised 
+                                     manner
+            learning_rate (float) : It's the learning rate of ADAM online optimization                 
+        """
+        
         layer_dataset = dataset
         del dataset
         for layer in range(self.layers):
-            net_T_response = []
+            # The code is going to run on gpus, to improve performances rather than 
+            # a pure online algorithm I am going to minibatch 
+            batch_size = 500
+            
+            # Create the varational autoencoder for this layer
+            intermediate_dim = 20
+            self.vaes_T.append(create_vae(self.context_lengths[layer],
+                                          self.features_number[layer][0],
+                                          intermediate_dim, learning_rate[layer][0]))
+            
             # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
             if self.exploring is True:
-                print('\n--- LAYER '+str(layer)+' 0D COMPUTATION ---')
+                print('\n--- LAYER '+str(layer)+' CONTEXTS GENERATION ---')
                 start_time = time.time()
-            pos = 0
-            for batch in range(len(layer_dataset)):
-                features=np.zeros(len(layer_dataset[batch][0]),dtype=int)
-                for ind in range(len(layer_dataset[batch][0])):
-                    event_polarity = layer_dataset[batch][1][ind]
-                    context = Time_context(ind, layer_dataset[batch],
-                                                              self.taus_T[layer][event_polarity],
-                                                              self.context_lengths[layer])
-                    dist = np.sum((self.basis_T[layer]-context)**2,axis=1)
-                    features[ind] = np.argmin(dist)
-                    pos +=1
-                polarities = layer_dataset[batch][1]
-                net_T_response.append([layer_dataset[batch][0], polarities, features])
+            all_contexts=[]
+            for recording in range(len(layer_dataset)):
+                n_batch = len(layer_dataset[recording][0])//batch_size
+                # Cut the excess data in the first layer : 
+                if layer == 0 :
+                    layer_dataset[recording][0]=layer_dataset[recording][0][:n_batch*batch_size]
+                    layer_dataset[recording][1]=layer_dataset[recording][1][:n_batch*batch_size]
+               
+
+                all_contexts_recording = Parallel(n_jobs=self.threads)(delayed(Time_context)(event_ind, layer_dataset[recording],
+                                                          self.taus_T[layer][layer_dataset[recording][1][event_ind]],
+                                                          self.context_lengths[layer]) for event_ind in range(n_batch*batch_size))
+                all_contexts+=all_contexts_recording
                 gc.collect()
                 if self.exploring is True:
-                    print("\r","Response computation :", (batch+1)/len(layer_dataset)*100,"%", end="")
+                    print("\r","Contexts generation :", (recording+1)/len(layer_dataset)*100,"%", end="")
+                        
             if self.exploring is True:    
-                print("0D response computation took %s seconds." % (time.time() - start_time))
-            
+                print("Generating contexts took %s seconds." % (time.time() - start_time))
+                print('\n--- LAYER '+str(layer)+' CONTEXTS FEATURES EXTRACTION ---')
+                start_time = time.time()
+            all_contexts =np.array(all_contexts)
+            # Training the features 
+            self.vaes_T[layer][0].fit(all_contexts, shuffle=False,
+                     epochs=40, batch_size=batch_size,
+                     validation_data=(all_contexts, None))
+            if self.exploring is True:
+                print("\n Features extraction took %s seconds." % (time.time() - start_time))
+            # Obtain Net activations
+            net_T_response = []
+            current_pos = 0
+            for recording in range(len(layer_dataset)):                
+                # Get network activations at steady state (after learning)
+                recording_results, _, _ = self.vaes_T[layer][1].predict(np.array(all_contexts[current_pos:current_pos+len(layer_dataset[recording][0])]), batch_size=batch_size)
+                current_pos += len(layer_dataset[recording][0])
+                net_T_response.append(events_from_activations_T(recording_results, layer_dataset[recording]))
+
             # clearing some variables
-            del layer_dataset
+            del layer_dataset, all_contexts
+            
+            # Create the varational autoencoder for this layer
+            intermediate_dim = 20
+            self.vaes_2D.append(create_vae(self.polarities[layer]*self.features_number[layer][0],
+                                        self.features_number[layer][1], intermediate_dim, learning_rate[layer][1]))
             
             # GENERATING AND COMPUTING SURFACES RESPONSES
             if self.exploring is True:
-                print('\n--- LAYER '+str(layer)+' 2D COMPUTATION ---')
+                print('\n--- LAYER '+str(layer)+' SURFACES GENERATION ---')
             start_time = time.time()
-            pos = 0
-            ydim,xdim = [self.polarities[layer], self.basis_number[layer][0]]
-            net_2D_response = []
-            events_per_batch = [] # How many surfaces are generated per each batch
-            timestamps_2D = []
-            for batch in range(len(net_T_response)):
-                number_of_e = 0
-                timestamps_2D_batch = []
-                features = []
-                for ind in range(len(net_T_response[batch][0])):
-                    #TODO change this as soon we will have the new timesurfaces
-                    # If the reference event is not from the selected channel ditch 
-                    # the process and move to the next one
-                    # This process is not needed in other layers as 
-                    # the synchronization has already happened
-                    current_channel=net_T_response[batch][1][ind]
-                    if not(current_channel == channel or current_channel == channel+ 1 or
-                        current_channel == channel-1) and layer==0:
-                        continue
-                    surface = Time_Surface(xdim, ydim, ind,
-                                self.taus_2D[layer], net_T_response[batch],
-                                minv=0.1)
-                    timestamps_2D_batch.append(net_T_response[batch][0][ind])
-                    dist = np.sum((self.basis_2D[layer]-surface)**2,axis=1)
-                    features.append(np.argmin(dist))
-                    pos +=1
-                timestamps_2D.append(timestamps_2D_batch)
-                events_per_batch.append(number_of_e)
-                net_2D_response.append([np.array(timestamps_2D[batch]), np.array(features)])
+            # 2D timesurface dimension
+            ydim,xdim = [self.polarities[layer], self.features_number[layer][0]]
+            all_surfaces = []
+            for recording in range(len(net_T_response)):
+                # As a single time surface is build on all polarities, there is no need to build a time 
+                # surface per each event with a different polarity and equal time stamp, thus only 
+                # a fraction of the events are extracted here
+                n_batch = len(net_T_response[recording][0])//batch_size               
+                if layer !=0 :
+                    reference_event_jump=self.features_number[layer][0]*self.features_number[layer-1][1]
+                else:
+                    reference_event_jump=self.features_number[layer][0]
+                    
+                all_surfaces_recording = Parallel(n_jobs=self.threads)(delayed(Time_Surface)(xdim, ydim, event_ind,
+                                                  self.taus_2D[layer], net_T_response[recording],
+                                                  minv=0.1) for event_ind in range(0, n_batch*batch_size, reference_event_jump))
+                all_surfaces += all_surfaces_recording
                 gc.collect()
                 if self.exploring is True:
-                    print("\r","Response computation :", (batch+1)/len(net_T_response)*100,"%", end="")
-            if self.exploring is True:
-                print("2D response computation took %s seconds." % (time.time() - start_time))
+                    print("\r","Surfaces generation :", (recording+1)/len(net_T_response)*100,"%", end="")
             
+            if self.exploring is True:
+                print("Generating surfaces took %s seconds." % (time.time() - start_time))
+                print('\n--- LAYER '+str(layer)+' SURFACES FEATURES EXTRACTION ---')
+            start_time = time.time()
+            all_surfaces =np.array(all_surfaces)
+            # Training the features 
+            self.vaes_2D[layer][0].fit(all_surfaces, shuffle=False,
+                     epochs=40, batch_size=batch_size,
+                     validation_data=(all_surfaces, None))
+            if self.exploring is True:
+                print("\n Features extraction took %s seconds." % (time.time() - start_time))
+            # Obtain Net activations
+            net_2D_response = []
+            layer_2D_activations=[]
+            current_pos = 0
+            for recording in range(len(net_T_response)):
+                recording_results, _, _ = self.vaes_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(net_T_response[recording][0])//reference_event_jump]), batch_size=batch_size)
+                current_pos += len(net_T_response[recording][0])//reference_event_jump
+                # Generate new events only if I am not at the last layer
+                if layer != (self.layers-1):
+                    net_2D_response.append(events_from_activations_2D(recording_results, [net_T_response[recording][0][range(0,len(net_T_response[recording][0]),reference_event_jump)],
+                                                                      net_T_response[recording][1][range(0,len(net_T_response[recording][0]),reference_event_jump)]]))
+                layer_2D_activations.append(recording_results)
             layer_dataset = net_2D_response
             # clearing some variables
-            del net_2D_response
+            del net_T_response, all_surfaces
+        self.last_layer_activity = layer_2D_activations
         
-        self.last_layer_activity = layer_dataset
+    # =============================================================================         
+    def compute_response(self, dataset):
+        """
+        Method used to compute the full network response to a dataset.
+        The last layer output is stored in .last_layer_activity
+        Arguments:
+            dataset : the input dataset for the network
+        """
+        layer_dataset = dataset
+        del dataset
+        for layer in range(self.layers):
+            # The code is going to run on gpus, to improve performances rather than 
+            # a pure online algorithm I am going to minibatch 
+            batch_size = 500
+            
+            # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
+            if self.exploring is True:
+                print('\n--- LAYER '+str(layer)+' CONTEXTS GENERATION ---')
+                start_time = time.time()
+            all_contexts=[]
+            for recording in range(len(layer_dataset)):
+                n_batch = len(layer_dataset[recording][0])//batch_size
+                # Cut the excess data in the first layer : 
+                if layer == 0 :
+                    layer_dataset[recording][0]=layer_dataset[recording][0][:n_batch*batch_size]
+                    layer_dataset[recording][1]=layer_dataset[recording][1][:n_batch*batch_size]
+               
+                all_contexts_recording = Parallel(n_jobs=self.threads)(delayed(Time_context)(event_ind, layer_dataset[recording],
+                                                          self.taus_T[layer][layer_dataset[recording][1][event_ind]],
+                                                          self.context_lengths[layer]) for event_ind in range(n_batch*batch_size))
+                all_contexts+=all_contexts_recording
+                gc.collect()
+                if self.exploring is True:
+                    print("\r","Contexts generation :", (recording+1)/len(layer_dataset)*100,"%", end="")
+                        
+            if self.exploring is True:    
+                print("Generating contexts took %s seconds." % (time.time() - start_time))
+                print('\n--- LAYER '+str(layer)+' CONTEXTS RESPONSE COMPUTATION ---')
+                start_time = time.time()
+            all_contexts =np.array(all_contexts)
+            # Obtain Net activations
+            net_T_response = []
+            current_pos = 0
+            for recording in range(len(layer_dataset)):   
+                
+                recording_results = self.vaes_T[layer][1].predict(np.array(all_contexts[current_pos:current_pos+len(layer_dataset[recording][0])]), batch_size=batch_size)
+                current_pos += len(layer_dataset[recording][0])
+                net_T_response.append(events_from_activations_T(recording_results, layer_dataset[recording]))
+           
+            if self.exploring is True:
+                print("\n Response computation took %s seconds." % (time.time() - start_time))
+            # clearing some variables
+            del layer_dataset, all_contexts
+                        
+            # GENERATING AND COMPUTING SURFACES RESPONSES
+            if self.exploring is True:
+                print('\n--- LAYER '+str(layer)+' SURFACES GENERATION ---')
+            start_time = time.time()
+            # 2D timesurface dimension
+            ydim,xdim = [self.polarities[layer], self.features_number[layer][0]]
+            all_surfaces = []
+            for recording in range(len(net_T_response)):
+                # As a single time surface is build on all polarities, there is no need to build a time 
+                # surface per each event with a different polarity and equal time stamp, thus only 
+                # a fraction of the events are extracted here
+                n_batch = len(net_T_response[recording][0])//batch_size
+                if layer !=0 :
+                    reference_event_jump=self.features_number[layer][0]*self.features_number[layer-1][1]
+                else:
+                    reference_event_jump=self.features_number[layer][0]
+                    
+                all_surfaces_recording = Parallel(n_jobs=self.threads)(delayed(Time_Surface)(xdim, ydim, event_ind,
+                                                  self.taus_2D[layer], net_T_response[recording],
+                                                  minv=0.1) for event_ind in range(0, n_batch*batch_size, reference_event_jump))
+                all_surfaces += all_surfaces_recording
+                gc.collect()
+                if self.exploring is True:
+                    print("\r","Surfaces generation :", (recording+1)/len(net_T_response)*100,"%", end="")
+            
+            if self.exploring is True:
+                print("Generating surfaces took %s seconds." % (time.time() - start_time))
+                print('\n--- LAYER '+str(layer)+' SURFACES FEATURES EXTRACTION ---')
+            start_time = time.time()
+            all_surfaces =np.array(all_surfaces)
+            layer_2D_activations=[]
+            # Obtain Net activations
+            net_2D_response = []
+            current_pos = 0
+            for recording in range(len(net_T_response)):
+                recording_results = self.vaes_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(net_T_response[recording][0])//reference_event_jump]), batch_size=batch_size)
+                current_pos += len(net_T_response[recording][0])//reference_event_jump
+                # Generate new events only if I am not at the last layer
+                if layer != (self.layers-1):
+                    net_2D_response.append(events_from_activations_2D(recording_results, [net_T_response[recording][0][range(0,len(net_T_response[recording][0]),reference_event_jump)],
+                                                                                          net_T_response[recording][1][range(0,len(net_T_response[recording][0]),reference_event_jump)]]))
+                layer_2D_activations.append(recording_results)        
+            
+            layer_dataset = net_2D_response
+            if self.exploring is True:
+                print("\n Response computation took %s seconds." % (time.time() - start_time))
+            # clearing some variables
+            del net_T_response, all_surfaces
+        
+        self.last_layer_activity = layer_2D_activations
+
+    # =============================================================================         
+    def compute_response_old(self, dataset):
+        """
+        Method used to compute the full network response to a dataset.
+        The last layer output is stored in .last_layer_activity
+        Arguments:
+            dataset : the input dataset for the network
+        """
+        layer_dataset = dataset
+        del dataset
+        for layer in range(self.layers):
+            # The code is going to run on gpus, to improve performances rather than 
+            # a pure online algorithm I am going to minibatch 
+            batch_size = 500
+            
+            # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
+            if self.exploring is True:
+                print('\n--- LAYER '+str(layer)+' CONTEXTS GENERATION ---')
+                start_time = time.time()
+            all_contexts=[]
+            for recording in range(len(layer_dataset)):
+                n_batch = len(layer_dataset[recording][0])//batch_size
+                # Cut the excess data in the first layer : 
+                if layer == 0 :
+                    layer_dataset[recording][0]=layer_dataset[recording][0][:n_batch*batch_size]
+                    layer_dataset[recording][1]=layer_dataset[recording][1][:n_batch*batch_size]
+               
+                all_contexts_recording = Parallel(n_jobs=self.threads)(delayed(Time_context)(event_ind, layer_dataset[recording],
+                                                          self.taus_T[layer][layer_dataset[recording][1][event_ind]],
+                                                          self.context_lengths[layer]) for event_ind in range(n_batch*batch_size))
+                all_contexts+=all_contexts_recording
+                gc.collect()
+                if self.exploring is True:
+                    print("\r","Contexts generation :", (recording+1)/len(layer_dataset)*100,"%", end="")
+                        
+            if self.exploring is True:    
+                print("Generating contexts took %s seconds." % (time.time() - start_time))
+                print('\n--- LAYER '+str(layer)+' CONTEXTS RESPONSE COMPUTATION ---')
+                start_time = time.time()
+            all_contexts =np.array(all_contexts)
+            # Obtain Net activations
+            net_T_response = []
+            current_pos = 0
+            for recording in range(len(layer_dataset)):   
+                
+                recording_results, _, _ = self.vaes_T[layer][1].predict(np.array(all_contexts[current_pos:current_pos+len(layer_dataset[recording][0])]), batch_size=batch_size)
+                current_pos += len(layer_dataset[recording][0])
+                net_T_response.append(events_from_activations_T(recording_results, layer_dataset[recording]))
+           
+            if self.exploring is True:
+                print("\n Response computation took %s seconds." % (time.time() - start_time))
+            # clearing some variables
+            del layer_dataset, all_contexts
+                        
+            # GENERATING AND COMPUTING SURFACES RESPONSES
+            if self.exploring is True:
+                print('\n--- LAYER '+str(layer)+' SURFACES GENERATION ---')
+            start_time = time.time()
+            # 2D timesurface dimension
+            ydim,xdim = [self.polarities[layer], self.features_number[layer][0]]
+            all_surfaces = []
+            for recording in range(len(net_T_response)):
+                # As a single time surface is build on all polarities, there is no need to build a time 
+                # surface per each event with a different polarity and equal time stamp, thus only 
+                # a fraction of the events are extracted here
+                n_batch = len(net_T_response[recording][0])//batch_size
+                if layer !=0 :
+                    reference_event_jump=self.features_number[layer][0]*self.features_number[layer-1][1]
+                else:
+                    reference_event_jump=self.features_number[layer][0]
+                    
+                all_surfaces_recording = Parallel(n_jobs=self.threads)(delayed(Time_Surface)(xdim, ydim, event_ind,
+                                                  self.taus_2D[layer], net_T_response[recording],
+                                                  minv=0.1) for event_ind in range(0, n_batch*batch_size, reference_event_jump))
+                all_surfaces += all_surfaces_recording
+                gc.collect()
+                if self.exploring is True:
+                    print("\r","Surfaces generation :", (recording+1)/len(net_T_response)*100,"%", end="")
+            
+            if self.exploring is True:
+                print("Generating surfaces took %s seconds." % (time.time() - start_time))
+                print('\n--- LAYER '+str(layer)+' SURFACES FEATURES EXTRACTION ---')
+            start_time = time.time()
+            all_surfaces =np.array(all_surfaces)
+            layer_2D_activations=[]
+            # Obtain Net activations
+            net_2D_response = []
+            current_pos = 0
+            for recording in range(len(net_T_response)):
+                recording_results, _, _ = self.vaes_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(net_T_response[recording][0])//reference_event_jump]), batch_size=batch_size)
+                current_pos += len(net_T_response[recording][0])//reference_event_jump
+                # Generate new events only if I am not at the last layer
+                if layer != (self.layers-1):
+                    net_2D_response.append(events_from_activations_2D(recording_results, [net_T_response[recording][0][range(0,len(net_T_response[recording][0]),reference_event_jump)],
+                                                                                          net_T_response[recording][1][range(0,len(net_T_response[recording][0]),reference_event_jump)]]))
+                layer_2D_activations.append(recording_results)        
+            
+            layer_dataset = net_2D_response
+            if self.exploring is True:
+                print("\n Response computation took %s seconds." % (time.time() - start_time))
+            # clearing some variables
+            del net_T_response, all_surfaces
+        
+        self.last_layer_activity = layer_2D_activations
+
+    # Method for training a mlp classification model 
+    # =============================================================================      
+    def mlp_classification_train(self, labels, number_of_labels, learning_rate, dataset=[]):
+        """
+        Method to train a simple mlp, to a classification task, to test the feature 
+        rapresentation automatically extracted by HOTS
+        
+        Arguments:
+            labels (list of int) : List of integers (labels) of the dataset
+            number_of_labels (int) : The total number of different labels that,
+                                     I am excepting in the dataset, (I know that i could
+                                     max(labels) but, first, it's wasted computation, 
+                                     second, the user should move his/her ass and eat 
+                                     less donuts)
+            learning_rate (float) : The method is Adam 
+            dataset (nested lists) : the dataset used for learn classification, if not declared the method
+                         will use the last response of the network. To avoid surprises 
+                         check that the labels inserted here and the dataset used for 
+                         either .learn .full_net_dataset_response a previous .mlp_classification_train
+                         .mlp_classification_test is matching (Which is extremely faster
+                         than computing the dataset again, but be aware of that)
+
+        """
+        
+        if dataset:
+            self.compute_response(dataset=dataset)            
+        last_layer_activity = self.last_layer_activity      
+        processed_labels = np.concatenate([labels[recording]*np.ones(len(last_layer_activity[recording])) for recording in range(len(labels))])
+        processed_labels = keras.utils.to_categorical(processed_labels, num_classes = number_of_labels)
+        last_layer_activity = np.concatenate(last_layer_activity)
+        n_latent_var = self.features_number[-1][-1]
+        self.mlp = create_mlp(input_size=n_latent_var,hidden_size=120, output_size=number_of_labels, 
+                              learning_rate=learning_rate)
+        self.mlp.summary()
+        self.mlp.fit(np.array(last_layer_activity), np.array(processed_labels),
+          epochs=50,
+          batch_size=125)
+            
+        if self.exploring is True:
+            print("Training ended, you can now access the trained network with the method .mlp")
+
+
+    # Method for testing the mlp classification model
+    # =============================================================================      
+    def mlp_classification_test(self, labels, number_of_labels, dataset=[]):
+        """
+        Method to test a simple mlp, to a classification task, to test the feature 
+        rapresentation automatically extracted by HOTS
+        
+        Arguments:
+            labels (list of int) : List of integers (labels) of the dataset
+            number_of_labels (int) : The total number of different labels that,
+                                     I am excepting in the dataset, (I know that i could
+                                     max(labels) but, first, it's wasted computation, 
+                                     second, the user should move his/her ass and eat 
+                                     less donuts)
+            dataset (nested lists) : the dataset used for testing classification, if not declared the method
+                                     will use the last response of the network. To avoid surprises 
+                                     check that the labels inserted here and the dataset used for 
+                                     either .learn .full_net_dataset_response a previous .mlp_classification_train
+                                     .mlp_classification_test is matching (Which is extremely faster
+                                     than computing the dataset again, but be aware of that)
+
+        """
+        if dataset:
+            self.compute_response(dataset=dataset)     
+        last_layer_activity = self.last_layer_activity    
+        last_layer_activity = np.concatenate(last_layer_activity)
+        predicted_labels_ev=self.mlp.predict(np.array(last_layer_activity),batch_size=500)
+        counter=0
+        predicted_labels=[]
+        for recording in range(len(self.last_layer_activity)):
+            activity_sum = sum(predicted_labels_ev[counter:counter+len(self.last_layer_activity[recording])])
+            predicted_labels.append(np.argmax(activity_sum))
+            counter += len(self.last_layer_activity[recording])
+        prediction_rate=0
+        for i,true_label in enumerate(labels):
+            prediction_rate += (predicted_labels[i] == true_label)/len(labels)
+        return prediction_rate, predicted_labels, predicted_labels_ev
+    
+    # =============================================================================          
+    def plot_vae_decode_2D(self, layer, sublayer, variables_ind, variable_fix=0):
+        """
+        Plots reconstructed timesurfaces as function of 2-dim latent vector
+        of a selected layer of the network
+        Arguments:
+            layer (int) : layer used to locate the latent variable that will be 
+                         used to decode the timesurfaces
+            sublayer (int) : Decide whether to plot the Time contexts sublayer 
+                             with "0" or the 2D one "1"
+            variables_ind (list of 2 int) : as this method plot a 2D rapresentation
+                                            it expects two latent variables to work
+                                            with, thus here you can select the index
+                                            of the latent variables that will 
+                                            be displayed
+            variable_fix (float) : the value at which all other latent variables
+                                   will be fixed, 0 on default
+        """      
+        
+        if sublayer==0:
+            size_x = self.context_lengths[layer]
+            size_y=1
+            decoder = self.vaes_T[layer][2]
+        else:
+            size_x = self.features_number[layer][0]
+            size_y = self.polarities[layer]
+            decoder = self.vaes_2D[layer][2]
+        
+        # display a 30x30 2D manifold of timesurfaces
+        n = 30
+        figure = np.zeros((size_y * n, size_x*n))
+        # linearly spaced coordinates corresponding to the 2D plot
+        # of digit classes in the latent space
+        grid_x = np.linspace(-4, 4, n)
+        grid_y = np.linspace(-4, 4, n)[::-1]
+    
+        for i, yi in enumerate(grid_y):
+            for j, xi in enumerate(grid_x):
+                z_sample = np.ones(self.features_number[layer][sublayer])*variable_fix
+                z_sample[variables_ind[0]]=xi
+                z_sample[variables_ind[1]]=yi
+                x_decoded = decoder.predict(np.array([z_sample]))
+                tsurface = x_decoded[0].reshape(size_y, size_x)
+                figure[i * size_y: (i + 1) * size_y,
+                       j * size_x: (j + 1) * size_x] = tsurface
+    
+        plt.figure(figsize=(10, 10))
+        plt.title("2D Latent decoding grid")
+        start_range_x = size_x // 2
+        end_range_x = n * size_x + start_range_x + 1
+        pixel_range_x = np.arange(start_range_x, end_range_x, size_x)
+        start_range_y = size_y // 2
+        end_range_y = n * size_y + start_range_y + 1
+        pixel_range_y = np.arange(start_range_y, end_range_y, size_y)
+        sample_range_x = np.round(grid_x, 1)
+        sample_range_y = np.round(grid_y, 1)
+        plt.xticks(pixel_range_x, sample_range_x)
+        plt.yticks(pixel_range_y, sample_range_y)
+        plt.xlabel("z["+str(variables_ind[0])+"]")
+        plt.ylabel("z["+str(variables_ind[1])+"]")
+        plt.imshow(figure)
+        plt.show()
+    
+    # =============================================================================             
+    def plot_vae_space_2D(self, layer, variables_ind, label_names, labels, dataset=[]):
+        """
+        Plots latent rapresentation of a dataset for a given layer, or the latest
+        network activations if no dataset is given,
+        the data is also colored given the labels 
+        Arguments:
+            layer (int) : layer used to locate the latent variable that will be 
+                           plotted, ignored if no dataset is given 
+            variables_ind (list of 2 int) : as this method plot a 2D rapresentation
+                                            it expects two latent variables to work
+                                            with, thus here you can select the index
+                                            of the latent variables that will 
+                                            be displayed
+            labels_names (list of strings) : The name of each label, used to plot 
+                                             the legend
+            labels (list of int) : List of integers (labels) of the dataset
+            dataset (nested lists) : the dataset that will generate the responses
+                                     through the .full_net_dataset_response method
+                                     
+                                     To avoid surprises 
+                                     check that the labels inserted here and the dataset used for 
+                                     either .learn .full_net_dataset_response a previous .mlp_classification_train
+                                     .mlp_classification_test is matching (Which is extremely faster
+                                     than computing the dataset again, but be aware of that)
+        """
+        if dataset:
+            selected_layer_activity = self.full_net_dataset_response(dataset=dataset,layer_stop=layer)     
+        else:
+            selected_layer_activity = self.last_layer_activity   
+        
+        # Plot variable Space
+        # display a 2D plot of the time surfaces in the latent space
+        
+        # Create a label array to specify the labes for each timesurface
+        fig, ax = plt.subplots(figsize=(12, 10))
+        ax.set_title("2D Latent dataset rapresentation")
+        custom_lines = [Line2D([0], [0], color="C"+str(label), lw=1) for label in range(len(label_names))]
+        for recording in range(len(labels)):
+            ax.scatter(selected_layer_activity[recording][:, variables_ind[0]], selected_layer_activity[recording][:, variables_ind[1]], c="C"+str(labels[recording]))
+        ax.legend(custom_lines,label_names)
+        plt.xlabel("z["+str(variables_ind[0])+"]")
+        plt.ylabel("z["+str(variables_ind[1])+"]")
+        plt.show()
+    
+
+             ## ELEPHANT GRAVEYARD, WHERE ALL THE UNUSED METHODS GO TO SLEEP, ##
+              ##  UNTIL A LAZY DEVELOPER WILL DECIDE WHAT TO DO WITH THEM    ##
+        # =============================================================================
+    # =============================================================================  
+        # =============================================================================
+    # =============================================================================  
+        # =============================================================================
+    # =============================================================================  
+
+
 
     # Method used to train the network histograms or signatures per each channel
     # =============================================================================  
