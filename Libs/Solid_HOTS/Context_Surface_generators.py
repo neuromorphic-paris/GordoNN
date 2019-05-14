@@ -48,6 +48,39 @@ def Time_context(event_index, events, timecoeff, context_size):
      
     return context
 
+# =============================================================================
+def Time_context_later(event_index, events, timecoeff, context_size):
+    """
+    Time_context is a function used to generate time_contexts starting from a 
+    reference event and an array of events 
+    Arguments : 
+        event_index (int) : position of the reference event in the events list   
+        events (list of events) : list of events (a recording) where each event is a 
+                                  1D list containing in pos 0 the timestamp, in
+                                  pos 1 the address and pos 2 for the rate if present
+        timecoeff(float): exp decay coefficient for context generation
+        context_size(int): the length of the context  
+    Return :
+        context (numpy array of floats) : monodimentional array of floats defining
+                                          the time context for the reference event
+    """ 
+    # in case there are not enough events to completely load the dimesurface
+    if event_index<=context_size-1:
+        contexts = np.zeros([len(events[1][0]),context_size],dtype=float)
+        context_size_counter = 1
+        contexts[:,0] = events[1][event_index]
+        timestamp = events[0][event_index]      
+        ind = event_index-1 # Next index in the timestamps array to look for
+        while (context_size_counter < context_size) and (ind>-1):
+            contexts[:,context_size_counter]=np.exp(-(timestamp-events[0][ind])/timecoeff)
+            contexts[:,context_size_counter]*=events[1][ind]    
+            context_size_counter += 1
+            ind -= 1
+    else:
+        timestamp = events[0][event_index] 
+        contexts = events[1][event_index:event_index-context_size:-1].transpose()*np.exp(-(timestamp-events[0][event_index:event_index-context_size:-1])/timecoeff)
+        
+    return contexts
 
 # =============================================================================
 def Time_Surface(xdim, ydim, event_index, timecoeff, dataset, minv=0.1):

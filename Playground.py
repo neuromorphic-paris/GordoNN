@@ -58,7 +58,7 @@ shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 20
+number_files_dataset = 120
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -94,7 +94,7 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-features_number = [[2,20],[20,10]]
+features_number = [[2,20],[40,20]]
 context_lengths = [200,200]
 input_channels = 32 + 32*use_all_addr
 l1_norm_coeff=0.07
@@ -108,7 +108,7 @@ second_layer_taus = np.ones(features_number[0][1]) # The taus for this layer are
 taus_T_coeff = np.array([50,80000]) # Multiplicative coefficients to help to change quickly the taus_T
 
 taus_T = (taus_T_coeff*[channel_taus, second_layer_taus]).tolist()
-taus_2D = [1000,2000]  
+taus_2D = [1000,0]  
 
 # Create the network
 Net = Solid_HOTS_Net(features_number, context_lengths, input_channels, taus_T, taus_2D, 
