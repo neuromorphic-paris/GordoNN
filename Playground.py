@@ -94,7 +94,7 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-features_number = [[2,20],[40,20]]
+features_number = [[2,20],[60,20]]
 context_lengths = [200,200]
 input_channels = 32 + 32*use_all_addr
 l1_norm_coeff=0.07
