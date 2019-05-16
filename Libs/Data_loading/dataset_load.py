@@ -57,7 +57,7 @@ from Libs.Data_loading.AERDATA_load import AERDATA_load
 
 def on_off_load(number_files_dataset, train_test_ratio, shuffle_seed=0, use_all_addr=False,
                 filenames_train=[], filenames_test=[], labels_train=[], labels_test=[]):
-    if not filenames_train and not filenames_test and not labels_train and not labels_test:
+    if filenames_train==[] and filenames_test==[] and labels_train==[] and labels_test==[]:
         [filenames_train, labels_train, filenames_test, labels_test] = get_filenames_on_off_dataset(number_files_dataset, train_test_ratio, shuffle_seed)
     print ('\n--- READING SPIKES ---')
     start_time = time.time()
