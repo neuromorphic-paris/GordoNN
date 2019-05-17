@@ -16,7 +16,6 @@ import random
 import glob
 import math
 import time
-from pathlib import Path
 
 
 # A simple function that reads file names from a binary dataset (two words:
@@ -46,10 +45,9 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
     print ('\n--- GETTING FILENAMES FROM THE DATASET ---')
     start_time = time.time()
     used_classes = ['off', 'on']
-    #Find the Repository folder to then look for the data folder
-    parent_folder=str(Path().resolve())
+
     
-    folders = [parent_folder+'/Data/On_Off/off_aedats', parent_folder+'/Data/On_Off/on_aedats'] # Where the dataset is supposed to be placed
+    folders = ['Data/On_Off/off_aedats', 'Data/On_Off/on_aedats'] # Where the dataset is supposed to be placed
     
     filenames_train = []
     filenames_test = []

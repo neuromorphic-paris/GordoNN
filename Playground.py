@@ -44,7 +44,7 @@ sns.set(style="white")
 plt.style.use("dark_background")
 
 ### Selecting the dataset
-shuffle_seed = 72 # seed used for dataset shuffling if set to 0 the process will be totally random
+shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will be totally random
 
 #%% ON OFF Dataset
 # Two class of recordings are used. The first class is composed by files containing
@@ -66,9 +66,22 @@ parameter_folder = "Parameters/On_Off/"
 
 legend = ("On","Off") # Legend containing the labes used for plots
 
+#filenames_train=np.load("filenames_train.npy")
+#filenames_test=np.load("filenames_test.npy")
+#labels_train=np.load("labels_train.npy")
+#labels_test=("labels_test.npy")
+#
+#[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, 
+#                                                                                             shuffle_seed, use_all_addr, filenames_train, filenames_test,
+#                                                                                             labels_train, labels_test)
+
 
 [dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
 
+#np.save("filenames_train",filenames_train)
+#np.save("filenames_test",filenames_test)
+#np.save("labels_train",labels_train)
+#np.save("labels_test",labels_test)
 
 #%% Network setting and feature exctraction 
 
@@ -151,7 +164,7 @@ plt.pause(0.1)
 number_of_labels=len(legend)
 mlp_learning_rate = 0.0005
 Net.mlp_classification_train(labels_train,   
-                                   number_of_labels, mlp_learning_rate)
+                                   number_of_labels, mlp_learning_rates)
 
 #%% Mlp classifier testing
   
