@@ -150,7 +150,7 @@ class Solid_HOTS_Net:
                 start_time = time.time()
             # Training the features 
             self.vaes_T[layer][0].fit(all_contexts, shuffle=False,
-                     epochs=50, batch_size=batch_size,
+                     epochs=15, batch_size=batch_size,
                      validation_data=(all_contexts, None))
             if self.exploring is True:
                 print("\n Features extraction took %s seconds." % (time.time() - start_time))
@@ -207,7 +207,7 @@ class Solid_HOTS_Net:
             all_surfaces =np.array(all_surfaces)
             # Training the features 
             self.vaes_2D[layer][0].fit(all_surfaces, shuffle=False,
-                     epochs=50, batch_size=batch_size,
+                     epochs=15, batch_size=batch_size,
                      validation_data=(all_surfaces, None))
             if self.exploring is True:
                 print("\n Features extraction took %s seconds." % (time.time() - start_time))
@@ -623,7 +623,7 @@ class Solid_HOTS_Net:
         last_layer_activity_concatenated = np.concatenate([last_layer_activity[recording][1] for recording in range(len(labels))])
         processed_labels = keras.utils.to_categorical(processed_labels, num_classes = number_of_labels)
         n_latent_var = self.features_number[-1][-1]
-        self.mlp = create_mlp(input_size=n_latent_var,hidden_size=120, output_size=number_of_labels, 
+        self.mlp = create_mlp(input_size=n_latent_var,hidden_size=40, output_size=number_of_labels, 
                               learning_rate=learning_rate)
         self.mlp.summary()
         self.mlp.fit(np.array(last_layer_activity_concatenated), np.array(processed_labels),

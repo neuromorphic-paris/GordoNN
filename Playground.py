@@ -44,7 +44,7 @@ sns.set(style="white")
 plt.style.use("dark_background")
 
 ### Selecting the dataset
-shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will be totally random
+shuffle_seed = 72 # seed used for dataset shuffling if set to 0 the process will be totally random
 
 #%% ON OFF Dataset
 # Two class of recordings are used. The first class is composed by files containing
@@ -67,7 +67,7 @@ parameter_folder = "Parameters/On_Off/"
 legend = ("On","Off") # Legend containing the labes used for plots
 
 
-[dataset_train, dataset_test, labels_train, labels_test,_,_] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
+[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
 
 
 #%% Network setting and feature exctraction 
@@ -94,7 +94,7 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-features_number = [[2,20],[60,20]]
+features_number = [[2,10],[10,5]]
 context_lengths = [200,200]
 input_channels = 32 + 32*use_all_addr
 l1_norm_coeff=0.07
@@ -139,6 +139,8 @@ Net.plot_vae_decode_2D(layer, sublayer, variables_ind, variable_fix)
 Net.plot_vae_decode_2D(layer, 1, variables_ind, variable_fix)
 Net.plot_vae_decode_2D(1, sublayer, variables_ind, variable_fix)
 Net.plot_vae_decode_2D(1, 1, variables_ind, variable_fix)
+Net.plot_vae_decode_2D(2, sublayer, variables_ind, variable_fix)
+Net.plot_vae_decode_2D(2, 1, variables_ind, variable_fix)
 Net.plot_vae_space_2D(layer, variables_ind, legend, labels_train)
 Net.plot_vae_space_2D(1, variables_ind, legend, labels_train, )
 
@@ -147,7 +149,7 @@ plt.pause(0.1)
 #%% Mlp classifier training
 
 number_of_labels=len(legend)
-mlp_learning_rate = 0.001
+mlp_learning_rate = 0.0005
 Net.mlp_classification_train(labels_train,   
                                    number_of_labels, mlp_learning_rate)
 
