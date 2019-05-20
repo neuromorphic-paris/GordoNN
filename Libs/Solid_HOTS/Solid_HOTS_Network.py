@@ -623,7 +623,7 @@ class Solid_HOTS_Net:
         last_layer_activity_concatenated = np.concatenate([last_layer_activity[recording][1] for recording in range(len(labels))])
         processed_labels = keras.utils.to_categorical(processed_labels, num_classes = number_of_labels)
         n_latent_var = self.features_number[-1][-1]
-        self.mlp = create_mlp(input_size=n_latent_var,hidden_size=40, output_size=number_of_labels, 
+        self.mlp = create_mlp(input_size=n_latent_var,hidden_size=20, output_size=number_of_labels, 
                               learning_rate=learning_rate)
         self.mlp.summary()
         self.mlp.fit(np.array(last_layer_activity_concatenated), np.array(processed_labels),
