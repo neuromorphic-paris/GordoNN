@@ -150,11 +150,7 @@ class Solid_HOTS_Net:
                 start_time = time.time()
             # Training the features 
             self.vaes_T[layer][0].fit(all_contexts, shuffle=False,
-<<<<<<< HEAD
                      epochs=epochs[layer][0], batch_size=batch_size,
-=======
-                     epochs=50, batch_size=batch_size,
->>>>>>> 84bfb5d58c6d2721a485fdc94f0fdab39f7bb35d
                      validation_data=(all_contexts, None))
             if self.exploring is True:
                 print("\n Features extraction took %s seconds." % (time.time() - start_time))
@@ -211,11 +207,7 @@ class Solid_HOTS_Net:
             all_surfaces =np.array(all_surfaces)
             # Training the features 
             self.vaes_2D[layer][0].fit(all_surfaces, shuffle=False,
-<<<<<<< HEAD
                      epochs=epochs[layer][1], batch_size=batch_size,
-=======
-                     epochs=50, batch_size=batch_size,
->>>>>>> 84bfb5d58c6d2721a485fdc94f0fdab39f7bb35d
                      validation_data=(all_surfaces, None))
             if self.exploring is True:
                 print("\n Features extraction took %s seconds." % (time.time() - start_time))
