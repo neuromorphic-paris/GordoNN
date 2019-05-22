@@ -165,7 +165,7 @@ plt.pause(0.1)
 number_of_labels=len(legend)
 mlp_learning_rate = 0.00005
 Net.mlp_classification_train(labels_train,   
-                                   number_of_labels, mlp_learning_rate, dataset_train)
+                                   number_of_labels, mlp_learning_rate)
 
 #%% Mlp classifier testing
   
