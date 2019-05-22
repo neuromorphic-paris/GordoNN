@@ -66,17 +66,17 @@ parameter_folder = "Parameters/On_Off/"
 
 legend = ("On","Off") # Legend containing the labes used for plots
 
-#filenames_train=np.load("filenames_train.npy")
-#filenames_test=np.load("filenames_test.npy")
-#labels_train=np.load("labels_train.npy")
-#labels_test=("labels_test.npy")
-#
-#[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, 
-#                                                                                             shuffle_seed, use_all_addr, filenames_train, filenames_test,
-#                                                                                             labels_train, labels_test)
+filenames_train=np.load("filenames_train.npy")
+filenames_test=np.load("filenames_test.npy")
+labels_train=np.load("labels_train.npy")
+labels_test=np.load("labels_test.npy")
+
+[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, 
+                                                                                             shuffle_seed, use_all_addr, filenames_train, filenames_test,
+                                                                                             labels_train, labels_test)
 
 
-[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
+#[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
 
 #np.save("filenames_train",filenames_train)
 #np.save("filenames_test",filenames_test)
@@ -107,7 +107,7 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-features_number = [[2,10],[10,5]]
+features_number = [[2,10],[20,5]]
 context_lengths = [200,200]
 input_channels = 32 + 32*use_all_addr
 l1_norm_coeff=0.07
@@ -127,10 +127,11 @@ taus_2D = [1000,0]
 Net = Solid_HOTS_Net(features_number, context_lengths, input_channels, taus_T, taus_2D, 
                  threads=8, exploring=True)
 
-learning_rate = [[0.0005,0.0005],[0.0005,0.0005],[0.0005,0.0005]]
+learning_rate = [[1e-3,1e-3],[5e-4,5e-5],[0.0005,0.0005]]
+epochs = [[30,30],[100,100],[20,20]]
 
 # Learn the feature
-Net.learn(dataset_train,learning_rate, l1_norm_coeff)
+Net.learn(dataset_train,learning_rate, epochs, l1_norm_coeff)
 
 #%% Print features
 
@@ -162,9 +163,9 @@ plt.pause(0.1)
 #%% Mlp classifier training
 
 number_of_labels=len(legend)
-mlp_learning_rate = 0.0005
+mlp_learning_rate = 0.00005
 Net.mlp_classification_train(labels_train,   
-                                   number_of_labels, mlp_learning_rates)
+                                   number_of_labels, mlp_learning_rate, dataset_train)
 
 #%% Mlp classifier testing
   
