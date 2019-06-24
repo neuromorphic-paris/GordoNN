@@ -107,7 +107,7 @@ labels_test=np.load("labels_test.npy")
 # =============================================================================
 
 
-features_number = [[2,10],[20,5]]
+features_number = [[3,8],[16,8]]
 context_lengths = [200,200]
 input_channels = 32 + 32*use_all_addr
 l1_norm_coeff=0.07
@@ -127,8 +127,8 @@ taus_2D = [1000,0]
 Net = Solid_HOTS_Net(features_number, context_lengths, input_channels, taus_T, taus_2D, 
                  threads=8, exploring=True)
 
-learning_rate = [[1e-3,1e-3],[5e-4,5e-5],[0.0005,0.0005]]
-epochs = [[30,30],[100,100],[20,20]]
+learning_rate = [[8e-4,1e-4],[8e-4,1e-4],[0.0005,0.0005]]
+epochs = [[80,80],[80,80],[20,20]]
 
 # Learn the feature
 Net.learn(dataset_train,learning_rate, epochs, l1_norm_coeff)
@@ -163,13 +163,13 @@ plt.pause(0.1)
 #%% Mlp classifier training
 
 number_of_labels=len(legend)
-mlp_learning_rate = 0.00005
+mlp_learning_rate = 8e-4
 Net.mlp_classification_train(labels_train,   
                                    number_of_labels, mlp_learning_rate)
 
 #%% Mlp classifier testing
   
-prediction_rate, predicted_labels, predicted_labels_ev = Net.mlp_classification_test(labels_test, number_of_labels, dataset_test)
+prediction_rate, predicted_labels, predicted_labels_exv = Net.mlp_classification_test(labels_test, number_of_labels, dataset_test)
 print('Prediction rate is '+str(prediction_rate*100)+'%') 
 
 

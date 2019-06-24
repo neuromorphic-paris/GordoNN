@@ -119,7 +119,6 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
     """
     mlp = Sequential()
     mlp.add(Dense(hidden_size, input_dim=input_size, activation='relu'))
-    mlp.add(Dense(hidden_size, input_dim=input_size, activation='relu'))
 
     mlp.add(Dense(output_size, activation='sigmoid'))
     
@@ -132,7 +131,7 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
     
 
 # Let's try with a small predefined network    
-def create_vae(original_dim, latent_dim, intermediate_dim, learning_rate, l1_norm_coeff):
+def create_vae(original_dim, latent_dim, intermediate_dim, learning_rate, l1_norm_coeff, first_sublayer):
     """
     Function used to create a small autoencoder used each layer of Var HOTS
     Arguments :
@@ -166,7 +165,10 @@ def create_vae(original_dim, latent_dim, intermediate_dim, learning_rate, l1_nor
     # build decoder model
     latent_inputs = Input(shape=(latent_dim,), name='decoder_inputs')
     x = Dense(intermediate_dim, activation='relu')(latent_inputs)
-    outputs = Dense(original_dim, activation='sigmoid')(x)
+    if first_sublayer==True:
+        outputs = Dense(original_dim, activation='sigmoid')(x)
+    else:
+        outputs = Dense(original_dim, activation='relu')(x)
     
     # instantiate decoder model
     decoder = Model(latent_inputs, outputs, name='decoder')

@@ -97,6 +97,7 @@ class Solid_HOTS_Net:
         """
         
         layer_dataset = dataset
+        first_sublayer=True
         del dataset
         for layer in range(self.layers):
             # The code is going to run on gpus, to improve performances rather than 
@@ -107,8 +108,8 @@ class Solid_HOTS_Net:
             intermediate_dim = 20
             self.vaes_T.append(create_vae(self.context_lengths[layer],
                                           self.features_number[layer][0],
-                                          intermediate_dim, learning_rate[layer][0], l1_norm_coeff))
-            
+                                          intermediate_dim, learning_rate[layer][0], l1_norm_coeff, first_sublayer))
+            first_sublayer=False
             # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
             if self.exploring is True:
                 print('\n--- LAYER '+str(layer)+' CONTEXTS GENERATION ---')
@@ -176,7 +177,7 @@ class Solid_HOTS_Net:
             # Create the varational autoencoder for this layer
             intermediate_dim = 20
             self.vaes_2D.append(create_vae(self.polarities[layer]*self.features_number[layer][0],
-                                        self.features_number[layer][1], intermediate_dim, learning_rate[layer][1], l1_norm_coeff))
+                                        self.features_number[layer][1], intermediate_dim, learning_rate[layer][1], l1_norm_coeff, first_sublayer))
             
             # GENERATING AND COMPUTING SURFACES RESPONSES
             if self.exploring is True:
@@ -371,7 +372,7 @@ class Solid_HOTS_Net:
         for layer in range(self.layers):
             # The code is going to run on gpus, to improve performances rather than 
             # a pure online algorithm I am going to minibatch 
-            batch_size = 500
+            batch_size = 1000
             
             # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
             if self.exploring is True:
@@ -623,12 +624,12 @@ class Solid_HOTS_Net:
         last_layer_activity_concatenated = np.concatenate([last_layer_activity[recording][1] for recording in range(len(labels))])
         processed_labels = keras.utils.to_categorical(processed_labels, num_classes = number_of_labels)
         n_latent_var = self.features_number[-1][-1]
-        self.mlp = create_mlp(input_size=n_latent_var,hidden_size=20, output_size=number_of_labels, 
+        self.mlp = create_mlp(input_size=n_latent_var,hidden_size=10, output_size=number_of_labels, 
                               learning_rate=learning_rate)
         self.mlp.summary()
         self.mlp.fit(np.array(last_layer_activity_concatenated), np.array(processed_labels),
-          epochs=20,
-          batch_size=125)
+          epochs=30,
+          batch_size=500)
             
         if self.exploring is True:
             print("Training ended, you can now access the trained network with the method .mlp")
