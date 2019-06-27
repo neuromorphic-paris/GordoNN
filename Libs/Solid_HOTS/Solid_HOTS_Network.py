@@ -108,7 +108,7 @@ class Solid_HOTS_Net:
             intermediate_dim = 20
             self.vaes_T.append(create_vae(self.context_lengths[layer],
                                           self.features_number[layer][0],
-                                          intermediate_dim, learning_rate[layer][0], l1_norm_coeff, first_sublayer))
+                                          intermediate_dim, learning_rate[layer][0], l1_norm_coeff[layer][0], first_sublayer))
             first_sublayer=False
             # GENERATING AND COMPUTING TIME CONTEXT RESPONSES
             if self.exploring is True:
@@ -177,7 +177,7 @@ class Solid_HOTS_Net:
             # Create the varational autoencoder for this layer
             intermediate_dim = 20
             self.vaes_2D.append(create_vae(self.polarities[layer]*self.features_number[layer][0],
-                                        self.features_number[layer][1], intermediate_dim, learning_rate[layer][1], l1_norm_coeff, first_sublayer))
+                                        self.features_number[layer][1], intermediate_dim, learning_rate[layer][1],  l1_norm_coeff[layer][1], first_sublayer))
             
             # GENERATING AND COMPUTING SURFACES RESPONSES
             if self.exploring is True:
@@ -634,10 +634,10 @@ class Solid_HOTS_Net:
         if self.exploring is True:
             print("Training ended, you can now access the trained network with the method .mlp")
 
-
+##Todo treat equal values
     # Method for testing the mlp classification model
     # =============================================================================      
-    def mlp_classification_test(self, labels, number_of_labels, dataset=[]):
+    def mlp_classification_test(self, labels, number_of_labels, threshold, dataset=[]):
         """
         Method to test a simple mlp, to a classification task, to test the feature 
         rapresentation automatically extracted by HOTS
@@ -665,8 +665,10 @@ class Solid_HOTS_Net:
         counter=0
         predicted_labels=[]
         for recording in range(len(self.last_layer_activity)):
-            activity_sum = sum(predicted_labels_ev[counter:counter+len(self.last_layer_activity[recording][0])])
-            predicted_labels.append(np.argmax(activity_sum))
+            tmp = predicted_labels_ev[counter:counter+len(self.last_layer_activity[recording][0])]
+            ones_sum = sum([tmp[i][1]>=threshold for i in range(len(tmp))])
+            zeros_sum = sum([tmp[i][0]>=threshold for i in range(len(tmp))])
+            predicted_labels.append(1*(ones_sum>=zeros_sum))
             counter += len(self.last_layer_activity[recording][0])
         prediction_rate=0
         for i,true_label in enumerate(labels):

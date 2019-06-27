@@ -148,14 +148,15 @@ def create_vae(original_dim, latent_dim, intermediate_dim, learning_rate, l1_nor
     # network parameters
     input_shape = (original_dim, )
     def l1_dim_norm(activities):
-        return l1_norm_coeff*K.sum(K.abs(activities),axis=-1)/latent_dim
+        return l1_norm_coeff*K.sum(K.abs(activities),axis=-1)#/latent_dim
     
     # VAE model = encoder + decoder
     # build encoder model
     inputs = Input(shape=input_shape, name='encoder_input')
     x = Dense(intermediate_dim, activation='relu')(inputs)
+    # with l1 regulization, sparse
     encoded = Dense(latent_dim, name='encoded', activity_regularizer=l1_dim_norm)(x)
-
+    #encoded = Dense(latent_dim, name='encoded')(x)
     
     # instantiate encoder model
     encoder = Model(inputs, encoded, name='encoder')
