@@ -36,9 +36,7 @@ import time
 #    
 #    Returns:
 #        filenames_train(string list): The filenames plus path for the training files
-#        class_train(int list) : The class of each train filename (as a 0 or 1)
 #        filenames_test(string list): The filenames plus path for the test files
-#        class_test(int list) : The class of each test filename (as a 0 or 1)
 # =============================================================================
     
 def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, shuffle_seed = 0):
@@ -51,8 +49,6 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
     
     filenames_train = []
     filenames_test = []
-    class_train = []
-    class_test = []
 
     # Setting the random state for data shuffling
     rng = np.random.RandomState()
@@ -65,23 +61,20 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
 
         if number_of_files > 0:
             print ('Func:get_filenames_dataset(): Getting', number_of_files, 'files from the', used_classes[i], 'folder')
-            aedats_in_folder = rng.choice(aedats_in_folder, number_of_files)
+            aedats_in_folder = rng.choice(aedats_in_folder, number_of_files, replace=False)
         elif number_of_files > len(aedats_in_folder):
             print ('Func:get_filenames_dataset(): Error: the number of files selected is bigger than the number of .aedat file in the folder. Getting the whole dataset')
-
+    
         aedats_for_training = int(math.ceil(len(aedats_in_folder)*train_test_ratio))
-
+    
         for ind_train in range(aedats_for_training):
             filenames_train.append(aedats_in_folder[ind_train])
-            class_train.append(i)
         for ind_test in range(aedats_for_training, len(aedats_in_folder)):
             filenames_test.append(aedats_in_folder[ind_test])
-            class_test.append(i)        
     
-    # Shuffle the train dataset and the labels with the same order
-    combined_data = list(zip(filenames_train, class_train))
-    rng.shuffle(combined_data)
-    filenames_train[:], class_train[:] = zip(*combined_data)
+    filenames_train=np.asarray(filenames_train)
+    filenames_test=np.asarray(filenames_test)
+    rng.shuffle(filenames_train)
     
     print("Getting filenames from the dataset took %s seconds." % (time.time() - start_time))
-    return filenames_train, class_train, filenames_test, class_test
+    return filenames_train, filenames_test

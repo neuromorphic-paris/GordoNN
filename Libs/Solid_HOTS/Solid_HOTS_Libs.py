@@ -11,14 +11,16 @@ to the upcoming Var Hots paper
  
 """
 
-from keras.layers import Lambda, Input, Dense
+from keras.layers import Lambda, Input, Dense, BatchNormalization
 from keras.models import Model, Sequential
 from keras.losses import mse
 from keras.utils import plot_model
 from keras import backend as K
 from keras import optimizers, regularizers
-
+import keras as ker
 import numpy as np 
+import matplotlib.pyplot as plt
+import keras
 
 # reparameterization trick
 # instead of sampling from Q(z|X), sample eps = N(0,I)
@@ -117,15 +119,22 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
     Returns :
         mlp (keras model) : the freshly baked network
     """
-    mlp = Sequential()
-    mlp.add(Dense(hidden_size, input_dim=input_size, activation='relu'))
-
-    mlp.add(Dense(output_size, activation='sigmoid'))
+    def relu_advanced(x):
+        return keras.activations.relu(x, alpha=0.3)
+    
+    inputs = Input(shape=(input_size,), name='encoder_input')
+    x = BatchNormalization()(inputs)
+    x = Dense(hidden_size, activation=relu_advanced)(x)
+    outputs = Dense(output_size, activation='sigmoid')(x)
+    
     
     adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+    
+    mlp = Model(inputs, outputs, name='mlp')
     mlp.compile(optimizer=adam,
               loss='mean_squared_error',
               metrics=['accuracy'])
+    
     return mlp
     
     
@@ -150,12 +159,17 @@ def create_vae(original_dim, latent_dim, intermediate_dim, learning_rate, l1_nor
     def l1_dim_norm(activities):
         return l1_norm_coeff*K.sum(K.abs(activities),axis=-1)#/latent_dim
     
+    def relu_advanced(x):
+        return keras.activations.relu(x, alpha=0.3)
+    
     # VAE model = encoder + decoder
     # build encoder model
     inputs = Input(shape=input_shape, name='encoder_input')
-    x = Dense(intermediate_dim, activation='relu')(inputs)
+    x = BatchNormalization()(inputs)
+    x = Dense(intermediate_dim, activation="relu")(x)
+    
     # with l1 regulization, sparse
-    encoded = Dense(latent_dim, name='encoded', activity_regularizer=l1_dim_norm)(x)
+    encoded = Dense(latent_dim, name='encoded', activation="tanh", activity_regularizer=l1_dim_norm)(x)
     #encoded = Dense(latent_dim, name='encoded')(x)
     
     # instantiate encoder model
@@ -165,11 +179,12 @@ def create_vae(original_dim, latent_dim, intermediate_dim, learning_rate, l1_nor
     
     # build decoder model
     latent_inputs = Input(shape=(latent_dim,), name='decoder_inputs')
-    x = Dense(intermediate_dim, activation='relu')(latent_inputs)
+    x = Dense(intermediate_dim, activation="relu")(latent_inputs)
+
     if first_sublayer==True:
         outputs = Dense(original_dim, activation='sigmoid')(x)
     else:
-        outputs = Dense(original_dim, activation='relu')(x)
+        outputs = Dense(original_dim, activation='tanh')(x)
     
     # instantiate decoder model
     decoder = Model(latent_inputs, outputs, name='decoder')
@@ -267,3 +282,88 @@ def create_vae_old(original_dim, latent_dim, intermediate_dim, learning_rate):
     vae.compile(optimizer=adam)
     
     return vae, encoder, decoder
+
+def context_plot(layer_dataset, all_contexts, layer):
+    context_length = len(all_contexts[0])
+    count=0
+    if layer == 0:   
+        mean_contexts = [np.zeros(context_length)] 
+        var_contexts = [np.zeros(context_length)] 
+        channel_counter = [0]
+        for record in range(len(layer_dataset)):
+            for channel in layer_dataset[record][1]:
+                if len(mean_contexts)<=channel:
+                    var_contexts += [np.zeros(context_length) for i in range(channel+1-len(mean_contexts))] 
+                    channel_counter.extend([0 for i in range(channel+1-len(mean_contexts))])
+                    mean_contexts += [np.zeros(context_length) for i in range(channel+1-len(mean_contexts))] 
+                mean_contexts[channel]+=all_contexts[count]
+                channel_counter[channel]+=1
+                count+=1
+    else:
+        channel_num = len(layer_dataset[0][1][0])
+        mean_contexts = [np.zeros(context_length) for channel in range(channel_num)] 
+        var_contexts = [np.zeros(context_length) for channel in range(channel_num)] 
+        channel_counter = [0 for channel in range(channel_num)]
+        channel = 0
+        for record in range(len(layer_dataset)):
+            for event in range(len(layer_dataset[record][1])):
+                mean_contexts[channel]+=all_contexts[count]
+                channel_counter[channel]+=1
+                count+=1
+                channel+=1
+                if channel == channel_num:
+                    channel=0
+        
+    for channel in range(len(channel_counter)):
+        mean_contexts[channel]=mean_contexts[channel]/channel_counter[channel]
+    
+    count=0
+    if layer==0:        
+        for record in range(len(layer_dataset)):
+            for channel in layer_dataset[record][1]:
+                var_contexts[channel]+=(mean_contexts[channel]-all_contexts[count])**2
+                count+=1
+    else:
+        channel=0
+        for record in range(len(layer_dataset)):
+            for event in range(len(layer_dataset[record][1])):
+                var_contexts[channel]+=(mean_contexts[channel]-all_contexts[count])**2
+                count+=1
+                channel+=1 
+                if channel == channel_num:
+                    channel=0
+    for channel in range(len(channel_counter)):
+        var_contexts[channel]=var_contexts[channel]/channel_counter[channel]    
+    plt.figure()
+    plt.title(" Mean contexts ")
+    for channel in range(len(channel_counter)):
+        plt.plot(mean_contexts[channel], color=(((len(channel_counter)-channel-1)/len(channel_counter),(channel+1)/len(channel_counter),0,1)), label = "Channel " +str(channel) )
+    plt.legend()
+    plt.figure()
+    plt.title(" Context Variance ")
+    for channel in range(len(channel_counter)):
+        plt.plot(var_contexts[channel], color=(((len(channel_counter)-channel-1)/len(channel_counter),(channel+1)/len(channel_counter),0,1)), label = "Channel " +str(channel) )
+    plt.legend()
+    plt.figure()
+    plt.title(" Context Abs ")
+    for channel in range(len(channel_counter)):
+        plt.plot(channel, sum(abs(mean_contexts[channel])), marker='o', color=((0,1,0,1)), label = "Channel " +str(channel) )
+    plt.legend()
+    plt.pause(5)
+
+def surfaces_plot(all_surfaces,polarities,features):
+
+    mean_surface = np.mean(all_surfaces,0)
+    var_surface = np.zeros(polarities*features) 
+    n_events = len(all_surfaces)
+    for event in range(n_events):
+        var_surface += (mean_surface - all_surfaces[event])**2
+    plt.figure()
+    plt.title(" Mean Surface ")
+    plt.imshow(np.reshape(mean_surface,[polarities,features]))
+    plt.figure()
+    plt.title(" Context Variance ")
+    plt.imshow(np.reshape(var_surface,[polarities,features]))
+    print(" Context Abs: ")
+    print(sum(abs(mean_surface)))
+    plt.pause(5)

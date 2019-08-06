@@ -28,6 +28,7 @@ import seaborn as sns
 import os
 import pickle
 import datetime
+import gc
 
 # Data loading Libraries
 from Libs.Data_loading.dataset_load import on_off_load
@@ -44,7 +45,7 @@ sns.set(style="white")
 plt.style.use("dark_background")
 
 ### Selecting the dataset
-shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will be totally random
+shuffle_seed = 11 # seed used for dataset shuffling if set to 0 the process will be totally random
 
 #%% ON OFF Dataset
 # Two class of recordings are used. The first class is composed by files containing
@@ -58,30 +59,32 @@ shuffle_seed = 12 # seed used for dataset shuffling if set to 0 the process will
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 120
+number_files_dataset = 140
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
 parameter_folder = "Parameters/On_Off/"
+label_file = "Data/On_Off/files_timestamps.csv"
 
 legend = ("On","Off") # Legend containing the labes used for plots
 
-filenames_train=np.load("filenames_train.npy")
-filenames_test=np.load("filenames_test.npy")
-labels_train=np.load("labels_train.npy")
-labels_test=np.load("labels_test.npy")
+#filenames_train=np.load("filenames_train.npy")
+#filenames_test=np.load("filenames_test.npy")
+#classes_train=np.load("classes_train.npy")
+#classes_test=np.load("classes_test.npy")
 
-[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, 
-                                                                                             shuffle_seed, use_all_addr, filenames_train, filenames_test,
-                                                                                             labels_train, labels_test)
+#[dataset_train, dataset_test, classes_train, classes_test, filenames_train, filenames_test, wordpos_train, wordpos_test] = on_off_load(number_files_dataset, label_file, train_test_ratio, 
+#                                                                                             shuffle_seed, use_all_addr, filenames_train, filenames_test,
+#                                                                                             labels_train, labels_test)
 
 
-#[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test] = on_off_load(number_files_dataset, train_test_ratio, shuffle_seed, use_all_addr)
+[dataset_train, dataset_test, classes_train, classes_test, filenames_train, filenames_test, wordpos_train, wordpos_test] = on_off_load(number_files_dataset, label_file, train_test_ratio, shuffle_seed, use_all_addr)
 
 #np.save("filenames_train",filenames_train)
 #np.save("filenames_test",filenames_test)
 #np.save("labels_train",labels_train)
-#np.save("labels_test",labels_test)
+#np.save("labels_test",labels_test)gc.collect()
+
 
 #%% Network setting and feature exctraction 
 
@@ -107,32 +110,40 @@ labels_test=np.load("labels_test.npy")
 # =============================================================================
 
 
-features_number = [[3,8]]
-context_lengths = [200,200]
+features_number = [[2,10]]
+context_lengths = [500,200,200]
 input_channels = 32 + 32*use_all_addr
-l1_norm_coeff=[[0.001,0.001],[0.002,0.006]]
+l1_norm_coeff=[[1e-5,1e-5],[1e-5,1e-5],[1e-5,1e-5]]
 
-channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
-                         1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
-                         20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
-                                                             # cochlea used for this datasets
+#channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
+#                         1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
+#                         20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
+#                                                             # cochlea used for this datasets
+
+channel_taus = np.ones(32)*15000
+                                                             
 second_layer_taus = np.ones(features_number[0][1]) # The taus for this layer are homogeneous across all channels
 #third_layer_taus = np.ones(features_number[1][1]) # The taus for this layer are homogeneous across all channels
-taus_T_coeff = np.array([50,800000]) # Multiplicative coefficients to help to change quickly the taus_T
+taus_T_coeff = np.array([50,500000]) # Multiplicative coefficients to help to change quickly the taus_T
 
 taus_T = (taus_T_coeff*[channel_taus, second_layer_taus]).tolist()
-taus_2D = [1000,0]  
+taus_2D = [5000,0,0]  
 
 # Create the network
 Net = Solid_HOTS_Net(features_number, context_lengths, input_channels, taus_T, taus_2D, 
                  threads=8, exploring=True)
 
-learning_rate = [[1e-3,8e-4],[8e-5,8e-5],[0.0005,0.0005]]
-epochs = [[80,80],[80,80],[20,20]]
+learning_rate = [[1e-4,1e-3],[1e-4,5e-4],[1e-4,5e-4]]
+epochs = [[40,40],[10,40],[40,40]]
 
 # Learn the feature
 Net.learn(dataset_train,learning_rate, epochs, l1_norm_coeff)
 
+tmpcr_c=Net.tmpcr_c
+tmporig_c=Net.tmporig_c
+tmpcr=Net.tmpcr
+tmporig=Net.tmporig
+gc.collect()
 #%% Print features
 
 # 2D plots that can be used to analyze the network after learning
@@ -144,32 +155,33 @@ Net.learn(dataset_train,learning_rate, epochs, l1_norm_coeff)
 #                      used for decoding
 # =============================================================================
 
-layer = 0
-sublayer = 0    
-variables_ind = [0,1] 
-variable_fix = 0 
-                    
-Net.plot_vae_decode_2D(layer, sublayer, variables_ind, variable_fix)
-Net.plot_vae_decode_2D(layer, 1, variables_ind, variable_fix)
-Net.plot_vae_decode_2D(1, sublayer, variables_ind, variable_fix)
-Net.plot_vae_decode_2D(1, 1, variables_ind, variable_fix)
-Net.plot_vae_decode_2D(2, sublayer, variables_ind, variable_fix)
-Net.plot_vae_decode_2D(2, 1, variables_ind, variable_fix)
-Net.plot_vae_space_2D(layer, variables_ind, legend, labels_train)
-Net.plot_vae_space_2D(1, variables_ind, legend, labels_train, )
-
-plt.pause(0.1)
+#layer = 0
+#sublayer = 0    
+#variables_ind = [0,1] 
+#variable_fix = 0 
+#                    
+#Net.plot_vae_decode_2D(layer, sublayer, variables_ind, variable_fix)
+#Net.plot_vae_decode_2D(layer, 1, variables_ind, variable_fix)
+#Net.plot_vae_decode_2D(1, sublayer, variables_ind, variable_fix)
+#Net.plot_vae_decode_2D(1, 1, variables_ind, variable_fix)
+#Net.plot_vae_decode_2D(2, sublayer, variables_ind, variable_fix)
+#Net.plot_vae_decode_2D(2, 1, variables_ind, variable_fix)
+#Net.plot_vae_space_2D(layer, variables_ind, legend, classes_train)
+#Net.plot_vae_space_2D(1, variables_ind, legend, classes_test, )
+#
+#plt.pause(0.1)
 
 #%% Mlp classifier training
 
 number_of_labels=len(legend)
 mlp_learning_rate = 8e-4
-Net.mlp_classification_train(labels_train,   
+Net.mlp_single_word_classification_train(classes_train, wordpos_train,    
                                    number_of_labels, mlp_learning_rate)
-
+gc.collect()
 #%% Mlp classifier testing
   
-prediction_rate, predicted_labels, predicted_labels_exv = Net.mlp_classification_test(labels_test, number_of_labels, 0.7, dataset_test)
+prediction_rate, predicted_labels, predicted_labels_exv = Net.mlp_single_word_classification_test(classes_test,
+                                                                                      number_of_labels, 0.8, dataset_test)
 print('Prediction rate is '+str(prediction_rate*100)+'%') 
 
 
@@ -183,7 +195,7 @@ print('Prediction rate is '+str(prediction_rate*100)+'%')
 #sublayer = 1
 #Net.plot_basis(layer, sublayer)
 #plt.show()    
-#
+#    
 ##%% Save network parameters
 #
 #now=datetime.datetime.now()
