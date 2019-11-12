@@ -10,6 +10,7 @@ of HOTS under the name gordoNN to be tested with multiple speech recognition tes
 HOTS (The type of neural network implemented in this project) is a machine learning
 method totally unsupervised.
 
+
 To test if the algorithm is learning features from the dataset, a simple classification
 task is accomplished with the use of histogram classification, taking the activity
 of the last layer.
@@ -29,7 +30,6 @@ import os
 import pickle
 import datetime
 import gc
-
 # Data loading Libraries
 from Libs.Data_loading.dataset_load import on_off_load
 
@@ -45,13 +45,14 @@ sns.set(style="white")
 plt.style.use("dark_background")
 
 ### Selecting the dataset
-shuffle_seed = 11 # seed used for dataset shuffling if set to 0 the process will be totally random
+shuffle_seed = 19 # seed used for dataset shuffling if set to 0 the process will be totally random
 
 #%% ON OFF Dataset
 # Two class of recordings are used. The first class is composed by files containing
 # a single word each, "ON", the second class is equal but the spelled word is "OFF"
 # =============================================================================
 # number_files_dataset : the number of files to be loaded for each class (On, Off)
+
 # train_test_ratio: ratio between the amount of files used to train
 #                                 and test the algorithm, 0.5 will mean that the 
 #                                 half of the files wiil be used for training.
@@ -59,7 +60,7 @@ shuffle_seed = 11 # seed used for dataset shuffling if set to 0 the process will
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 140
+number_files_dataset = 120
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
@@ -95,14 +96,14 @@ legend = ("On","Off") # Legend containing the labes used for plots
 #                               is 0 for the centers of the 0D sublayer, and 1 for 
 #                               the 2D centers
 #   context_lengths (list of int): the length of the time context generatef per each layer
-#   input_channels (int) : the total number of channels of the cochlea in the input files 
+#   input_channels (int) : thex total number of channels of the cochlea in the input files 
 #   taus_T(list of float lists) :  a list containing the time coefficient used for 
 #                                  the context creations for each layer (first index)
 #                                  and each channel (second index) 
 #   taus_2D (list of float) : a list containing the time coefficients used for the 
 #                            creation of timesurfaces per each layer
 #   threads (int) : The network can compute timesurfaces in a parallel way,
-#                   this parameter set the number of multiple threads allowed to run
+#                   thi200s parameter set the number of multiple threads allowed to run
 #   exploring (boolean) : If True, the network will output messages to inform the 
 #                         the users about the current states and will save the 
 #                         basis at each update to build evolution plots (currently not 
@@ -110,34 +111,34 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-features_number = [[2,10]]
-context_lengths = [500,200,200]
+features_number = [[2,8]]
+context_lengths = [100,400,100]
 input_channels = 32 + 32*use_all_addr
-l1_norm_coeff=[[1e-5,1e-5],[1e-5,1e-5],[1e-5,1e-5]]
+l1_norm_coeff=[[1e-8,1e-5],[1e-5,1e-5],[8e-4,8e-4]]
 
-#channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
-#                         1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
-#                         20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
-#                                                             # cochlea used for this datasets
+channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
+                         1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
+                         20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
+                                                             # cochlea used for this datasets
 
-channel_taus = np.ones(32)*15000
+#channel_taus = np.ones(32)*15000
                                                              
 second_layer_taus = np.ones(features_number[0][1]) # The taus for this layer are homogeneous across all channels
 #third_layer_taus = np.ones(features_number[1][1]) # The taus for this layer are homogeneous across all channels
-taus_T_coeff = np.array([50,500000]) # Multiplicative coefficients to help to change quickly the taus_T
+taus_T_coeff = np.array([50,80000]) # Multiplicative coefficients to help to change quickly the taus_T
 
 taus_T = (taus_T_coeff*[channel_taus, second_layer_taus]).tolist()
-taus_2D = [5000,0,0]  
+taus_2D = [5000,80000]  
 
 # Create the network
 Net = Solid_HOTS_Net(features_number, context_lengths, input_channels, taus_T, taus_2D, 
                  threads=8, exploring=True)
 
-learning_rate = [[1e-4,1e-3],[1e-4,5e-4],[1e-4,5e-4]]
-epochs = [[40,40],[10,40],[40,40]]
+learning_rate = [[5e-4,5e-4],[5e-4,5e-4],[5e-5,1e-4]]
+epochs = [[50,50],[50,50],[20,40]]
 
 # Learn the feature
-Net.learn(dataset_train,learning_rate, epochs, l1_norm_coeff)
+Net.learn(dataset_train,dataset_test,learning_rate, epochs, l1_norm_coeff)
 
 tmpcr_c=Net.tmpcr_c
 tmporig_c=Net.tmporig_c
@@ -171,22 +172,42 @@ gc.collect()
 #
 #plt.pause(0.1)
 
+
+plt.figure()
+plt.imshow(tmporig[-1].astype('float32'))
+plt.figure()
+plt.imshow(tmpcr[-1].astype('float'))
+
 #%% Mlp classifier training
+last=-0
 
 number_of_labels=len(legend)
-mlp_learning_rate = 8e-4
-Net.mlp_single_word_classification_train(classes_train, wordpos_train,    
-                                   number_of_labels, mlp_learning_rate)
+mlp_learning_rate = 7e-4
+labels, labels_test = Net.mlp_single_word_classification_train(classes_train, classes_test, wordpos_train, wordpos_test,    
+                                   number_of_labels, mlp_learning_rate, last)
 gc.collect()
 #%% Mlp classifier testing
-  
-prediction_rate, predicted_labels, predicted_labels_exv = Net.mlp_single_word_classification_test(classes_test,
-                                                                                      number_of_labels, 0.8, dataset_test)
+threshold=0.6
+prediction_rate, predicted_labels, net_activity = Net.mlp_single_word_classification_test(classes_test, 
+                                                                                      number_of_labels, threshold, last)
 print('Prediction rate is '+str(prediction_rate*100)+'%') 
 
 
-
+     
  
+#%% Mlp classifier training
+last=50
+
+number_of_labels=len(legend)
+mlp_learning_rate = 1e-5
+labels, labels_test = Net.svm_single_word_classification_train(classes_train, classes_test, wordpos_train, wordpos_test,    
+                                   number_of_labels, mlp_learning_rate, last)
+gc.collect()
+#%% Mlp classifier testing
+threshold=0.5
+prediction_rate, predicted_labels, net_activity = Net.svm_single_word_classification_test(classes_test, 
+                                                                                      number_of_labels, threshold, last)
+print('Prediction rate is '+str(prediction_rate*100)+'%') 
  
 ##%% Plot Basis  
 ##TODO add more information, time or channel and feature axes 

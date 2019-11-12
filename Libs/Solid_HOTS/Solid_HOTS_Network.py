@@ -1,4 +1,4 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Mon Jan 17 15:09:42 2019
@@ -22,8 +22,8 @@ import seaborn as sns
 import gc
 
 # Homemade Fresh Libraries like Gandma taught
-from Libs.Solid_HOTS.Context_Surface_generators import Time_context, Time_context_later, Time_Surface
-from Libs.Solid_HOTS.Solid_HOTS_Libs import create_vae, create_mlp, events_from_activations_T, events_from_activations_2D, context_plot, surfaces_plot
+from Libs.Solid_HOTS.Context_Surface_generators import Time_context, Time_context_mod, Time_context_later, Time_context_later_mod, Time_Surface
+from Libs.Solid_HOTS.Solid_HOTS_Libs import create_vae, create_mlp, events_from_activations_T, events_from_activations_T_mod, events_from_activations_T_next_mod, events_from_activations_2D, context_plot, surfaces_plot
 
 
 
@@ -68,10 +68,8 @@ class Solid_HOTS_Net:
         self.features_number = features_number
         self.polarities = []
         self.polarities.append(input_channels)
-        for layer in range(self.layers-1): # the number of chanels are considered as 
-                                           # as polarities of a first layer
-                                           # therefore self.polaroties is long
-                                           # as the number of layers+1
+        for layer in range(self.layers-1): # It's the number of different signals 
+                                           # the 0D sublayer is receiveing
             self.polarities.append(features_number[layer][1])
         self.threads=threads
         self.exploring = exploring
@@ -87,7 +85,7 @@ class Solid_HOTS_Net:
        
         
     # =============================================================================  
-    def learn(self, dataset, learning_rate, epochs, l1_norm_coeff):
+    def learn(self, dataset, dataset_test,  learning_rate, epochs, l1_norm_coeff):
         """
         Network learning method, for now it based on kmeans and it is offline
         Arguments:
@@ -97,14 +95,23 @@ class Solid_HOTS_Net:
         """
         
         layer_dataset = dataset
+        layer_dataset_test = dataset_test
         first_sublayer=True
+        self.tmporig=[]
+        self.tmpcr=[]
+        self.tmporig_c=[]
+        self.tmpcr_c=[]
         # The code is going to run on gpus, to improve performances rather than 
         # a pure online algorithm I am going to minibatch 
-        self.batch_size = 500
-        del dataset
-        for layer in range(self.layers):
+        self.batch_size = 50
 
-            
+
+        del dataset, dataset_test
+        for layer in range(self.layers):
+            cross_variance_th = 0.003/(self.context_lengths[layer]/self.context_lengths[0])
+            #        auto_variance_th = 0.0005
+            auto_variance_th = 0.00000000000005
+                
             # Create the varational autoencoder for this layer
             intermediate_dim = 20
             self.vaes_T.append(create_vae(self.context_lengths[layer],
@@ -117,46 +124,141 @@ class Solid_HOTS_Net:
                 start_time = time.time()
             if layer == 0 :
                 all_contexts=[]
+                all_contexts_test=[]
+                context_indices=[]
+                context_indices_test=[]
                 for recording in range(len(layer_dataset)):
+                    last_contexts=[np.array([]) for i in range(self.polarities[layer])] # The last contexts produced so far, divided per polarity
+                                     # useful to remove redundant contexts
                     n_batch = len(layer_dataset[recording][0])//self.batch_size
                     # Cut the excess data in the first layer : 
                     layer_dataset[recording][0]=layer_dataset[recording][0][:n_batch*self.batch_size]
                     layer_dataset[recording][1]=layer_dataset[recording][1][:n_batch*self.batch_size]
                    
-    
-                    all_contexts_recording = Parallel(n_jobs=self.threads)(delayed(Time_context)(event_ind, layer_dataset[recording],
+#                    all_contexts_recording = Parallel(n_jobs=self.threads)(delayed(Time_context)(event_ind, layer_dataset[recording],
+#                                                              self.taus_T[layer][layer_dataset[recording][1][event_ind]],
+#                                                              self.context_lengths[layer]) for event_ind in range(n_batch*self.batch_size))
+                    
+#                    all_contexts_recording = [Time_context_mod(event_ind, layer_dataset[recording],
+#                                                              self.taus_T[layer][layer_dataset[recording][1][event_ind]],
+#                                                              self.context_lengths[layer], last_contexts, .1,.1) for event_ind in range(n_batch*self.batch_size)]
+                      
+                    all_contexts_recording = Parallel(n_jobs=self.threads, require='sharedmem')(delayed(Time_context_mod)(event_ind, layer_dataset[recording],
                                                               self.taus_T[layer][layer_dataset[recording][1][event_ind]],
-                                                              self.context_lengths[layer]) for event_ind in range(n_batch*self.batch_size))
+                                                              self.context_lengths[layer], last_contexts, cross_variance_th, auto_variance_th) for event_ind in range(n_batch*self.batch_size))
+                    filtered_context_recording = [(idx,context) for idx,context in enumerate(all_contexts_recording) if len(context)!=0]
+                    all_contexts_recording = [filtered_context_recording[i][1] for i in range(len(filtered_context_recording))]
+                    context_indices.append(np.array([filtered_context_recording[i][0] for i in range(len(filtered_context_recording))]))
+                    # Cut excess data 
+                    recording_end=len(all_contexts_recording)//self.batch_size
+                    all_contexts+=all_contexts_recording[0:recording_end*self.batch_size]
+                    context_indices[-1]=context_indices[-1][0:recording_end*self.batch_size]
+                    gc.collect()
+                    if self.exploring is True:
+                        print("\r","Contexts generation :", (recording+1)/len(layer_dataset)*100,"%", end="")
+                all_contexts = np.array(all_contexts, dtype='float16')
+                
+                for recording in range(len(layer_dataset_test)):
+                    n_batch = len(layer_dataset_test[recording][0])//self.batch_size
+                    last_contexts=[np.array([]) for i in range(self.polarities[layer])] # The last contexts produced so far, divided per polarity
+
+                    # Cut the excess data in the first layer : 
+                    layer_dataset_test[recording][0]=layer_dataset_test[recording][0][:n_batch*self.batch_size]
+                    layer_dataset_test[recording][1]=layer_dataset_test[recording][1][:n_batch*self.batch_size]
+               
+    
+#                    all_contexts_recording_test = Parallel(n_jobs=self.threads)(delayed(Time_context)(event_ind, layer_dataset_test[recording],
+#                                                              self.taus_T[layer][layer_dataset_test[recording][1][event_ind]],
+#                                                              self.context_lengths[layer]) for event_ind in range(n_batch*self.batch_size))
+                    
+                    all_contexts_recording_test = Parallel(n_jobs=self.threads, require='sharedmem')(delayed(Time_context_mod)(event_ind, layer_dataset_test[recording],
+                                                              self.taus_T[layer][layer_dataset_test[recording][1][event_ind]],
+                                                              self.context_lengths[layer], last_contexts, cross_variance_th, auto_variance_th) for event_ind in range(n_batch*self.batch_size))
+                    
+                    filtered_context_recording = [(idx,context) for idx,context in enumerate(all_contexts_recording_test) if len(context)!=0]
+                    all_contexts_recording_test = [filtered_context_recording[i][1] for i in range(len(filtered_context_recording))]
+                    context_indices_test.append(np.array([filtered_context_recording[i][0] for i in range(len(filtered_context_recording))])) 
+                    # Cut excess data 
+                    recording_end=len(all_contexts_recording_test)//self.batch_size
+                    all_contexts_test+=all_contexts_recording_test[0:recording_end*self.batch_size]
+                    context_indices_test[-1]=context_indices_test[-1][0:recording_end*self.batch_size]
+                    gc.collect()
+                    if self.exploring is True:
+                        print("\r","Contexts generation, validation test :", (recording+1)/len(layer_dataset_test)*100,"%", end="")
+                all_contexts_test = np.array(all_contexts_test, dtype='float16')
+                                    
+            else:
+#                all_contexts=np.zeros([num_of_2D_events*self.features_number[layer-1][1],self.context_lengths[layer]],dtype='float16')
+#                all_contexts_test=np.zeros([num_of_2D_events_test*self.features_number[layer-1][1],self.context_lengths[layer]],dtype='float16')
+                all_contexts=[]
+                all_contexts_test=[]
+                context_indices=[]
+                context_indices_test=[]
+                context_timestamps=[]
+                context_timestamps_test=[]
+                for recording in range(len(layer_dataset)):
+                    n_batch = len(layer_dataset[recording][0])//self.batch_size     
+                    last_contexts=[np.array([]) for i in range(self.polarities[layer])] # The last contexts produced so far, divided per polarity
+                    all_contexts_recording = Parallel(n_jobs=self.threads, require='sharedmem')(delayed(Time_context_later_mod)(event_ind, layer_dataset[recording],
+                                                              self.taus_T[layer][0],
+                                                              self.context_lengths[layer], last_contexts, cross_variance_th, auto_variance_th) for event_ind in range(n_batch*self.batch_size))
+#                    all_contexts_recording = [Time_context_later_mod(event_ind, layer_dataset[recording],
+#                                                              self.taus_T[layer][0],
+#                                                              self.context_lengths[layer], last_contexts, cross_variance_th, auto_variance_th) for event_ind in range(n_batch*self.batch_size)]                
+                    filtered_context_recording = [(idx*(idy+1),context) for idy in range(len(all_contexts_recording)) for idx,context in enumerate(all_contexts_recording[idy]) if len(context)!=0]
+                    all_contexts_recording = [filtered_context_recording[i][1] for i in range(len(filtered_context_recording))]
+                    context_indices.append(np.array([filtered_context_recording[i][0] for i in range(len(filtered_context_recording))]))
+#                    context_timestamps.append(np.array([layer_dataset[recording][0][filtered_context_recording[i][0]//self.polarities[layer]] for i in range(len(filtered_context_recording))]))
+                    # Cut excess data 
+                    recording_end=len(all_contexts_recording)//self.batch_size
+                    all_contexts_recording=all_contexts_recording[0:recording_end*self.batch_size]
+                    context_indices[-1]=context_indices[-1][0:recording_end*self.batch_size]
+                    # Sort indices
+                    sorted_indices = np.argsort(context_indices[-1])
+                    all_contexts_recording=[all_contexts_recording[idx] for idx in sorted_indices]
+                    context_indices[-1]=np.array([context_indices[-1][idx] for idx in sorted_indices])
                     all_contexts+=all_contexts_recording
                     gc.collect()
                     if self.exploring is True:
                         print("\r","Contexts generation :", (recording+1)/len(layer_dataset)*100,"%", end="")
-                all_contexts = np.array(all_contexts, dtype='float32')
-                                    
-            else:
-                all_contexts=np.zeros([num_of_2D_events*self.features_number[layer-1][1],self.context_lengths[layer]],dtype='float16')
-                count=0
-                for recording in range(len(layer_dataset)):
-                    n_batch = len(layer_dataset[recording][0])//self.batch_size                     
-                    all_contexts_recording = Parallel(n_jobs=self.threads)(delayed(Time_context_later)(event_ind, layer_dataset[recording],
+                all_contexts = np.array(all_contexts, dtype='float16')
+                all_contexts_test=[]
+                for recording in range(len(layer_dataset_test)):
+                    n_batch = len(layer_dataset_test[recording][0])//self.batch_size     
+                    last_contexts=[np.array([]) for i in range(self.polarities[layer])] # The last contexts produced so far, divided per polarity
+                    all_contexts_recording_test = Parallel(n_jobs=self.threads,  require='sharedmem')(delayed(Time_context_later_mod)(event_ind, layer_dataset_test[recording],
                                                               self.taus_T[layer][0],
-                                                              self.context_lengths[layer]) for event_ind in range(n_batch*self.batch_size))
-                    all_contexts[count:(n_batch*self.batch_size*self.features_number[layer-1][1])+count]=np.concatenate(all_contexts_recording,0).tolist()
-                    count+=n_batch*self.batch_size*self.features_number[layer-1][1]
+                                                              self.context_lengths[layer], last_contexts, cross_variance_th, auto_variance_th) for event_ind in range(n_batch*self.batch_size))
+                    filtered_context_recording = [(idx*(idy+1),context) for idy in range(len(all_contexts_recording_test)) for idx,context in enumerate(all_contexts_recording_test[idy]) if len(context)!=0]
+                    all_contexts_recording_test = [filtered_context_recording[i][1] for i in range(len(filtered_context_recording))]
+                    context_indices_test.append(np.array([filtered_context_recording[i][0] for i in range(len(filtered_context_recording))]))
+#                    context_timestamps_test.append(np.array([layer_dataset_test[recording][0][filtered_context_recording[i][0]//self.polarities[layer]] for i in range(len(filtered_context_recording))]))
+                    # Cut excess data 
+                    recording_end=len(all_contexts_recording_test)//self.batch_size
+                    all_contexts_recording_test=all_contexts_recording_test[0:recording_end*self.batch_size]
+                    context_indices_test[-1]=context_indices_test[-1][0:recording_end*self.batch_size]
+                    # Sort indices
+                    sorted_indices = np.argsort(context_indices_test[-1])
+                    all_contexts_recording_test=[all_contexts_recording_test[idx] for idx in sorted_indices]
+                    context_indices_test[-1]=np.array([context_indices_test[-1][idx] for idx in sorted_indices])
+                    all_contexts_test+=all_contexts_recording_test  
                     gc.collect()
                     if self.exploring is True:
-                        print("\r","Contexts generation :", (recording+1)/len(layer_dataset)*100,"%", end="")
+                        print("\r","Contexts generation, validation test :", (recording+1)/len(layer_dataset_test)*100,"%", end="")
+                all_contexts_test = np.array(all_contexts_test, dtype='float16')
             if self.exploring is True:    
                 print("Generating contexts took %s seconds." % (time.time() - start_time))
                 print('\n--- LAYER '+str(layer)+' CONTEXTS FEATURES EXTRACTION ---')
                 start_time = time.time()
+            
             # Training the features 
-            self.vaes_T[layer][0].fit(all_contexts, shuffle=True,
+            self.vaes_T[layer][0].fit(all_contexts,  shuffle=True,
                      epochs=epochs[layer][0], batch_size=self.batch_size,
-                     validation_data=(all_contexts, None))
+                     validation_data=(all_contexts_test, np.zeros(0)))
             if self.exploring is True:
                 print("\n Features extraction took %s seconds." % (time.time() - start_time))
-                context_plot(layer_dataset, all_contexts, layer)
+                context_plot(layer_dataset, context_indices, all_contexts, layer)
+                context_plot(layer_dataset_test, context_indices_test, all_contexts_test, layer)
                 
             # Obtain Net activations
             current_pos = 0
@@ -165,19 +267,48 @@ class Solid_HOTS_Net:
                 original_timestamps = []
                 for recording in range(len(layer_dataset)):                
                     # Get network activations at steady state (after learning)
-                    recording_results = self.vaes_T[layer][1].predict(np.array(all_contexts[current_pos:current_pos+len(layer_dataset[recording][0])]), batch_size=self.batch_size)
-                    current_pos += len(layer_dataset[recording][0])
-                    net_T_response.append(events_from_activations_T(recording_results, layer_dataset[recording]))
-                    original_timestamps.append(net_T_response[-1][0])
+                    recording_results = self.vaes_T[layer][1].predict(np.array(all_contexts[current_pos:current_pos+len(context_indices[recording])]), batch_size=self.batch_size)
+                    current_pos += len(context_indices[recording])
+                    net_T_response.append(events_from_activations_T_mod(recording_results, context_indices[recording], layer_dataset[recording]))
+#                    original_timestamps.append(net_T_response[-1][0])
             else:
                 # Get network activations at steady state (after learning)
-                recording_results = self.vaes_T[layer][1].predict(all_contexts, batch_size=self.batch_size)
-#                all_surfaces=2*recording_results.reshape(num_of_2D_events,self.features_number[layer-1][1]*self.features_number[layer][0])
-                all_surfaces=recording_results.reshape(num_of_2D_events,self.features_number[layer-1][1]*self.features_number[layer][0])
-
+#                recording_results = self.vaes_T[layer][1].predict(all_contexts, batch_size=self.batch_size)
+##                all_surfaces=2*recording_results.reshape(num_of_2D_events,self.features_number[layer-1][1]*self.features_number[layer][0])
+#                all_surfaces=recording_results.reshape(num_of_2D_events,self.features_number[layer-1][1]*self.features_number[layer][0])
+                net_T_response = []
+                original_timestamps = []
+                for recording in range(len(layer_dataset)):   
+                    recording_results = self.vaes_T[layer][1].predict(np.array(all_contexts[current_pos:current_pos+len(context_indices[recording])]), batch_size=self.batch_size)
+                    current_pos += len(context_indices[recording])
+                    net_T_response.append(events_from_activations_T_next_mod(recording_results, self.polarities[layer], context_indices[recording], layer_dataset[recording]))
+#                    original_timestamps.append(net_T_response[-1][0])
+            
+            current_pos = 0
+            if layer == 0 :
+                net_T_response_test = []
+                original_timestamps_test = []
+                for recording in range(len(layer_dataset_test)):                
+                    # Get network activations at steady state (after learning)
+                    recording_results = self.vaes_T[layer][1].predict(np.array(all_contexts_test[current_pos:current_pos+len(context_indices_test[recording])]), batch_size=self.batch_size)
+                    current_pos += len(context_indices_test[recording])
+                    net_T_response_test.append(events_from_activations_T_mod(recording_results, context_indices_test[recording], layer_dataset_test[recording]))
+#                    original_timestamps_test.append(net_T_response_test[-1][0])
+            else:
+                # Get network activations at steady state (after learning)
+#            recording_results = self.vaes_T[layer][1].predict(all_contexts_test, batch_size=self.batch_size)
+#            all_surfaces_test=recording_results.reshape(num_of_2D_events_test,self.features_number[layer-1][1]*self.features_number[layer][0])
+                net_T_response_test = []
+                original_timestamps_test = []
+                for recording in range(len(layer_dataset_test)):   
+                    recording_results = self.vaes_T[layer][1].predict(np.array(all_contexts_test[current_pos:current_pos+len(context_indices_test[recording])]), batch_size=self.batch_size)
+                    current_pos += len(context_indices_test[recording])
+                    net_T_response_test.append(events_from_activations_T_next_mod(recording_results, self.polarities[layer], context_indices_test[recording], layer_dataset_test[recording]))
+#                    original_timestamps_test.append(net_T_response_test[-1][0])
+            
             ##################
-            self.tmporig_c=all_contexts[0:20000]
-            self.tmpcr_c=self.vaes_T[layer][2].predict(self.vaes_T[layer][1].predict(all_contexts[0:20000]))
+            self.tmporig_c.append(all_contexts[0:20000])
+            self.tmpcr_c.append(self.vaes_T[layer][2].predict(self.vaes_T[layer][1].predict(all_contexts[0:20000])))
             ##################
             
             # clearing some variables
@@ -196,65 +327,105 @@ class Solid_HOTS_Net:
             start_time = time.time()
             # 2D timesurface dimension
             ydim,xdim = [self.polarities[layer], self.features_number[layer][0]]
-            if layer==0:
-                all_surfaces = []
-                for recording in range(len(net_T_response)):
-                    # As a single time surface is build on all polarities, there is no need to build a time 
-                    # surface per each event with a different polarity and equal time stamp, thus only 
-                    # a fraction of the events are extracted here
-                    n_batch = len(net_T_response[recording][0])//self.batch_size               
-                    reference_event_jump=self.features_number[layer][0]                  
-                    all_surfaces_recording = Parallel(n_jobs=self.threads)(delayed(Time_Surface)(xdim, ydim, event_ind,
-                                                      self.taus_2D[layer], net_T_response[recording],
-                                                      minv=0.1) for event_ind in range(0, n_batch*self.batch_size, reference_event_jump))
-                    ################################################
+#            if layer==0:
+            all_surfaces = []
+            for recording in range(len(net_T_response)):
+                # As a single time surface is build on all polarities, there is no need to build a time 
+                # surface per each event with a different polarity and equal time stamp, thus only 
+                # a fraction of the events are extracted here
+                n_batch = len(net_T_response[recording][0])//self.batch_size               
+                reference_event_jump=self.features_number[layer][0]                  
+                all_surfaces_recording = Parallel(n_jobs=self.threads)(delayed(Time_Surface)(xdim, ydim, event_ind,
+                                                  self.taus_2D[layer], net_T_response[recording],
+                                                  minv=0.1) for event_ind in range(0, n_batch*self.batch_size, reference_event_jump))
+                ################################################
 #                    all_surfaces += [2*surf for surf in all_surfaces_recording]
-                    all_surfaces += all_surfaces_recording
-                    ################################################
-                    gc.collect()
-                    if self.exploring is True:
-                        print("\r","Surfaces generation :", (recording+1)/len(net_T_response)*100,"%", end="")
-            
+                all_surfaces += all_surfaces_recording
+                ################################################
+                gc.collect()
+                if self.exploring is True:
+                    print("\r","Surfaces generation :", (recording+1)/len(net_T_response)*100,"%", end="")
+        
+            all_surfaces_test = []
+            for recording in range(len(net_T_response_test)):
+                # As a single time surface is build on all polarities, there is no need to build a time 
+                # surface per each event with a different polarity and equal time stamp, thus only 
+                # a fraction of the events are extracted here
+                n_batch = len(net_T_response_test[recording][0])//self.batch_size               
+                reference_event_jump=self.features_number[layer][0]                  
+                all_surfaces_recording = Parallel(n_jobs=self.threads)(delayed(Time_Surface)(xdim, ydim, event_ind,
+                                                  self.taus_2D[layer], net_T_response_test[recording],
+                                                  minv=0.1) for event_ind in range(0, n_batch*self.batch_size, reference_event_jump))
+                ################################################
+#                    all_surfaces += [2*surf for surf in all_surfaces_recording]
+                all_surfaces_test += all_surfaces_recording
+                ################################################
+                gc.collect()
+                if self.exploring is True:
+                    print("\r","Surfaces generation, validation test :", (recording+1)/len(net_T_response_test)*100,"%", end="")
             if self.exploring is True:
                 print("Generating surfaces took %s seconds." % (time.time() - start_time))
                 print('\n--- LAYER '+str(layer)+' SURFACES FEATURES EXTRACTION ---')
             start_time = time.time()
-            all_surfaces =np.array(all_surfaces, dtype='float32')
+            all_surfaces = np.array(all_surfaces, dtype='float16')
+            all_surfaces_test = np.array(all_surfaces_test, dtype='float16')
             # Training the features 
             self.vaes_2D[layer][0].fit(all_surfaces, shuffle=True,
                      epochs=epochs[layer][1], batch_size=self.batch_size,
-                     validation_data=(all_surfaces, None))
+                     validation_data=(all_surfaces_test, np.zeros(0)))
             if self.exploring is True:
                 print("\n Features extraction took %s seconds." % (time.time() - start_time))
                 surfaces_plot(all_surfaces, self.polarities[layer], self.features_number[layer][0])
+                surfaces_plot(all_surfaces_test, self.polarities[layer], self.features_number[layer][0])
             # Obtain Net activations
             layer_2D_activations=[]
+            layer_2D_activations_test=[]
             current_pos = 0
-            if layer==0:
-                for recording in range(len(net_T_response)):
-                    recording_results = self.vaes_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(net_T_response[recording][0])//reference_event_jump]), batch_size=self.batch_size)
-                    current_pos += len(net_T_response[recording][0])//reference_event_jump
-                    #TODO timestamps in the first entry of the list and then the results without explicit polarity (fix this later)
-                    layer_2D_activations.append([net_T_response[recording][0][range(0,len(net_T_response[recording][0]),reference_event_jump)],recording_results])
-                del net_T_response
-            else:
-                for recording in range(len(original_timestamps)):
-                    recording_results = self.vaes_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(original_timestamps[recording])//reference_event_jump]), batch_size=self.batch_size)
-                    current_pos += len(original_timestamps[recording])//reference_event_jump
-                    #TODO timestamps in the first entry of the list and then the results without explicit polarity (fix this later)
-                    layer_2D_activations.append([original_timestamps[recording][range(0,len(original_timestamps[recording]),reference_event_jump)],recording_results])
+            current_pos_test = 0
+#            if layer==0:
+            for recording in range(len(net_T_response)):
+                recording_results = self.vaes_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(net_T_response[recording][0])//reference_event_jump]), batch_size=self.batch_size)
+                current_pos += len(net_T_response[recording][0])//reference_event_jump
+                #TODO timestamps in the first entry of the list and then the results without explicit polarity (fix this later)
+                layer_2D_activations.append([net_T_response[recording][0][range(0,len(net_T_response[recording][0]),reference_event_jump)],recording_results])
+            del net_T_response
+            
+            for recording in range(len(net_T_response_test)):
+                recording_results = self.vaes_2D[layer][1].predict(np.array(all_surfaces_test[current_pos_test:current_pos_test+len(net_T_response_test[recording][0])//reference_event_jump]), batch_size=self.batch_size)
+                current_pos_test += len(net_T_response_test[recording][0])//reference_event_jump
+                #TODO timestamps in the first entry of the list and then the results without explicit polarity (fix this later)
+                layer_2D_activations_test.append([net_T_response_test[recording][0][range(0,len(net_T_response_test[recording][0]),reference_event_jump)],recording_results])
+            del net_T_response_test
+#            else:
+#                for recording in range(len(original_timestamps)):
+#                    recording_results = self.vaes_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(original_timestamps[recording])//reference_event_jump]), batch_size=self.batch_size)
+#                    current_pos += len(original_timestamps[recording])//reference_event_jump
+#                    #TODO timestamps in the first entry of the list and then the results without explicit polarity (fix this later)
+#                    layer_2D_activations.append([original_timestamps[recording][range(0,len(original_timestamps[recording]),reference_event_jump)],recording_results])
+#                for recording in range(len(original_timestamps_test)):
+#                    recording_results = self.vaes_2D[layer][1].predict(np.array(all_surfaces_test[current_pos_test:current_pos_test+len(original_timestamps_test[recording])//reference_event_jump]), batch_size=self.batch_size)
+#                    current_pos_test += len(original_timestamps_test[recording])//reference_event_jump
+#                    #TODO timestamps in the first entry of the list and then the results without explicit polarity (fix this later)
+#                    layer_2D_activations_test.append([original_timestamps_test[recording][range(0,len(original_timestamps_test[recording]),reference_event_jump)],recording_results])
+
+                    
             layer_dataset = layer_2D_activations
+            layer_dataset_test = layer_2D_activations_test
             num_of_2D_events=current_pos
+            num_of_2D_events_test=current_pos_test
             
             ##################
-            self.tmporig=all_surfaces[0:20000]
-            self.tmpcr=self.vaes_2D[layer][2].predict(self.vaes_2D[layer][1].predict(all_surfaces[0:20000]))
+            self.tmporig.append(all_surfaces[0:20000])
+            self.tmpcr.append(self.vaes_2D[layer][2].predict(self.vaes_2D[layer][1].predict(all_surfaces[0:20000])))
             ##################
             
             # clearing some variables
-            del all_surfaces
-        self.last_layer_activity = layer_2D_activations
+            del all_surfaces, all_surfaces_test
+            gc.collect()
 
+        self.last_layer_activity = layer_2D_activations
+        self.last_layer_activity_test = layer_2D_activations_test
+        
     # =============================================================================  
     def learn_old(self, dataset, learning_rate):
         """
@@ -613,7 +784,7 @@ class Solid_HOTS_Net:
 
     # Method for training a mlp classification model 
     # =============================================================================      
-    def mlp_single_word_classification_train(self, classes, wordpos, number_of_labels, learning_rate, dataset=[]):
+    def mlp_single_word_classification_train(self, classes, classes_test, wordpos_train, wordpos_test, number_of_labels, learning_rate, last, dataset=[]):
         """
         Method to train a simple mlp, to a classification task, to test the feature 
         rapresentation automatically extracted by HOTS
@@ -638,33 +809,55 @@ class Solid_HOTS_Net:
         if dataset:
             self.compute_response(dataset=dataset)            
         last_layer_activity = self.last_layer_activity 
+        last_layer_activity_test = self.last_layer_activity_test
         num_of_recordings=len(last_layer_activity)
-        begin = wordpos[0]
-        end = wordpos[1]
+        num_of_recordings_test=len(last_layer_activity_test)
+        begin_train = wordpos_train[0]
+        end_train = wordpos_train[1]
+        begin_test = wordpos_test[0]
+        end_test = wordpos_test[1]
         labels=[]
         for record in range(num_of_recordings):
             record_labels=np.zeros([len(last_layer_activity[record][0]),2])
-            beg_ind=np.where(last_layer_activity[record][0]>=begin[record])[0][0]
-            end_ind=np.where(last_layer_activity[record][0]<=end[record])[0][-1]
-            record_labels[beg_ind:end_ind,classes[record]]=np.ones(end_ind-beg_ind)
+#            beg_ind=np.where(last_layer_activity[record][0]>=begin_train[record])[0][0]
+#            end_ind=np.where(last_layer_activity[record][0]<=end_train[record])[0][-1]
+#            record_labels[beg_ind:end_ind,classes[record]]=np.ones(end_ind-beg_ind)
+            record_labels[:,classes[record]]=np.ones(len(last_layer_activity[record][0]))
+            record_labels=record_labels[-last:]
             labels.append(record_labels)
         labels=np.concatenate(labels)
-        last_layer_activity_concatenated = np.concatenate([last_layer_activity[recording][1] for recording in range(num_of_recordings)])
+        last_layer_activity_concatenated = np.concatenate([last_layer_activity[recording][1][-last:] for recording in range(num_of_recordings)])
+        
+        #test part
+        labels_test=[]
+        for record in range(num_of_recordings_test):
+            record_labels_test=np.zeros([len(last_layer_activity_test[record][0]),2])
+#            beg_ind=np.where(last_layer_activity_test[record][0]>=begin_test[record])[0][0]
+#            end_ind=np.where(last_layer_activity_test[record][0]<=end_test[record])[0][-1]
+#            record_labels_test[beg_ind:end_ind,classes_test[record]]=np.ones(end_ind-beg_ind)
+            record_labels_test[:,classes_test[record]]=np.ones(len(last_layer_activity_test[record][0]))
+            record_labels_test=record_labels_test[-last:]
+            labels_test.append(record_labels_test)
+        labels_test=np.concatenate(labels_test)
+        last_layer_activity_test_concatenated = np.concatenate([last_layer_activity_test[recording][1][-last:] for recording in range(num_of_recordings_test)])
+        
         n_latent_var = self.features_number[-1][-1]
-        self.mlp = create_mlp(input_size=n_latent_var,hidden_size=10, output_size=number_of_labels, 
+        self.mlp = create_mlp(input_size=n_latent_var, hidden_size=20, output_size=number_of_labels, 
                               learning_rate=learning_rate)
         self.mlp.summary()
         self.mlp.fit(np.array(last_layer_activity_concatenated), labels,
-          epochs=40,
-          batch_size=self.batch_size, shuffle=True)
+          epochs=100,
+          batch_size=self.batch_size, shuffle=True, validation_data=(np.array(last_layer_activity_test_concatenated),labels_test))
             
         if self.exploring is True:
             print("Training ended, you can now access the trained network with the method .mlp")
+        
+        return labels, labels_test
 
 ##Todo treat equal values
     # Method for testing the mlp classification model
     # =============================================================================      
-    def mlp_single_word_classification_test(self, classes, number_of_labels, threshold, dataset=[]):
+    def mlp_single_word_classification_test(self, classes, number_of_labels, threshold, last, dataset=[]):
         """
         Method to test a simple mlp, to a classification task, to test the feature 
         rapresentation automatically extracted by HOTS
@@ -686,14 +879,17 @@ class Solid_HOTS_Net:
         """
         if dataset:
             self.compute_response(dataset=dataset)     
-        last_layer_activity = self.last_layer_activity    
+        last_layer_activity = self.last_layer_activity_test    
         num_of_recordings = len(last_layer_activity)
         last_layer_activity_concatenated = np.concatenate([last_layer_activity[recording][1] for recording in range(num_of_recordings)])
         predicted_labels_ev=self.mlp.predict(np.array(last_layer_activity_concatenated),batch_size=self.batch_size)
         counter=0
         predicted_labels=[]
-        for recording in range(len(self.last_layer_activity)):
-            tmp = predicted_labels_ev[counter:counter+len(self.last_layer_activity[recording][0])]
+        net_activity=[]
+        for recording in range(len(last_layer_activity)):
+            tmp = predicted_labels_ev[counter:counter+len(last_layer_activity[recording][0])]
+            tmp = tmp[-last:]
+            net_activity.append(tmp.copy())
             tmp=(np.asarray(tmp)-0.5)
             new_threshold=threshold-0.5
             tmp=((abs(tmp)>new_threshold)*1>=1)*tmp
@@ -703,11 +899,11 @@ class Solid_HOTS_Net:
             off_sum = sum(tmp[:,0])
             on_sum = sum(tmp[:,1])
             predicted_labels.append(1*(on_sum>=off_sum))
-            counter += len(self.last_layer_activity[recording][0])
+            counter += len(last_layer_activity[recording][0])
         prediction_rate=0
         for i,true_label in enumerate(classes):
             prediction_rate += (predicted_labels[i] == true_label)/len(classes)
-        return prediction_rate, predicted_labels, predicted_labels_ev
+        return prediction_rate, predicted_labels, net_activity
     
     # =============================================================================          
     def plot_vae_decode_2D(self, layer, sublayer, variables_ind, variable_fix=0):

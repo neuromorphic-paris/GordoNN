@@ -77,6 +77,76 @@ def events_from_activations_T(activations, events):
     return [out_timestamps, out_polarities, out_features, out_rates]
 
 #TODO put a threshold here
+# The recording is selected outside, this is confusing a little
+# =============================================================================
+def events_from_activations_T_mod(activations, context_indices, events):
+    """
+    Function used to compute events out of simple activations (raw values)
+    for a single recording
+    Arguments :
+        activations (list of list of floats): a list containing all latent values
+                                              for a time surface
+    Returns :
+        events (nested list) : a list containing all events generated for the current
+                               recording
+    """
+    out_timestamps = []
+    out_polarities = []
+    out_features = []
+    out_rates = []
+    count=0
+    for idx in context_indices:
+        t = events[0][idx]
+        for j,a_j in enumerate(activations[count]):
+            out_timestamps.append(t)
+            out_polarities.append(events[1][idx])
+            out_features.append(j)
+            out_rates.append(a_j)
+        count+=1
+
+    out_timestamps = np.array(out_timestamps)
+    out_polarities = np.array(out_polarities)
+    out_features = np.array(out_features)
+    out_rates = np.array(out_rates)
+    
+    return [out_timestamps, out_polarities, out_features, out_rates]
+
+#TODO put a threshold here
+# The recording is selected outside, this is confusing a little
+# =============================================================================
+def events_from_activations_T_next_mod(activations, npolarities, context_indices, events):
+    """
+    Function used to compute events out of simple activations (raw values)
+    for a single recording
+    Arguments :
+        activations (list of list of floats): a list containing all latent values
+                                              for a time surface
+    Returns :
+        events (nested list) : a list containing all events generated for the current
+                               recording
+    """
+    out_timestamps = []
+    out_polarities = []
+    out_features = []
+    out_rates = []
+    count=0
+    for idx in context_indices:
+        t = events[0][idx//npolarities]
+        for j,a_j in enumerate(activations[count]):
+            out_timestamps.append(t)
+            out_polarities.append(idx%npolarities)
+            out_features.append(j)
+            out_rates.append(a_j)
+        count+=1
+
+    out_timestamps = np.array(out_timestamps)
+    out_polarities = np.array(out_polarities)
+    out_features = np.array(out_features)
+    out_rates = np.array(out_rates)
+    
+    return [out_timestamps, out_polarities, out_features, out_rates]
+
+#TODO put a threshold here
 # =============================================================================
 def events_from_activations_2D(activations, events):
     """
@@ -125,15 +195,16 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
     inputs = Input(shape=(input_size,), name='encoder_input')
     x = BatchNormalization()(inputs)
     x = Dense(hidden_size, activation=relu_advanced)(x)
+    x = Dense(hidden_size, activation=relu_advanced)(x)
+    x = Dense(hidden_size, activation=relu_advanced)(x)
     outputs = Dense(output_size, activation='sigmoid')(x)
     
     
     adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-    
+    'mean_squared_error'
     mlp = Model(inputs, outputs, name='mlp')
     mlp.compile(optimizer=adam,
-              loss='mean_squared_error',
-              metrics=['accuracy'])
+              loss='binary_crossentropy')
     
     return mlp
     
@@ -166,10 +237,14 @@ def create_vae(original_dim, latent_dim, intermediate_dim, learning_rate, l1_nor
     # build encoder model
     inputs = Input(shape=input_shape, name='encoder_input')
     x = BatchNormalization()(inputs)
-    x = Dense(intermediate_dim, activation="relu")(x)
+    x = Dense(intermediate_dim, activation=relu_advanced)(x)
+    x = Dense(intermediate_dim, activation=relu_advanced)(x)
+#    x = Dense(intermediate_dim, activation=relu_advanced)(x)
+#    x = Dense(intermediate_dim, activation=relu_advanced)(x)
+    
     
     # with l1 regulization, sparse
-    encoded = Dense(latent_dim, name='encoded', activation="tanh", activity_regularizer=l1_dim_norm)(x)
+    encoded = Dense(latent_dim, name='encoded', activation='tanh', activity_regularizer=l1_dim_norm)(x)
     #encoded = Dense(latent_dim, name='encoded')(x)
     
     # instantiate encoder model
@@ -179,7 +254,10 @@ def create_vae(original_dim, latent_dim, intermediate_dim, learning_rate, l1_nor
     
     # build decoder model
     latent_inputs = Input(shape=(latent_dim,), name='decoder_inputs')
-    x = Dense(intermediate_dim, activation="relu")(latent_inputs)
+    x = Dense(intermediate_dim, activation=relu_advanced)(latent_inputs)
+    x = Dense(intermediate_dim, activation=relu_advanced)(x)
+#    x = Dense(intermediate_dim, activation=relu_advanced)(x)
+#    x = Dense(intermediate_dim, activation=relu_advanced)(x)
 
     if first_sublayer==True:
         outputs = Dense(original_dim, activation='sigmoid')(x)
@@ -283,7 +361,7 @@ def create_vae_old(original_dim, latent_dim, intermediate_dim, learning_rate):
     
     return vae, encoder, decoder
 
-def context_plot(layer_dataset, all_contexts, layer):
+def context_plot(layer_dataset, context_indices, all_contexts, layer):
     context_length = len(all_contexts[0])
     count=0
     if layer == 0:   
@@ -291,7 +369,8 @@ def context_plot(layer_dataset, all_contexts, layer):
         var_contexts = [np.zeros(context_length)] 
         channel_counter = [0]
         for record in range(len(layer_dataset)):
-            for channel in layer_dataset[record][1]:
+            for event_index in context_indices[record]:
+                channel=layer_dataset[record][1][event_index]
                 if len(mean_contexts)<=channel:
                     var_contexts += [np.zeros(context_length) for i in range(channel+1-len(mean_contexts))] 
                     channel_counter.extend([0 for i in range(channel+1-len(mean_contexts))])
@@ -306,7 +385,7 @@ def context_plot(layer_dataset, all_contexts, layer):
         channel_counter = [0 for channel in range(channel_num)]
         channel = 0
         for record in range(len(layer_dataset)):
-            for event in range(len(layer_dataset[record][1])):
+            for event_index in context_indices[record]:
                 mean_contexts[channel]+=all_contexts[count]
                 channel_counter[channel]+=1
                 count+=1
@@ -320,13 +399,14 @@ def context_plot(layer_dataset, all_contexts, layer):
     count=0
     if layer==0:        
         for record in range(len(layer_dataset)):
-            for channel in layer_dataset[record][1]:
+            for event_index in context_indices[record]:
+                channel=layer_dataset[record][1][event_index]
                 var_contexts[channel]+=(mean_contexts[channel]-all_contexts[count])**2
                 count+=1
     else:
         channel=0
         for record in range(len(layer_dataset)):
-            for event in range(len(layer_dataset[record][1])):
+            for event_index in context_indices[record]:
                 var_contexts[channel]+=(mean_contexts[channel]-all_contexts[count])**2
                 count+=1
                 channel+=1 
@@ -352,18 +432,17 @@ def context_plot(layer_dataset, all_contexts, layer):
     plt.pause(5)
 
 def surfaces_plot(all_surfaces,polarities,features):
-
     mean_surface = np.mean(all_surfaces,0)
     var_surface = np.zeros(polarities*features) 
     n_events = len(all_surfaces)
     for event in range(n_events):
-        var_surface += (mean_surface - all_surfaces[event])**2
+        var_surface += (mean_surface - all_surfaces[event])**2/n_events
     plt.figure()
     plt.title(" Mean Surface ")
-    plt.imshow(np.reshape(mean_surface,[polarities,features]))
+    plt.imshow(np.reshape(np.array(mean_surface, dtype=float),[polarities,features]))
     plt.figure()
-    plt.title(" Context Variance ")
-    plt.imshow(np.reshape(var_surface,[polarities,features]))
-    print(" Context Abs: ")
+    plt.title(" Surfaces Variance ")
+    plt.imshow(np.reshape(np.array(var_surface, dtype=float),[polarities,features]))
+    print(" Surfaces Abs: ")
     print(sum(abs(mean_surface)))
     plt.pause(5)

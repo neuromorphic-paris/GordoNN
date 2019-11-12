@@ -14,6 +14,61 @@ from bisect import bisect_left
 
 
 # =============================================================================
+def Time_context_mod(event_index, events, timecoeff, context_size, last_contexts,  cross_variance, auto_variance):
+    """
+    Time_context is a function used to generate time_contexts starting from a 
+    reference event and an array of events 
+    Arguments : 
+        event_index (int) : position of the reference event in the events list   
+        events (list of events) : list of events (a recording) where each event is a 
+                                  1D list containing in pos 0 the timestamp, in
+                                  pos 1 the address and pos 2 for the rate if present
+        timecoeff(float): exp decay coefficient for context generation
+        context_size(int): the length of the context 
+        last_contexts (list of arrays) : The last contexts produced so far, divided per polarity
+                                    useful to remove redundant contexts
+
+        cross_variance (float) : The Mean Squared difference threshold between 
+                                           two close contexts under which the latter is 
+                                           removed
+        auto_variance (float) : The Variance threshold under which the context 
+                                produced is removed
+    Return :
+        context (numpy array of floats) : monodimentional array of floats defining
+                                          the time context for the reference event
+    """ 
+    context = np.zeros(context_size,dtype="float16")
+    context_size_counter = 1
+    context[0] = 1 # The first value of each time context will always be 1
+    if len(events)==3:
+        context[0] = events[2][event_index]
+    timestamp = events[0][event_index]
+    address = events[1][event_index]
+    ind = event_index-1 # Next index in the timestamps array to look for
+
+    while (context_size_counter < context_size) and (ind>-1):
+        if events[1][ind] == address:
+            context[context_size_counter]=np.exp(-(timestamp-events[0][ind])/timecoeff)
+            if len(events)==3:
+                context[context_size_counter]*=events[2][ind]    
+            context_size_counter += 1
+        ind -= 1
+    
+    context_mean = np.sum(context)/context.size
+    context_variance = np.sum((context-context_mean)**2)/context.size
+    if context_variance <= auto_variance:
+        return []
+    
+    if last_contexts[address].size:
+        cross_context_variance = np.sum((context-last_contexts[address])**2)/context.size
+        if cross_context_variance <= cross_variance:
+            return []
+    
+    last_contexts[address] = context
+    
+    return context
+
+# =============================================================================
 def Time_context(event_index, events, timecoeff, context_size):
     """
     Time_context is a function used to generate time_contexts starting from a 
@@ -29,7 +84,7 @@ def Time_context(event_index, events, timecoeff, context_size):
         context (numpy array of floats) : monodimentional array of floats defining
                                           the time context for the reference event
     """ 
-    context = np.zeros(context_size,dtype=float)
+    context = np.zeros(context_size,dtype="float16")
     context_size_counter = 1
     context[0] = 1 # The first value of each time context will always be 1
     if len(events)==3:
@@ -47,6 +102,60 @@ def Time_context(event_index, events, timecoeff, context_size):
         ind -= 1
      
     return context
+# =============================================================================
+def Time_context_later_mod(event_index, events, timecoeff, context_size,  last_contexts,  cross_variance, auto_variance):
+    """
+    Time_context is a function used to generate time_contexts starting from a 
+    reference event and an array of events 
+    Arguments : 
+        event_index (int) : position of the reference event in the events list   
+        events (list of events) : list of events (a recording) where each event is a 
+                                  1D list containing in pos 0 the timestamp, in
+                                  pos 1 the address and pos 2 for the rate if present
+        timecoeff(float): exp decay coefficient for context generation
+        context_size(int): the length of the context  
+    Return :
+        context (numpy array of floats) : monodimentional array of floats defining
+                                          the time context for the reference event
+    """ 
+    naddress = len(events[1][0])
+    
+    # in case there are not enough events to completely load the dimesurface
+    if event_index<=context_size-1:
+        contexts = np.zeros([naddress,context_size],dtype=float)
+        contexts_size_counter = 1
+        contexts[:,0] = events[1][event_index]
+        timestamp = events[0][event_index]      
+        ind = event_index-1 # Next index in the timestamps array to look for
+        while (contexts_size_counter < context_size) and (ind>-1):
+            contexts[:,contexts_size_counter]=np.exp(-(timestamp-events[0][ind])/timecoeff)
+            contexts[:,contexts_size_counter]*=events[1][ind]    
+            contexts_size_counter += 1
+            ind -= 1
+    else:
+        timestamp = events[0][event_index] 
+        contexts = events[1][event_index:event_index-context_size:-1].transpose()*np.exp(-(timestamp-events[0][event_index:event_index-context_size:-1])/timecoeff)
+    
+    result=[]
+    
+    for address in range(naddress):
+        context=contexts[address]
+        context_mean = np.sum(context)/context.size
+        context_variance = np.sum((context-context_mean)**2)/context.size
+        if context_variance <= auto_variance:
+            result.append([])   
+        elif last_contexts[address].size:
+            cross_context_variance = np.sum((context-last_contexts[address])**2)/context.size
+            if cross_context_variance <= cross_variance:
+                result.append([])   
+            else:
+                last_contexts[address] = context
+                result.append(context)
+        else:
+            last_contexts[address] = context
+            result.append(context)
+    
+    return result
 
 # =============================================================================
 def Time_context_later(event_index, events, timecoeff, context_size):
@@ -125,7 +234,7 @@ def Time_Surface(xdim, ydim, event_index, timecoeff, dataset, minv=0.1):
     #and we want each layer be dependant on the timecoeff of the timesurface
     #Note that exp is monotone and the timestamps are ordered, thus the last 
     #values of the dataset will be the lowest too
-    tsurface = np.zeros([ydim,xdim])
+    tsurface = np.zeros([ydim,xdim], dtype="float16")
     for i in range(len(tsurface_array)):
         tsurface[tmpdata[1][i],tmpdata[2][i]]=tsurface_array[i]
     del tmpdata,timestamp, tsurface_array
