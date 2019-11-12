@@ -195,8 +195,8 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
     inputs = Input(shape=(input_size,), name='encoder_input')
     x = BatchNormalization()(inputs)
     x = Dense(hidden_size, activation=relu_advanced)(x)
-    x = Dense(hidden_size, activation=relu_advanced)(x)
-    x = Dense(hidden_size, activation=relu_advanced)(x)
+#    x = Dense(hidden_size, activation=relu_advanced)(x)
+#    x = Dense(hidden_size, activation=relu_advanced)(x)
     outputs = Dense(output_size, activation='sigmoid')(x)
     
     

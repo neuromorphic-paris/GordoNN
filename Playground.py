@@ -187,7 +187,7 @@ labels, labels_test = Net.mlp_single_word_classification_train(classes_train, cl
                                    number_of_labels, mlp_learning_rate, last)
 gc.collect()
 #%% Mlp classifier testing
-threshold=0.6
+threshold=0.9
 prediction_rate, predicted_labels, net_activity = Net.mlp_single_word_classification_test(classes_test, 
                                                                                       number_of_labels, threshold, last)
 print('Prediction rate is '+str(prediction_rate*100)+'%') 
