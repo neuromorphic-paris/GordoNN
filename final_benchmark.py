@@ -150,7 +150,7 @@ NN_results = []
 for i in range(NUM_TESTS):
 
     ### Selecting the dataset
-    shuffle_seed = 1 # seed used for dataset shuffling if set to 0 the process will be totally random
+    shuffle_seed = 0 # seed used for dataset shuffling if set to 0 the process will be totally random
     [dataset_train, dataset_test, classes_train, classes_test, filenames_train, filenames_test, wordpos_train, wordpos_test] = on_off_load(number_files_dataset, label_file, train_test_ratio, shuffle_seed, use_all_addr)
 
     #acc_HOTS = run_HOTS()
