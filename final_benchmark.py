@@ -16,6 +16,7 @@ import pickle
 import datetime
 import gc
 import cv2
+import random
 
 # Data loading Libraries
 from Libs.Data_loading.dataset_load import on_off_load
@@ -37,7 +38,7 @@ from keras import backend as K
 
 def run_NN():
     batch_size = 32
-    num_epochs = 30
+    num_epochs = 100
 
     train_datagen   =    ImageDataGenerator(rescale=1./255, validation_split=0.15)
     test_datagen    =    ImageDataGenerator(rescale=1./255)
@@ -146,11 +147,12 @@ NUM_TESTS = 20
 
 NN_results = []
 
-
+seeds = []
 for i in range(NUM_TESTS):
 
     ### Selecting the dataset
-    shuffle_seed = 0 # seed used for dataset shuffling if set to 0 the process will be totally random
+    shuffle_seed = random.randrange(1, 1000) # seed used for dataset shuffling if set to 0 the process will be totally random
+    seeds.append(shuffle_seed)
     [dataset_train, dataset_test, classes_train, classes_test, filenames_train, filenames_test, wordpos_train, wordpos_test] = on_off_load(number_files_dataset, label_file, train_test_ratio, shuffle_seed, use_all_addr)
 
     #acc_HOTS = run_HOTS()
@@ -160,6 +162,7 @@ for i in range(NUM_TESTS):
     #print("Accuracy HOTS: " + str(acc_HOTS) + ".   Accuracy NN: " + str(acc_NN) + ".")
 
 print(NN_results)
+print(seeds)
 
 
 def run_HOTS():
