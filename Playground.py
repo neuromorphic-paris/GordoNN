@@ -12,98 +12,119 @@ method totally unsupervised.
 
 
 To test if the algorithm is learning features from the dataset, a simple classification
-task is accomplished with the use of histogram classification, taking the activity
+task is accomplished with the use multiple classifiers, taking the activity
 of the last layer.
 
-If by looking at the activities of the last layer we can sort out the class of the
+If by looking at the activities of the last layer we can sort out the class of the  
 input data, it means that the network has managed to separate the classes.
-
-If the results are good enough, more tests more complicated than this might follow.
-    
+   
 """
 
 # General Porpouse Libraries
 import numpy as np
+from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-import pickle
-import datetime
 import gc
+
+# to use CPU for training
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    
 # Data loading Libraries
 from Libs.Data_loading.dataset_load import on_off_load
 
 # 3D Dimensional HOTS or Solid HOTS
-from Libs.Solid_HOTS.Solid_HOTS_Network import Solid_HOTS_Net
+from Libs.Solid_HOTS.Network import Solid_HOTS_Net
+from Libs.Solid_HOTS._General_Func import first_layer_sampling_plot, other_layers_sampling_plot, first_layer_sampling, recording_local_surface_generator
 
-# To avoid MKL inefficient multythreading
+# To avoid MKL inefficient multithreading
 os.environ['MKL_NUM_THREADS'] = '1'
-
 
 # Plotting settings
 sns.set(style="white")
 plt.style.use("dark_background")
 
 ### Selecting the dataset
-shuffle_seed = 19 # seed used for dataset shuffling if set to 0 the process will be totally random
+shuffle_seed = 25 # seed used for dataset shuffling if set to 0 the process will be totally random 
 
 #%% ON OFF Dataset
-# Two class of recordings are used. The first class is composed by files containing
-# a single word each, "ON", the second class is equal but the spelled word is "OFF"
+# Two class of recordings are used. The first class is composed by recordings
+# of the word: "OFF", the second class is composed by s"ON"
 # =============================================================================
 # number_files_dataset : the number of files to be loaded for each class (On, Off)
-
 # train_test_ratio: ratio between the amount of files used to train
 #                                 and test the algorithm, 0.5 will mean that the 
 #                                 half of the files wiil be used for training.
 # use_all_addr : if False all off events will be dropped, and the total addresses
-#                number will correspond to the number of channel of the cochlea
+#                number will correspond to the number of channels of the cochlea
 # =============================================================================
 
-number_files_dataset = 120
+number_files_dataset = 600
 train_test_ratio = 0.75
 use_all_addr = False
 number_of_labels = 2
-parameter_folder = "Parameters/On_Off/"
 label_file = "Data/On_Off/files_timestamps.csv"
+classes = ("Off","On") 
 
-legend = ("On","Off") # Legend containing the labes used for plots
 
+
+## IF YOU WANT TO LOAD A PRECISE SET OF FILENAMES IN CASE THE SEED IS NOT RELIABLE AMONG DIFFERENT COMPUTERS
+#
 #filenames_train=np.load("filenames_train.npy")
 #filenames_test=np.load("filenames_test.npy")
-#classes_train=np.load("classes_train.npy")
-#classes_test=np.load("classes_test.npy")
-
-#[dataset_train, dataset_test, classes_train, classes_test, filenames_train, filenames_test, wordpos_train, wordpos_test] = on_off_load(number_files_dataset, label_file, train_test_ratio, 
+#labels_train=np.load("labels_train.npy")
+#labels_test=np.load("labels_test.npy")
+#
+#[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test, wordpos_train, wordpos_test] = on_off_load(number_files_dataset, label_file, train_test_ratio, 
 #                                                                                             shuffle_seed, use_all_addr, filenames_train, filenames_test,
 #                                                                                             labels_train, labels_test)
 
 
-[dataset_train, dataset_test, classes_train, classes_test, filenames_train, filenames_test, wordpos_train, wordpos_test] = on_off_load(number_files_dataset, label_file, train_test_ratio, shuffle_seed, use_all_addr)
 
+[dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test, wordpos_train, wordpos_test] = on_off_load(number_files_dataset, label_file, train_test_ratio, shuffle_seed, use_all_addr)
+
+
+## IF YOU WANT TO SAVE A PRECISE SET OF FILENAMES IN CASE THE SEED IS NOT RELIABLE AMONG DIFFERENT COMPUTERS
 #np.save("filenames_train",filenames_train)
 #np.save("filenames_test",filenames_test)
 #np.save("labels_train",labels_train)
 #np.save("labels_test",labels_test)gc.collect()
 
 
-#%% Network setting and feature exctraction 
-
-# Network settings
+#%% Network settings
 # =============================================================================
 #   features_number (nested lists of int) : the number of feature or centers used by the Solid network,
 #                               the first index identifies the layer, the second one
-#                               is 0 for the centers of the 0D sublayer, and 1 for 
-#                               the 2D centers
-#   context_lengths (list of int): the length of the time context generatef per each layer
+#                               is the number of  for units of the 0D sublayer,
+#                               and the third for the 2D units
+#   l1_norm_coeff (nested lists of int) : Same structure of feature_number but used to store l1 normalization to sparify 
+#                                         bottleneck layer of each autoencoder
+#   learning_rate (nested lists of int) : Same structure of feature_number but 
+#                                         used to store the learning rates of 
+#                                         each autoencoder
+#   epochs (nested lists of int) : Same structure of feature_number but 
+#                                         used to store the epochs to train 
+#                                         each autoencoder
+#   local_surface_lengths (list of int): the length of the Local time surfaces generated per each layer
 #   input_channels (int) : thex total number of channels of the cochlea in the input files 
 #   taus_T(list of float lists) :  a list containing the time coefficient used for 
-#                                  the context creations for each layer (first index)
-#                                  and each channel (second index) 
+#                                  the local_surface creations for each layer (first index)
+#                                  and each channel (second index). To keep it simple, 
+#                                  it's the result of a multiplication between a vector for each 
+#                                  layer(channel_taus) and a coefficient (taus_T_coeff).
 #   taus_2D (list of float) : a list containing the time coefficients used for the 
 #                            creation of timesurfaces per each layer
+#   batch_size (list of int) : a list containing the batch sizes used for the 
+#                            training of each layer
+#   activity_th (float) : The code will check that the sum(local surface)
+#   intermediate_dim_T (int) : Number of units used for intermediate layers
+#   intermediate_dim_2D (int) : Number of units used for intermediate layers
 #   threads (int) : The network can compute timesurfaces in a parallel way,
-#                   thi200s parameter set the number of multiple threads allowed to run
+#                   this parameter set the number of multiple threads allowed to run
+#
+#
 #   exploring (boolean) : If True, the network will output messages to inform the 
 #                         the users about the current states and will save the 
 #                         basis at each update to build evolution plots (currently not 
@@ -111,136 +132,137 @@ legend = ("On","Off") # Legend containing the labes used for plots
 # =============================================================================
 
 
-features_number = [[2,8]]
-context_lengths = [100,400,100]
+features_number=[[6,10],[15,20]] 
+l1_norm_coeff=[[0,0],[0,0]]
+learning_rate = [[3e-4,3e-4],[1e-4,1e-4]]
+epochs = [[900,900],[900,900]]
+local_surface_lengths = [20,500]
 input_channels = 32 + 32*use_all_addr
-l1_norm_coeff=[[1e-8,1e-5],[1e-5,1e-5],[8e-4,8e-4]]
 
-channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
-                         1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
-                         20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
-                                                             # cochlea used for this datasets
+### Channel Taus ###
 
-#channel_taus = np.ones(32)*15000
+##Theorical _Probably Wrong
+#channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
+#                         1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
+#                         20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
+
+## Uniform
+#channel_taus = np.arange(32)*1
+
+#Linear interpolation between highest spike frequency 90ks/s to lowest 20ks/s, used to balance the filters
+channel_taus = np.arange(1,9,(9-1)/32)
                                                              
-second_layer_taus = np.ones(features_number[0][1]) # The taus for this layer are homogeneous across all channels
-#third_layer_taus = np.ones(features_number[1][1]) # The taus for this layer are homogeneous across all channels
-taus_T_coeff = np.array([50,80000]) # Multiplicative coefficients to help to change quickly the taus_T
+taus_T_coeff = np.array([15000,500000]) # Multiplicative coefficients to help to change quickly the taus_T
+taus_T = (taus_T_coeff*[channel_taus,np.ones(features_number[0][1])]).tolist()
+spacing_local_T = [1,2]
+taus_2D = [50000,500000]  
 
-taus_T = (taus_T_coeff*[channel_taus, second_layer_taus]).tolist()
-taus_2D = [5000,80000]  
+batch_size = [200000,200000]
+
+activity_th = 0
+intermediate_dim_T=20
+intermediate_dim_2D=90
+
+threads=1 # Due to weird problem for memory access the data is copied,
+          # if you don't have enough ram, decrease this or the number of files 
+          # or layers
+          
+exploring=True
+
+network_parameters = [[features_number, l1_norm_coeff, learning_rate, 
+                       local_surface_lengths, input_channels, taus_T, taus_2D, 
+                 threads, exploring],[learning_rate, epochs, l1_norm_coeff,
+                 intermediate_dim_T, intermediate_dim_2D, activity_th, 
+                 batch_size, spacing_local_T]]
+
+
+#%% Network creation and learning 
 
 # Create the network
-Net = Solid_HOTS_Net(features_number, context_lengths, input_channels, taus_T, taus_2D, 
-                 threads=8, exploring=True)
-
-learning_rate = [[5e-4,5e-4],[5e-4,5e-4],[5e-5,1e-4]]
-epochs = [[50,50],[50,50],[20,40]]
-
-# Learn the feature
-Net.learn(dataset_train,dataset_test,learning_rate, epochs, l1_norm_coeff)
-
-tmpcr_c=Net.tmpcr_c
-tmporig_c=Net.tmporig_c
-tmpcr=Net.tmpcr
-tmporig=Net.tmporig
-gc.collect()
-#%% Print features
-
-# 2D plots that can be used to analyze the network after learning
-# =============================================================================
-# layer (int) : Layer selected for printing features and latent space
-# variables_ind (list if 2 ind) : A list contining the couple of latent variables
-#                                 that will be used to generate the plots
-# variable_fix (int) : Fixed value for all the non selected state variables used
-#                      used for decoding
-# =============================================================================
-
-#layer = 0
-#sublayer = 0    
-#variables_ind = [0,1] 
-#variable_fix = 0 
-#                    
-#Net.plot_vae_decode_2D(layer, sublayer, variables_ind, variable_fix)
-#Net.plot_vae_decode_2D(layer, 1, variables_ind, variable_fix)
-#Net.plot_vae_decode_2D(1, sublayer, variables_ind, variable_fix)
-#Net.plot_vae_decode_2D(1, 1, variables_ind, variable_fix)
-#Net.plot_vae_decode_2D(2, sublayer, variables_ind, variable_fix)
-#Net.plot_vae_decode_2D(2, 1, variables_ind, variable_fix)
-#Net.plot_vae_space_2D(layer, variables_ind, legend, classes_train)
-#Net.plot_vae_space_2D(1, variables_ind, legend, classes_test, )
-#
-#plt.pause(0.1)
+Net = Solid_HOTS_Net(network_parameters)
 
 
-plt.figure()
-plt.imshow(tmporig[-1].astype('float32'))
-plt.figure()
-plt.imshow(tmpcr[-1].astype('float'))
+# Learn the features
+Net.learn(dataset_train, dataset_test)
+
+
+#%% Methods to add layers/rerun training
+
+# If you want to add a layer or more on top of the net and keep the results
+# you had for the first ones use this. 
+# You will have to load new parameters and run the learning from the 
+# index of the new layer (You computed a 2 layer network, you want to add 2 more,
+# you use a new set of parameters, and rerun learning with rerun_layer=2, as the 
+# layers index start with 0.
+Net.add_layers(network_parameters)
+Net.learn(dataset_train, dataset_test, rerun_layer = 1)
+
+# If you want to recompute few layers of the net in a sequential manner
+# change and load the parameters with this method and then rerun the net learning
+# (For example you computed a 2 layer network, and you want to rerun the second layer,
+# you use a new set of parameters, and rerun learning with rerun_layer=1, as the 
+# layers index start with 0.
+Net.load_parameters(network_parameters)
+Net.learn(dataset_train, dataset_test, rerun_layer = 1)
+
 
 #%% Mlp classifier training
-last=-0
+# Simple MLP applyed on all output events as a weak classifier to prove HOTS
+# working.
 
-number_of_labels=len(legend)
-mlp_learning_rate = 7e-4
-labels, labels_test = Net.mlp_single_word_classification_train(classes_train, classes_test, wordpos_train, wordpos_test,    
-                                   number_of_labels, mlp_learning_rate, last)
+mlp_learning_rate = 1e-4
+mlp_epochs = 15000
+mlp_hidden_size = 10
+mlp_batch_size = 200000
+patience = 500
+
+Net.mlp_classification_train(labels_train, labels_test, number_of_labels, mlp_learning_rate,
+                             mlp_hidden_size, mlp_epochs, mlp_batch_size, patience)
 gc.collect()
-#%% Mlp classifier testing
-threshold=0.9
-prediction_rate, predicted_labels, net_activity = Net.mlp_single_word_classification_test(classes_test, 
-                                                                                      number_of_labels, threshold, last)
-print('Prediction rate is '+str(prediction_rate*100)+'%') 
 
+#%% Mlp classifier testing
+threshold = 0.8
+Net.mlp_classification_test(labels_test, number_of_labels, mlp_batch_size,
+                            threshold)
+
+#%% Histogram mlp classifier training
+# Simple MLP applyed over the histogram (the summed response of the last layer
+# for each recording) of the net activity.
+
+hist_mlp_learning_rate = 4e-4
+hist_mlp_epochs = 5000
+hist_mlp_hidden_size = 5
+hist_mlp_batch_size = 180
+patience = 50
+
+Net.hist_mlp_classification_train(labels_train, labels_test, number_of_labels, 
+                                  hist_mlp_learning_rate, hist_mlp_hidden_size, 
+                                  hist_mlp_epochs, hist_mlp_batch_size, patience)
+gc.collect()
+
+#%% Mlp hist classifier testing
+threshold=0.5
+Net.hist_mlp_classification_test(labels_test, number_of_labels,
+                                 hist_mlp_batch_size, threshold)
+
+#%% Print Surfaces
+# Method to plot reconstructed and original surfaces
+Net.plt_surfaces_vs_reconstructions(file=0, layer=0, test=False)
+
+#%% Net history plot
+# Method to print loss history of the network
+Net.plt_loss_history(layer=0)
+
+#%% Print last layer activity 
+# Method to plot last layer activation of the network
+Net.plt_last_layer_activation(file=1, labels=labels_train, labels_test=labels_test,
+                              classes=classes, test=True)
 
      
- 
-#%% Mlp classifier training
-last=50
+#%% Reverse activation
+# Method to plot reverse activation of a sublayer output (output related to input)
+Net.plt_reverse_activation(file=0, layer=1, sublayer=0, labels=labels_train, 
+                           labels_test=labels_test, classes=classes, test=True)
 
-number_of_labels=len(legend)
-mlp_learning_rate = 1e-5
-labels, labels_test = Net.svm_single_word_classification_train(classes_train, classes_test, wordpos_train, wordpos_test,    
-                                   number_of_labels, mlp_learning_rate, last)
-gc.collect()
-#%% Mlp classifier testing
-threshold=0.5
-prediction_rate, predicted_labels, net_activity = Net.svm_single_word_classification_test(classes_test, 
-                                                                                      number_of_labels, threshold, last)
-print('Prediction rate is '+str(prediction_rate*100)+'%') 
- 
-##%% Plot Basis  
-##TODO add more information, time or channel and feature axes 
 
-#layer = 0
-#sublayer = 1
-#Net.plot_basis(layer, sublayer)
-#plt.show()    
-#    
-##%% Save network parameters
-#
-#now=datetime.datetime.now()
-#file_name = "GordoNN_Params_2L_8_"+str(now)+".pkl"
-#with open(parameter_folder+file_name, 'wb') as f:
-#    pickle.dump([basis_number, context_lengths, input_channels, taus_T, taus_2D], f)
-#    
-#    
-##%% Classification train
-#
-#number_of_labels = len(legend)
-#Net.histogram_classification_train(labels_train,number_of_labels)
-#
-## Plotting results
-#Net.plot_histograms(legend)
-#plt.show() 
-# 
-##%% Classification test 
-#prediction_rate, distances, predicted_labels = Net.histogram_classification_test(labels_test,number_of_labels,dataset_test)
-#
-## Plotting results
-#print("Euclidean distance recognition rate :             "+str(prediction_rate[0]))
-#print("Normalsed euclidean distance recognition rate :   "+str(prediction_rate[1]))
-#print("Bhattachaya distance recognition rate :           "+str(prediction_rate[2]))
-#
-#Net.plot_histograms(legend, labels=labels_test)
-#plt.show()  
+

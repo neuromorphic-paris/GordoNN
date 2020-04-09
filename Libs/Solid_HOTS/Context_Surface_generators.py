@@ -14,7 +14,7 @@ from bisect import bisect_left
 
 
 # =============================================================================
-def Time_context_mod(event_index, events, timecoeff, context_size, last_contexts,  cross_variance, auto_variance):
+def Time_context_mod(event_index, events, timecoeff, context_size, last_contexts, padding_counter, cross_correlation_th, auto_variance):
     """
     Time_context is a function used to generate time_contexts starting from a 
     reference event and an array of events 
@@ -28,7 +28,7 @@ def Time_context_mod(event_index, events, timecoeff, context_size, last_contexts
         last_contexts (list of arrays) : The last contexts produced so far, divided per polarity
                                     useful to remove redundant contexts
 
-        cross_variance (float) : The Mean Squared difference threshold between 
+        cross_correlation_th (float) : The Mean Squared difference threshold between 
                                            two close contexts under which the latter is 
                                            removed
         auto_variance (float) : The Variance threshold under which the context 
@@ -37,7 +37,8 @@ def Time_context_mod(event_index, events, timecoeff, context_size, last_contexts
         context (numpy array of floats) : monodimentional array of floats defining
                                           the time context for the reference event
     """ 
-    context = np.zeros(context_size,dtype="float16")
+    
+    context = np.zeros(context_size, dtype="float16")
     context_size_counter = 1
     context[0] = 1 # The first value of each time context will always be 1
     if len(events)==3:
@@ -45,7 +46,12 @@ def Time_context_mod(event_index, events, timecoeff, context_size, last_contexts
     timestamp = events[0][event_index]
     address = events[1][event_index]
     ind = event_index-1 # Next index in the timestamps array to look for
-
+    
+    #trash the first events (padding) depending on context length
+    padding_counter[address]+=1
+    if padding_counter[address] < context_size:
+        return []
+    
     while (context_size_counter < context_size) and (ind>-1):
         if events[1][ind] == address:
             context[context_size_counter]=np.exp(-(timestamp-events[0][ind])/timecoeff)
@@ -60,8 +66,11 @@ def Time_context_mod(event_index, events, timecoeff, context_size, last_contexts
         return []
     
     if last_contexts[address].size:
-        cross_context_variance = np.sum((context-last_contexts[address])**2)/context.size
-        if cross_context_variance <= cross_variance:
+#        cross_context_correlation = np.correlate(context, last_contexts[address])[0]
+#        auto_context_correlation = np.correlate(context, context)[0]
+        cross_context_correlation = np.sum(context)
+        auto_context_correlation = np.sum(last_contexts[address])      
+        if np.abs(cross_context_correlation-auto_context_correlation) <= cross_correlation_th:
             return []
     
     last_contexts[address] = context
@@ -103,7 +112,7 @@ def Time_context(event_index, events, timecoeff, context_size):
      
     return context
 # =============================================================================
-def Time_context_later_mod(event_index, events, timecoeff, context_size,  last_contexts,  cross_variance, auto_variance):
+def Time_context_later_mod(event_index, events, timecoeff, context_size,  last_contexts,  cross_correlation_th, auto_variance):
     """
     Time_context is a function used to generate time_contexts starting from a 
     reference event and an array of events 
@@ -120,18 +129,19 @@ def Time_context_later_mod(event_index, events, timecoeff, context_size,  last_c
     """ 
     naddress = len(events[1][0])
     
-    # in case there are not enough events to completely load the dimesurface
-    if event_index<=context_size-1:
-        contexts = np.zeros([naddress,context_size],dtype=float)
-        contexts_size_counter = 1
-        contexts[:,0] = events[1][event_index]
-        timestamp = events[0][event_index]      
-        ind = event_index-1 # Next index in the timestamps array to look for
-        while (contexts_size_counter < context_size) and (ind>-1):
-            contexts[:,contexts_size_counter]=np.exp(-(timestamp-events[0][ind])/timecoeff)
-            contexts[:,contexts_size_counter]*=events[1][ind]    
-            contexts_size_counter += 1
-            ind -= 1
+    # in case there are not enough events to completely load the timesurface
+    if event_index<(context_size-1):
+        # contexts = np.zeros([naddress,context_size],dtype=float)
+        # contexts_size_counter = 1
+        # contexts[:,0] = events[1][event_index]
+        # timestamp = events[0][event_index]      
+        # ind = event_index-1 # Next index in the timestamps array to look for
+        # while (contexts_size_counter < context_size) and (ind>-1):
+        #     contexts[:,contexts_size_counter]=np.exp(-(timestamp-events[0][ind])/timecoeff)
+        #     contexts[:,contexts_size_counter]*=events[1][ind]    
+        #     contexts_size_counter += 1
+        #     ind -= 1
+        return [[] for i in range(naddress)]
     else:
         timestamp = events[0][event_index] 
         contexts = events[1][event_index:event_index-context_size:-1].transpose()*np.exp(-(timestamp-events[0][event_index:event_index-context_size:-1])/timecoeff)
@@ -145,8 +155,11 @@ def Time_context_later_mod(event_index, events, timecoeff, context_size,  last_c
         if context_variance <= auto_variance:
             result.append([])   
         elif last_contexts[address].size:
-            cross_context_variance = np.sum((context-last_contexts[address])**2)/context.size
-            if cross_context_variance <= cross_variance:
+    #        cross_context_correlation = np.correlate(context, last_contexts[address])[0]
+    #        auto_context_correlation = np.correlate(context, context)[0]
+            cross_context_correlation = np.sum(context[0])
+            auto_context_correlation = np.sum(last_contexts[address][0])     
+            if np.abs(cross_context_correlation-auto_context_correlation) <= cross_correlation_th:
                 result.append([])   
             else:
                 last_contexts[address] = context

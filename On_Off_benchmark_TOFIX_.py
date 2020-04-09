@@ -27,255 +27,197 @@ If the results are good enough, more tests more complicated than this might foll
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import time
-
+import os
+import shutil
+import csv
+import pickle
+import datetime
+import gc
 # Data loading Libraries
-from Libs.Data_loading.AERDATA_load import AERDATA_load
-from Libs.Data_loading.get_filenames_dataset import get_filenames_on_off_dataset
+from Libs.Data_loading.dataset_load import on_off_load
+# Benchmark libs
+from Libs.Benchmark_Libs import bench
+# 3D Dimensional HOTS or Solid HOTS
+from Libs.Solid_HOTS.Solid_HOTS_Network import Solid_HOTS_Net
 
-# 0 dimensional HOTS
-from Libs.HOTS_0D.HOTS_0D_Network import HOTS_0D_Net
+## to use CPU for training
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+#os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-# 2 dimensional HOTS
-from Libs.HOTS_2D.HOTS_Sparse_Network import HOTS_Sparse_Net
-from Libs.HOTS_2D.Time_Surface_generators import Time_Surface_all
+# To avoid MKL inefficient multythreading
+os.environ['MKL_NUM_THREADS'] = '1'
 
-# Dataset Parameters
+
+# Plotting settings
+sns.set(style="white")
+plt.style.use("dark_background")
+
+result_folder = "Results/On_Off/Test_1L_old_data_new_bigger_net"
+
+if os.path.exists(result_folder) : 
+    print("Use a different folder")
+#shuffle_seed = [315, 772, 164, 787, 446, 36, 234, 196, 994, 304, 637, 15, 206, 575, 846, 272, 443, 209, 653, 838] # seed used for dataset shuffling if set to 0 the process will be totally random 
+#shuffle_seed = [24, 13, 26]
+
+shuffle_seed = [24, 24, 24, 25, 25, 25, 26, 27, 28, 29, 315, 772, 164, 787, 446, 36, 234, 196, 994, 304, 637, 15, 206]
+nthreads=8
+
+#%% Selecting the dataset
+
+# Two class of recordings are used. The first class is composed by files containing
+# a single word each, "ON", the second class is equal but the spelled word is "OFF"
 # =============================================================================
 # number_files_dataset : the number of files to be loaded for each class (On, Off)
+
 # train_test_ratio: ratio between the amount of files used to train
 #                                 and test the algorithm, 0.5 will mean that the 
 #                                 half of the files wiil be used for training.
-# shuffle_seed : The seed used to shuffle the data, if 0 it will be totally 
-#                random (no seed used)
 # use_all_addr : if False all off events will be dropped, and the total addresses
 #                number will correspond to the number of channel of the cochlea
 # =============================================================================
 
-number_files_dataset = 80
+number_files_dataset = 120
 train_test_ratio = 0.75
-shuffle_seed = 12
 use_all_addr = False
-
-addresess_number = 32 + 32*use_all_addr
-
-## Data Loading
-
-print ('\n--- GETTING FILENAMES FROM THE DATASET ---')
-start_time = time.time()
-[filenames_train, labels_train, filenames_test, labels_test] = get_filenames_on_off_dataset(number_files_dataset, train_test_ratio, shuffle_seed)
-print("Getting filenames from the dataset took %s seconds." % (time.time() - start_time))
-
-## Reading spikes from each of the files
-print ('\n--- READING SPIKES ---')
-start_time = time.time()
-
-dataset_train = []
-dataset_test = []
-
-for train_file in range(len(filenames_train)):
-    addresses, timestamps = AERDATA_load(filenames_train[train_file], use_all_addr)
-    dataset_train.append([np.array(timestamps), np.array(addresses)])
-for test_file in range(len(filenames_test)):
-    addresses, timestamps = AERDATA_load(filenames_test[test_file], use_all_addr)
-    dataset_test.append([np.array(timestamps), np.array(addresses)])
-
-# Shuffle data
-# Setting the random state for data shuffling
-rng = np.random.RandomState()
-if(shuffle_seed!=0):
-    rng.seed(shuffle_seed+1)
-
-# Shuffle the dataset and the labels with the same order
-combined_data = list(zip(dataset_train, labels_train))
-rng.shuffle(combined_data)
-dataset_train[:], labels_train[:] = zip(*combined_data)
-
-combined_data = list(zip(dataset_test, labels_test))
-rng.shuffle(combined_data)
-dataset_test[:], labels_test[:] = zip(*combined_data)
-
-print("Reading spikes took %s seconds." % (time.time() - start_time))
-
-
-
-#%% 0D Network setting and feature exctraction (aka basis learning)
-
-# 0D Network settings
-# =============================================================================
-# feat_number: is the number of feature or centers used by the 0D network
-# feat_size: is the length of the time context generated per each spike
-# taus: is a list containing the time coefficient used for the time surface creations
-#       for each channel
-# taucoef : Moltiplication factor for all taus
-# =============================================================================
-
-feat_number = 20 
-feat_size = 8
-
-taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
-        1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
-         20126, 25227, 31621, 39636, 49682])
-
-taucoeff = 0.5 
-
-# Create the network
-Net_0D = HOTS_0D_Net(feat_number, feat_size, taucoeff*taus)
-
-# Learn the feature
-Net_0D.learn_offline(dataset_train)
-
-# Update the dataset train with polarity (bunch of zeros) and 0D features
-# to be computed by the second half of GordoNN
-dataset_train = Net_0D.net_response
-
-#%%  Histograms computation and test 
-
-# Test result]
-# =============================================================================
-# total_net_result : the recognition rate of the entire network, computed using
-#                    three different distances 1:euclidean 
-#                    2:euclidean normalized on the number of spikes                   
-#                    3: bhattacharyya distance between normalized histograms
-# 
-# total_net_result : same as total_net_result but per each address
-# =============================================================================
-
-# The total number of labels for the given problem
 number_of_labels = 2
-# Computing the two signatures for the entire network and for each address
-Net_0D.histogram_classification_train(labels_train, number_of_labels, addresess_number)
-# Computing the rate per each channel and for the entire network
-total_net_result, channeled_results = Net_0D.histogram_classification_test(labels_test, number_of_labels, addresess_number,dataset_test)
+label_file = "Data/On_Off/files_timestamps.csv"
 
-# Update the dataset test with polarity (bunch of zeros) and 0D features
-# to be computed by the second half of GordoNN
-dataset_test = Net_0D.net_response
+legend = ("On","Off") # Legend containing the labes used for plots
 
-#%% Generate 2D net
 
-# Plotting settings
-plt.style.use("dark_background")
 
-# 2D Network settings
+
+#%% Network setting and feature exctraction 
+
+# Network settings
 # =============================================================================
-# basis_number is a list containing the number of basis used for each layer
-# basis_dimension: is a list containing the dimension of every base for each layer
-# taus: is a list containing the time coefficient used for the time surface creations
-#       for each layer, all three lists need to share the same lenght obv.
-# first_layer_polarities : the number of distinct polarities in the input layer 
-# shuffle_seed, net_seed : seed used for dataset shuffling and net generation,
-#                       if set to 0 the process will be totally random
-# delay_coeff : the coefficient used to linearly adress delay to outputs of each layer
-#               out_timestamp = in_timestamp + delay_coeff*(1-abs(a_j))
+#   features_number (nested lists of int) : the number of feature or centers used by the Solid network,
+#                               the first index identifies the layer, the second one
+#                               is 0 for the centers of the 0D sublayer, and 1 for 
+#                               the 2D centers
+#   context_lengths (list of int): the length of the time context generatef per each layer
+#   input_channels (int) : thex total number of channels of the cochlea in the input files 
+#   taus_T(list of float lists) :  a list containing the time coefficient used for 
+#                                  the context creations for each layer (first index)
+#                                  and each channel (second index) 
+#   taus_2D (list of float) : a list containing the time coefficients used for the 
+#                            creation of timesurfaces per each layer
+#   threads (int) : The network can compute timesurfaces in a parallel way,
+#                   thi200s parameter set the number of multiple threads allowed to run
+#   exploring (boolean) : If True, the network will output messages to inform the 
+#                         the users about the current states and will save the 
+#                         basis at each update to build evolution plots (currently not 
+#                         available cos the learning is offline)
 # =============================================================================
 
-basis_number = [10]
-basis_dimension = [[Net_0D.feat_number, addresess_number]] 
-taus = [10000]
-# The output of the first layer Hots is monopolar
-first_layer_polarities = 1
-shuffle_seed = 7
-net_seed = 25
 
-delay_coeff = 15000    
+
+features_number=[[2,8,1]] #(These setting are generating too many events, i have to fix it )
+context_lengths = [100,300,50,40,30]
+input_channels = 32 + 32*use_all_addr
+##### I HAD to HIGHER thE SPARSITY BECAUSE thE ACTivity was compressed between 8,6
+l1_norm_coeff=[[0,0],[0,0],[1e-6,1e-6],[1e-6,1e-6],[1e-5,1e-5]]
+#COMPUTED
+#channel_taus = np.array([45, 56, 70, 88, 111, 139, 175, 219, 275, 344, 432, 542, 679, 851, 1067,
+#                         1337, 1677, 2102, 2635, 3302, 4140, 5189, 6504, 8153, 10219, 12809, 16056,
+#                         20126, 25227, 31621, 39636, 49682]) # All the different tau computed for the particular 
+#                      
+#MEAN MIN                       
+#channel_taus = np.array([  6.04166667,   4.025     ,   2.66666667,   1.85      ,
+#         1.98333333,   1.66666667,   1.40833333,   1.25      ,
+#         1.86666667,   1.85      ,   1.78333333,   1.675     ,
+#         1.55833333,   1.75      ,   1.81666667,   3.00833333,
+#         3.03333333,   3.65      ,   4.8       ,   5.81666667,
+#         7.49166667,  12.6       ,  15.35833333,  31.43333333,
+#        24.01666667,  30.88333333,  51.9       ,  86.25833333,
+#       123.56666667, 189.175     , 213.80833333, 229.08333333])
+
+#channel_taus = np.array([  4174.,  14911.,   1790.,   5074.,   1905.,  16363.,   5244.,
+#         7163.,   4732.,   7549.,   6514.,   2151.,   3733.,   3611.,
+#         4794.,   9597.,   7913.,   5572.,   7948.,   9884.,   9464.,
+#        18683.,  14012.,  22862.,  44167.,  35645.,  45560., 141597.,
+#        64530.,  94234., 110459., 132337.])
+
+channel_taus = np.ones(32)*4
+                                                             
+second_layer_taus = np.ones(features_number[0][1]) # The taus for this layer are homogeneous across all channels
+#third_layer_taus = np.ones(features_number[1][1]) # The taus for this layer are homogeneous across all channels
+#fourth_layer_taus = np.ones(features_number[2][1]) # The taus for this layer are homogeneous across all channels
+#fifth_layer_taus = np.ones(features_number[3][1]) # The taus for this layer are homogeneous across all channels[4,8]
+third_layer_taus = np.ones(0) # The taus for this layer are homogeneous across all channels
+fourth_layer_taus = np.ones(0) # The taus for this layer are homogeneous across all channels
+fifth_layer_taus = np.ones(0) # The taus for this layer are homogeneous across all channels
+taus_T_coeff = np.array([5000, 500000, 500000, 500000, 800000]) # Multiplicative coefficients to help to change quickly the taus_T
+
+taus_T = (taus_T_coeff*[channel_taus, second_layer_taus, third_layer_taus, fourth_layer_taus, fifth_layer_taus]).tolist()
+taus_2D = [100000, 500000, 500000, 50000, 800000]  
+
+
+
+learning_rate = [[5e-4,5e-4],[5e-4,5e-4],[1e-3,1e-3],[5e-4,5e-4],[5e-4,5e-4]]
+epochs = [[15,40],[80,80],[20,20],[300,300]]
+
+cross_correlation_th_array=[0, 0, 0, 0.1, 0.3]
+batch_size = [4096]
+
+spacing = [5,100,40]
+
+exploring=False
+
+# Mlp classifier settings
+last=-0
+number_of_labels=len(legend)
+mlp_learning_rate = 1e-4                  
+mlp_epochs=60
+threshold=0.5
+
+network_parameters = [[features_number, context_lengths, input_channels, taus_T, taus_2D, 
+                 nthreads, exploring],[learning_rate, epochs, l1_norm_coeff,
+                 intermediate_dim_T, intermediate_dim_2D, cross_correlation_th_array,\
+                 batch_size, spacing]]
+
+classifier_parameters = [[last, number_of_labels, mlp_epochs, mlp_learning_rate],[threshold]]
+
+#%% Run the bench
+results=[]
+data_reference = []
+for seed in shuffle_seed:
+    print(seed)
+    dataset_parameters = [number_files_dataset, label_file, train_test_ratio, seed, use_all_addr]
+    single_run_results, filenames = bench(dataset_parameters, network_parameters, classifier_parameters)
+    results.append(single_run_results)
+    data_reference.append(filenames)
     
-# Print a series of elements to check if it's all right
-#file = 3
-#
-#tsurface=Time_Surface_all(xdim=basis_dimension[0][0], ydim=basis_dimension[0][1], timestamp=dataset_train[file][0][10], timecoeff=taus[0], dataset=dataset_train[file], num_polarities=1, minv=0.1, verbose=False)
-#ax = sns.heatmap(tsurface, annot=False, cbar=False, vmin=0, vmax=1)
-#plt.show()
-#
-#for i in range(10030,10170):
-#    print(i)
-#    tsurface=Time_Surface_all(xdim=basis_dimension[0][0], ydim=basis_dimension[0][1], timestamp=dataset_train[file][0][i], timecoeff=taus[0], dataset=dataset_train[file], num_polarities=1, minv=0.1, verbose=False)
-#    sns.heatmap(data=tsurface, ax=ax, annot=False, cbar=False, vmin=0, vmax=1)
-#    plt.draw()
-#    plt.pause(0.001)
+#%% Save Results
+os.mkdir(result_folder)
 
-# Generate the network
-Net = HOTS_Sparse_Net(basis_number, basis_dimension, taus, first_layer_polarities, delay_coeff, net_seed)
+with open(result_folder + "/results.csv", 'w', newline='') as csvfile:
+    fieldnames = ['Seed', 'Prediction_rate']
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    writer.writeheader()
+    for i in range(len(results)):
+        writer.writerow({'Seed' : shuffle_seed[i], 'Prediction_rate' : results[i]})
+                         
+# filenames saving        
+with open(result_folder + "/filenames.txt", "wb") as fp:   #Pickling
+    pickle.dump(data_reference, fp)
+     
+# Save Parameters
+    network_parameters = [[features_number, context_lengths, input_channels, taus_T, taus_2D, 
+                 nthreads, exploring],[learning_rate, epochs, l1_norm_coeff,
+                                    cross_correlation_th_array, batch_size, spacing]]
+
+    classifier_parameters = [[last, number_of_labels, mlp_epochs, mlp_learning_rate],[threshold]]
     
-#%% Learning-online-Exp distance and Thresh
+parameter_dict = { "features_number" : features_number, "context_lengths" : context_lengths,
+                  "input_channels" : input_channels, "taus_T" : taus_T, "taus_2D" : taus_2D, 
+                 "nthreads" : nthreads, "exploring" : exploring, "learning_rate" : learning_rate,
+                 "epochs" : epochs, "l1_norm_coeff" : l1_norm_coeff, "cross_correlation_th_array" : cross_correlation_th_array,
+                 "batch_size" : batch_size, "spacing" : spacing, "last" : last,
+                 "number_of_labels" : number_of_labels, "mlp_epochs" : mlp_epochs,
+                 "mlp_learning_rate" : mlp_learning_rate, "threshold" : threshold }
 
-print ('\n--- 2D HOTS feature extraction ---')
-start_time = time.time()
-
-sparsity_coeff = [1, 1, 2000000]
-learning_rate = [1, 1, 6000]
-noise_ratio = [1, 0, 500]
-sensitivity = [0.01, 0.01, 400000]
-channel = 9
-
-Net.learn_online(dataset=dataset_train,
-                 channel = channel,
-                 method="Exp distance", base_norm="Thresh",
-                 noise_ratio=noise_ratio, sparsity_coeff=sparsity_coeff,
-                 sensitivity=sensitivity,
-                 learning_rate=learning_rate, verbose=False)
-
-elapsed_time = time.time()-start_time
-print("Learning elapsed time : "+str(elapsed_time))
-
-# Taking the steady state values to perform the other tests
-sparsity_coeff = sparsity_coeff[1]
-noise_ratio = noise_ratio[1]
-sensitivity = sensitivity[1]
-
-#%% Learning offline full batch
-
-#start_time = time.time()
-#
-#sparsity_coeff = 0.8
-#learning_rate = 0.2        
-#max_steps = 5
-#base_norm_coeff = 0.0005
-#precision = 0.01
-#channel = 5
-#
-#Net.learn_offline(dataset_train, channel, sparsity_coeff, learning_rate, max_steps, base_norm_coeff, precision, verbose=False)
-#    
-#elapsed_time = time.time()-start_time
-#print("Learning elapsed time : "+str(elapsed_time))           
-#sensitivity = 0   
-#noise_ratio = 0 
-#%% Plot Basis 
-
-#layer = 0
-#sublayer = 0
-#Net.plot_basis(layer, sublayer)
-#plt.show()    
-
-#%% Classification train
-
-#net_activity = Net.full_net_dataset_response(dataset_testing, channel, "Exp distance", 
-#                                                      noise_ratio, 
-#                                                      sparsity_coeff,
-#                                                      sensitivity)
-
-Net.histogram_classification_train(dataset_train, channel,
-                                   labels_train, 
-                                   2, "Exp distance", noise_ratio,
-                                   0, sensitivity)
-
-
-
-#%% Classification test 
-
-test_results = Net.histogram_classification_test(dataset_test, channel,
-                                                 labels_test,
-                                                 2, "Exp distance", noise_ratio,
-                                                 0, sensitivity) 
-hist = np.transpose(Net.histograms)
-norm_hist = np.transpose(Net.normalized_histograms)
-test_hist = np.transpose(test_results[2])
-test_norm_hist = np.transpose(test_results[3])
-
-eucl = 0
-norm_eucl = 0
-bhatta = 0
-for i,right_label in enumerate(labels_test):
-    eucl += (test_results[1][i][0] == right_label)/len(labels_test)
-    norm_eucl += (test_results[1][i][1] == right_label)/len(labels_test)
-    bhatta += (test_results[1][i][2] == right_label)/len(labels_test)
+with open(result_folder + "/parameters.csv", 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    for key, value in parameter_dict.items():
+        writer.writerow([key, value])

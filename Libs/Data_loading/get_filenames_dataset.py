@@ -49,6 +49,8 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
     
     filenames_train = []
     filenames_test = []
+    labels_train = []
+    labels_test = []
 
     # Setting the random state for data shuffling
     rng = np.random.RandomState()
@@ -69,12 +71,17 @@ def get_filenames_on_off_dataset(number_of_files = -1, train_test_ratio = 0.75, 
     
         for ind_train in range(aedats_for_training):
             filenames_train.append(aedats_in_folder[ind_train])
+            labels_train.append(i)
         for ind_test in range(aedats_for_training, len(aedats_in_folder)):
             filenames_test.append(aedats_in_folder[ind_test])
+            labels_test.append(i)
     
     filenames_train=np.asarray(filenames_train)
     filenames_test=np.asarray(filenames_test)
-    rng.shuffle(filenames_train)
+    labels_train=np.asarray(labels_train)
+    labels_test=np.asarray(labels_test)
+    ind = np.arange(len(filenames_train))
+    rng.shuffle(ind)
     
     print("Getting filenames from the dataset took %s seconds." % (time.time() - start_time))
-    return filenames_train, filenames_test
+    return filenames_train[ind], filenames_test, labels_train[ind], labels_test

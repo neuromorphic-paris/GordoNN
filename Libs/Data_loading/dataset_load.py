@@ -20,6 +20,7 @@ def change_slash(label_file):
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row_num, row in enumerate(csv_reader):
             row[0]=row[0].replace('\\', '/')
+            #To change naming scheme
             row[0]=row[0].replace('on_aedat', 'on_aedats')
             row[0]=row[0].replace('off_aedat', 'off_aedats')
             rows.append(row)
@@ -43,12 +44,10 @@ def change_slash(label_file):
 #    Returns:
 #
 # =============================================================================
-def labels_load_on_off(dataset, filenames, label_file):   
+def beg_end_load_on_off(dataset, filenames, label_file):   
     folder_pos="Data/On_Off/"
     begin = np.zeros(len(filenames), dtype=int)
     end = np.zeros(len(filenames), dtype=int)
-    classes = np.zeros(len(filenames), dtype=int)
-    labels=[]
     count = 0 # number of times a begin and end is written
     with open(label_file) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
@@ -62,16 +61,14 @@ def labels_load_on_off(dataset, filenames, label_file):
             elif len(files_index[0])==1:
                 begin[files_index[0][0]]=int(float(row[1]))
                 end[files_index[0][0]]=int(float(row[2]))
-                count+=1
-                if 'on' in row[0]:
-                    classes[files_index[0][0]]=1                   
+                count+=1            
             else:
                 print("np.size(files_index) in labels_load_on_off is not a positive integer and i don't know what to do ")
         csv_file.close()
     if count!=len(dataset):
         print("number of files found by labels load different from the filenames list, check all files are present")
 
-    return classes, [begin, end]
+    return [begin, end]
         
         
 # A function used to load the ON OFF dataset
@@ -119,15 +116,14 @@ def labels_load_on_off(dataset, filenames, label_file):
 
 def on_off_load(number_files_dataset, label_file,  train_test_ratio, shuffle_seed=0, use_all_addr=False,
                 filenames_train=[], filenames_test=[], labels_train=[], labels_test=[]):
+    
     if len(filenames_train)==0 and len(filenames_test)==0 and len(labels_train)==0 and len(labels_test)==0:
-        [filenames_train, filenames_test] = get_filenames_on_off_dataset(number_files_dataset, train_test_ratio, shuffle_seed)
+        [filenames_train, filenames_test, labels_train, labels_test] = get_filenames_on_off_dataset(number_files_dataset, train_test_ratio, shuffle_seed)
     print ('\n--- READING SPIKES ---')
     start_time = time.time()
     
     dataset_train = []
     dataset_test = []
-    labels_train=[]
-    labels_test=[]
     
     for train_file in range(len(filenames_train)):
         addresses, timestamps = AERDATA_load(filenames_train[train_file], use_all_addr)
@@ -136,10 +132,10 @@ def on_off_load(number_files_dataset, label_file,  train_test_ratio, shuffle_see
         addresses, timestamps = AERDATA_load(filenames_test[test_file], use_all_addr)
         dataset_test.append([np.array(timestamps), np.array(addresses)])
     
-    classes_train, wordpos_train=labels_load_on_off(dataset_train,filenames_train,label_file)
-    classes_test, wordpos_test=labels_load_on_off(dataset_test,filenames_test,label_file)
+    wordpos_train=beg_end_load_on_off(dataset_train,filenames_train, label_file)
+    wordpos_test=beg_end_load_on_off(dataset_test,filenames_test, label_file)
     
     print("Reading spikes took %s seconds." % (time.time() - start_time))
     
-    return dataset_train, dataset_test, classes_train, classes_test, filenames_train, filenames_test, wordpos_train, wordpos_test
+    return dataset_train, dataset_test, labels_train, labels_test, filenames_train, filenames_test, wordpos_train, wordpos_test
 
