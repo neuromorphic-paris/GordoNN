@@ -195,7 +195,7 @@ Net.learn(dataset_train, dataset_test)
 # you use a new set of parameters, and rerun learning with rerun_layer=2, as the 
 # layers index start with 0.
 Net.add_layers(network_parameters)
-Net.learn(dataset_train, dataset_test, rerun_layer = 1)
+Net.learn(dataset_train, dataset_test, rerun_layer = 2)
 
 # If you want to recompute few layers of the net in a sequential manner
 # change and load the parameters with this method and then rerun the net learning
