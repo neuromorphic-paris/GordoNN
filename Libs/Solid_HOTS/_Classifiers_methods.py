@@ -11,8 +11,9 @@ HOTS
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np 
 
-# Homemade Fresh Libraries like Grandma does
+# Homemade Fresh Libraries like Grandma does (careful, it's still hot!)
 from ._General_Func import create_mlp
+from ._General_Func import create_lstm
 
 
 # Method for training a mlp classification model 
@@ -339,3 +340,124 @@ def hist_mlp_classification_test(self, labels, number_of_labels, batch_size, thr
     return 
 
 
+
+# Method for training a lstm classification model 
+# =============================================================================      
+def lstm_classification_train(self, labels_train, labels_test, number_of_labels, bin_width, 
+                             sliding_amount, learning_rate, units, epochs, 
+                             batch_size, patience=90000000):
+    
+    """
+    Method to train a simple lstm, to a classification task, to test the feature 
+    rapresentation automatically extracted by HOTS
+    
+    Arguments:
+        labels (numpy array int) : array of integers (labels) of the dataset
+                                    used for training
+        labels_test (numpy array int) : array of integers (labels) of the dataset
+                                    used for testing
+        number_of_labels (int) : The total number of different labels that
+                                 I am excepting in the dataset, (I know that i could
+                                 max(labels) but, first, it's wasted computation, 
+                                 second, the user should move his/her ass and eat 
+                                 less donuts)
+        bin_width (int) : number of samples that are considered for a single
+                          input bin to the LSTM
+        sliding_amount (int) : number of samples that will be skipped from one
+                               bin to the next one. Used for overlapping between bins. 
+        learning_rate (float) : The learning rate used for the backprop method,
+                                Adam
+        units (int) : dimension of the LSTM layer
+        epochs (int) : number of training cycles
+        batch_size (int) : mlp batchsize
+        patience (int) : number of consecutive higher test_loss cycles before 
+                         early stopping (90000000 by default)
+
+    """
+    
+    # Exctracting last layer activity         
+    last_layer_activity = self.last_layer_activity.copy()
+    last_layer_activity_test = self.last_layer_activity_test.copy()
+    num_of_recordings=len(last_layer_activity)
+    num_of_recordings_test=len(last_layer_activity_test)
+    
+    for i in range(len(last_layer_activity)):
+        #calcualte delta t
+        delta_t_i = np.empty(last_layer_activity[i][0].shape[0], dtype=int)
+        delta_t_i[0] = int(0)
+        for j in range(1, len(delta_t_i)):
+            delta_t_i[j] = last_layer_activity[i][0][j] - last_layer_activity[i][0][j-1]
+        
+        #We expand the number of columns in last_layer_activity[i][1] 
+        #from 10 to 11, in order to include delta_t
+        b = np.zeros((last_layer_activity[i][1].shape[0], 11))
+        b[:,:-1] = last_layer_activity[i][1]
+        b[:,10] = delta_t_i
+        last_layer_activity[i][1] = b
+    
+    for i in range(len(last_layer_activity_test)):
+        #calcualte delta t
+        delta_t_i = np.empty(last_layer_activity_test[i][0].shape[0], dtype=int)
+        delta_t_i[0] = int(0)
+        for j in range(1, len(delta_t_i)):
+            delta_t_i[j] = last_layer_activity_test[i][0][j] - last_layer_activity_test[i][0][j-1]
+        
+        #We expand the number of columns in last_layer_activity[i][1] 
+        #from 10 to 11, in order to include delta_t
+        b = np.zeros((last_layer_activity_test[i][1].shape[0], 11))
+        b[:,:-1] = last_layer_activity_test[i][1]
+        b[:,10] = delta_t_i
+        last_layer_activity_test[i][1] = b
+                                                     
+                  
+    # Create the bins    
+    activity_binned_train = []
+    labels_bins_train = []
+    for i in range(len(last_layer_activity)):
+        if last_layer_activity[i][1].shape[0] >= bin_width: #if bin_width >= last_layer_activity length for that file
+            activity_binned_train.append(last_layer_activity[i][1][0:bin_width, :])
+            labels_bins_train.append(labels_train[i])
+            for j in range(bin_width - 1 + sliding_amount, last_layer_activity[i][1].shape[0], sliding_amount):
+                activity_binned_train.append(last_layer_activity[i][1][j-bin_width:j, :])
+                labels_bins_train.append(labels_train[i])
+        else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
+            z = np.zeros([bin_width, last_layer_activity[i][1].shape[1]])
+            z[:last_layer_activity[i][1].shape[0],:last_layer_activity[i][1].shape[1]] = last_layer_activity[i][1]
+            activity_binned_train.append(z)
+            labels_bins_train.append(labels_train[i])
+    
+    labels_bins_train = np.array(labels_bins_train)
+
+
+    activity_binned_test = []
+    labels_bins_test = []
+    for i in range(len(last_layer_activity_test)):
+        if last_layer_activity_test[i][1].shape[0] >= bin_width: #if bin_width >= last_layer_activity length for that file
+            activity_binned_test.append(last_layer_activity_test[i][1][0:bin_width, :])
+            labels_bins_test.append(labels_test[i])
+            for j in range(bin_width - 1 + sliding_amount, last_layer_activity_test[i][1].shape[0], sliding_amount):
+                activity_binned_test.append(last_layer_activity_test[i][1][j-bin_width:j, :])
+                labels_bins_test.append(labels_test[i])
+        else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
+            z = np.zeros([bin_width, last_layer_activity_test[i][1].shape[1]])
+            z[:last_layer_activity_test[i][1].shape[0],:last_layer_activity_test[i][1].shape[1]] = last_layer_activity_test[i][1]
+            activity_binned_test.append(z)
+            labels_bins_test.append(labels_train[i])
+    
+    labels_bins_test = np.array(labels_bins_test)                                                     
+                  
+                    
+                  
+                                                     
+    self.lstm = create_lstm(input_size=bin_width, hidden_size=units, learning_rate=learning_rate)
+    self.lstm.summary()
+    # Set early stopping
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
+    
+    # fit model
+    self.lstm.fit(np.array(activity_binned_train), labels_bins_train,
+      epochs=epochs,
+      batch_size=batch_size, shuffle=True, validation_data=(np.array(activity_binned_test), labels_bins_test),
+      callbacks=[es], verbose=1)
+        
+    return 

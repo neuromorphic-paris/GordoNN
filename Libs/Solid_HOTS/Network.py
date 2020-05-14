@@ -571,6 +571,10 @@ class Solid_HOTS_Net:
     # Method for testing a mlp-histogram classification model 
     # =============================================================================      
     from ._Classifiers_methods import hist_mlp_classification_test
+    
+    # Method for training a lstm classification model 
+    # =============================================================================      
+    from ._Classifiers_methods import lstm_classification_train
 
 ### Plot methods
     

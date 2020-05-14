@@ -131,12 +131,19 @@ classes = ("Off","On")
 #                         available cos the learning is offline)
 # =============================================================================
 
-
+"""
 features_number=[[6,10],[15,20]] 
 l1_norm_coeff=[[0,0],[0,0]]
 learning_rate = [[3e-4,3e-4],[1e-4,1e-4]]
 epochs = [[900,900],[900,900]]
 local_surface_lengths = [20,500]
+input_channels = 32 + 32*use_all_addr
+"""
+features_number=[[6,10]] 
+l1_norm_coeff=[[0,0]]
+learning_rate = [[3e-4,3e-4]]
+epochs = [[900,900]]         #epochs = [[1,1]] #epochs = [[900,900]]
+local_surface_lengths = [20]
 input_channels = 32 + 32*use_all_addr
 
 ### Channel Taus ###
@@ -206,8 +213,24 @@ Net.load_parameters(network_parameters)
 Net.learn(dataset_train, dataset_test, rerun_layer = 1)
 
 
+#%% LSTM classifier training
+# Simple LSTM applied on all output events, binned in last_bin_width-size windows.
+
+lstm_bin_width = 150
+lstm_sliding_amount = 10
+lstm_units = 50
+lstm_learning_rate = 1e-4
+lstm_epochs = 100
+lstm_batch_size = 64
+lstm_patience = 30
+
+Net.lstm_classification_train(labels_train, labels_test, number_of_labels, lstm_bin_width, 
+                              lstm_sliding_amount, lstm_learning_rate, lstm_units, lstm_epochs, 
+                              lstm_batch_size, lstm_patience)
+gc.collect()
+
 #%% Mlp classifier training
-# Simple MLP applyed on all output events as a weak classifier to prove HOTS
+# Simple MLP applied on all output events as a weak classifier to prove HOTS
 # working.
 
 mlp_learning_rate = 1e-4
@@ -226,7 +249,7 @@ Net.mlp_classification_test(labels_test, number_of_labels, mlp_batch_size,
                             threshold)
 
 #%% Histogram mlp classifier training
-# Simple MLP applyed over the histogram (the summed response of the last layer
+# Simple MLP applied over the histogram (the summed response of the last layer
 # for each recording) of the net activity.
 
 hist_mlp_learning_rate = 4e-4

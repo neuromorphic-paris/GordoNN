@@ -16,7 +16,8 @@ from tensorflow.keras import optimizers, regularizers
 import tensorflow.keras as keras
 import numpy as np 
 import matplotlib.pyplot as plt
-
+from keras.models import Sequential
+from keras.layers import LSTM, MaxPooling1D, Conv1D, Flatten, Activation
 
 
 # =============================================================================
@@ -177,7 +178,31 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
               loss='binary_crossentropy')
     
     return mlp
+
+
+def create_lstm(input_size, hidden_size, learning_rate):
+    """
+    Function used to create a small LSTM used for classification porpuses 
+    Arguments :
+        input_size (int) : size of the input layer
+        hidden_size (int) : size of the hidden layer
+        output_size (int) : size of the output layer
+        learning_rate (int) : the learning rate for the optiomization alg.
+    Returns :
+        lstm (keras model) : the freshly baked network
+    """
     
+    lstm = keras.models.Sequential()
+    lstm.add(keras.layers.LSTM(hidden_size, input_shape=(input_size, 11)))
+    #model.add(LSTM(4, input_shape=(bin_width, 11), return_sequences=True))
+    #model.add(LSTM(4))
+    lstm.add(keras.layers.Dense(1, activation='sigmoid'))
+    
+    
+    adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+    lstm.compile(optimizer=adam, loss='binary_crossentropy', metrics=['accuracy'])
+    
+    return lstm    
     
 
 def create_autoencoder(original_dim, latent_dim, intermediate_dim, learning_rate, l1_norm_coeff, exploring):
