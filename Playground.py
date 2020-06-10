@@ -31,6 +31,7 @@ import gc
 # to use CPU for training
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     
 # Data loading Libraries
 from Libs.Data_loading.dataset_load import on_off_load
@@ -118,7 +119,7 @@ classes = ("Off","On")
 #                            creation of timesurfaces per each layer
 #   batch_size (list of int) : a list containing the batch sizes used for the 
 #                            training of each layer
-#   activity_th (float) : The code will check that the sum(local surface)
+#   activity_th (float) : The code will check that the sum(local surface)150
 #   intermediate_dim_T (int) : Number of units used for intermediate layers
 #   intermediate_dim_2D (int) : Number of units used for intermediate layers
 #   threads (int) : The network can compute timesurfaces in a parallel way,
@@ -142,7 +143,7 @@ input_channels = 32 + 32*use_all_addr
 features_number=[[6,10]] 
 l1_norm_coeff=[[0,0]]
 learning_rate = [[3e-4,3e-4]]
-epochs = [[900,900]]         #epochs = [[1,1]] #epochs = [[900,900]]
+epochs = [[10,10]]         #epochs = [[1,1]] #epochs = [[900,900]]
 local_surface_lengths = [20]
 input_channels = 32 + 32*use_all_addr
 
@@ -164,7 +165,7 @@ taus_T = (taus_T_coeff*[channel_taus,np.ones(features_number[0][1])]).tolist()
 spacing_local_T = [1,2]
 taus_2D = [50000,500000]  
 
-batch_size = [200000,200000]
+batch_size = [512,512] #batch_size = [200000,200000]
 
 activity_th = 0
 intermediate_dim_T=20
@@ -195,22 +196,22 @@ Net.learn(dataset_train, dataset_test)
 
 #%% Methods to add layers/rerun training
 
-# If you want to add a layer or more on top of the net and keep the results
-# you had for the first ones use this. 
-# You will have to load new parameters and run the learning from the 
-# index of the new layer (You computed a 2 layer network, you want to add 2 more,
-# you use a new set of parameters, and rerun learning with rerun_layer=2, as the 
-# layers index start with 0.
-Net.add_layers(network_parameters)
-Net.learn(dataset_train, dataset_test, rerun_layer = 2)
+# # If you want to add a layer or more on top of the net and keep the results
+# # you had for the first ones use this. 
+# # You will have to load new parameters and run the learning from the 
+# # index of the new layer (You computed a 2 layer network, you want to add 2 more,
+# # you use a new set of parameters, and rerun learning with rerun_layer=2, as the 
+# # layers index start with 0.
+# Net.add_layers(network_parameters)
+# Net.learn(dataset_train, dataset_test, rerun_layer = 2)
 
-# If you want to recompute few layers of the net in a sequential manner
-# change and load the parameters with this method and then rerun the net learning
-# (For example you computed a 2 layer network, and you want to rerun the second layer,
-# you use a new set of parameters, and rerun learning with rerun_layer=1, as the 
-# layers index start with 0.
-Net.load_parameters(network_parameters)
-Net.learn(dataset_train, dataset_test, rerun_layer = 1)
+# # If you want to recompute few layers of the net in a sequential manner
+# # change and load the parameters with this method and then rerun the net learning
+# # (For example you computed a 2 layer network, and you want to rerun the second layer,
+# # you use a new set of parameters, and rerun learning with rerun_layer=1, as the 
+# # layers index start with 0.
+# Net.load_parameters(network_parameters)
+# Net.learn(dataset_train, dataset_test, rerun_layer = 1)
 
 
 #%% LSTM classifier training
@@ -220,7 +221,7 @@ lstm_bin_width = 150
 lstm_sliding_amount = 10
 lstm_units = 50
 lstm_learning_rate = 1e-4
-lstm_epochs = 100
+lstm_epochs = 5
 lstm_batch_size = 64
 lstm_patience = 30
 
@@ -229,6 +230,18 @@ Net.lstm_classification_train(labels_train, labels_test, number_of_labels, lstm_
                               lstm_batch_size, lstm_patience)
 gc.collect()
 
+#%% LSTM test
+threshold = 0.6
+Net.lstm_classification_test(labels_test, number_of_labels, lstm_bin_width, 
+                             lstm_sliding_amount, lstm_batch_size, threshold )
+
+#%%
+tmp=Net.last_layer_activity_test
+i=0
+for recording in range(len(tmp)):
+    i+=len(tmp[recording][0])
+    
+ 
 #%% Mlp classifier training
 # Simple MLP applied on all output events as a weak classifier to prove HOTS
 # working.

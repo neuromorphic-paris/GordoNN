@@ -575,6 +575,10 @@ class Solid_HOTS_Net:
     # Method for training a lstm classification model 
     # =============================================================================      
     from ._Classifiers_methods import lstm_classification_train
+   
+    # Method for testing a lstm classification model 
+    # =============================================================================      
+    from ._Classifiers_methods import lstm_classification_test
 
 ### Plot methods
     
