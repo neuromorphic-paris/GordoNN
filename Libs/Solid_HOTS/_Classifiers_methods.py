@@ -179,6 +179,8 @@ def mlp_classification_test(self, labels, number_of_labels, batch_size, threshol
 
 
 
+
+
 # Method for training a histogram mlp classification model 
 # =============================================================================      
 def hist_mlp_classification_train(self, labels, labels_test, number_of_labels, learning_rate,
@@ -392,9 +394,16 @@ def lstm_classification_train(self, labels, labels_test, number_of_labels, bin_w
         labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
     for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
         labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])      
+
+    length_array_train = [len(last_layer_activity[i][0]) for i in range(num_of_recordings)]
+    length_array_test = [len(last_layer_activity_test[i][0]) for i in range(num_of_recordings_test)]
+   
+    maxlength = np.max(length_array_train+length_array_test) # information to be used to pad data
     
+    last_bottlnck_size = self.features_number[-1][1] # Last layer of Solid HOTS 
+                                                     # bottleneck size.    
     
-    for recording in range(len(last_layer_activity)):
+    for recording in range(num_of_recordings):
         #calculate delta t
         delta_t_recording = np.empty(last_layer_activity[recording][0].shape[0], dtype=int)
         delta_t_recording[0] = int(0)
@@ -402,15 +411,15 @@ def lstm_classification_train(self, labels, labels_test, number_of_labels, bin_w
             delta_t_recording[event] = last_layer_activity[recording][0][event] - last_layer_activity[recording][0][event-1]
         
         #We expand the number of columns in last_layer_activity[i][1] 
-        #from 10 to 11, in order to include delta_t
-        lstm_input = np.zeros((last_layer_activity[recording][1].shape[0], 11))
-        lstm_input[:,:-1] = last_layer_activity[recording][1]
-        lstm_input[:,10] = delta_t_recording
+        #from n to n+1, in order to include delta_t
+        lstm_input = np.zeros((maxlength, last_bottlnck_size+1))
+        lstm_input[:length_array_train[recording],:-1] = last_layer_activity[recording][1]
+        lstm_input[:length_array_train[recording],-1] = delta_t_recording
         data_train.append(lstm_input)
     
     data_train=np.array(data_train)      
                                                     
-    for recording in range(len(last_layer_activity_test)):
+    for recording in range(num_of_recordings_test):
         #calculate delta t
         delta_t_recording = np.empty(last_layer_activity_test[recording][0].shape[0], dtype=int)
         delta_t_recording[0] = int(0)
@@ -418,10 +427,10 @@ def lstm_classification_train(self, labels, labels_test, number_of_labels, bin_w
             delta_t_recording[event] = last_layer_activity_test[recording][0][event] - last_layer_activity_test[recording][0][event-1]
         
         #We expand the number of columns in last_layer_activity[i][1] 
-        #from 10 to 11, in order to include delta_t
-        lstm_input = np.zeros((last_layer_activity_test[recording][1].shape[0], 11))
-        lstm_input[:,:-1] = last_layer_activity_test[recording][1]
-        lstm_input[:,10] = delta_t_recording
+        #from n to n+1, in order to include delta_t
+        lstm_input = np.zeros((maxlength, last_bottlnck_size+1))
+        lstm_input[:length_array_test[recording],:-1] = last_layer_activity_test[recording][1]
+        lstm_input[:length_array_test[recording],-1] = delta_t_recording
         data_test.append(lstm_input)
           
     data_test=np.array(data_test)                                      
@@ -430,17 +439,19 @@ def lstm_classification_train(self, labels, labels_test, number_of_labels, bin_w
     activity_binned_train = []
     labels_bins_train = []
     for i in range(len(data_train)):
+        recording_train = []
         if data_train[i].shape[0] >= bin_width: #if bin_width >= data_train length for that file
-            activity_binned_train.append(data_train[i][0:bin_width, :])
+            recording_train.append(np.reshape(data_train[i][0:bin_width, :], bin_width*(last_bottlnck_size+1)))
             labels_bins_train.append(labels_trim[i])
             for j in range(bin_width - 1 + sliding_amount, data_train[i].shape[0], sliding_amount):
-                activity_binned_train.append(data_train[i][j-bin_width:j, :])
+                recording_train.append(np.reshape(data_train[i][j-bin_width:j, :], bin_width*(last_bottlnck_size+1)))
                 labels_bins_train.append(labels_trim[i])
-        else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
-            z = np.zeros([bin_width, data_train[i].shape[1]])
-            z[:data_train[i].shape[0],:data_train[i].shape[1]] = data_train[i]
-            activity_binned_train.append(z)
-            labels_bins_train.append(labels_trim[i])
+        activity_binned_train.append(np.array(recording_train))
+        # else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
+        #     z = np.zeros([bin_width, data_train[i].shape[1]])
+        #     z[:data_train[i].shape[0],:data_train[i].shape[1]] = data_train[i]
+        #     activity_binned_train.append(z)
+        #     labels_bins_train.append(labels_trim[i])
     
     labels_bins_train = np.array(labels_bins_train)
 
@@ -448,39 +459,43 @@ def lstm_classification_train(self, labels, labels_test, number_of_labels, bin_w
     activity_binned_test = []
     labels_bins_test = []
     for i in range(len(data_test)):
+        recording_test=[]
         if data_test[i].shape[0] >= bin_width: #if bin_width >= data_test length for that file
-            activity_binned_test.append(data_test[i][0:bin_width, :])
+            recording_test.append(np.reshape(data_test[i][0:bin_width, :], bin_width*(last_bottlnck_size+1)))
             labels_bins_test.append(labels_trim_test[i])
             for j in range(bin_width - 1 + sliding_amount, data_test[i].shape[0], sliding_amount):
-                activity_binned_test.append(data_test[i][j-bin_width:j, :])
+                recording_test.append(np.reshape(data_test[i][j-bin_width:j, :], bin_width*(last_bottlnck_size+1)))
                 labels_bins_test.append(labels_trim_test[i])
-        else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
-            z = np.zeros([bin_width, data_test[i].shape[1]])
-            z[:data_test[i].shape[0],:data_test[i].shape[1]] = data_test[i]
-            activity_binned_test.append(z)
-            labels_bins_test.append(labels_trim_test[i])
+        activity_binned_test.append(np.array(recording_test))
+        # else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
+        #     z = np.zeros([bin_width, data_test[i].shape[1]])
+        #     z[:data_test[i].shape[0],:data_test[i].shape[1]] = data_test[i]
+        #     activity_binned_test.append(z)
+        #     labels_bins_test.append(labels_trim_test[i])
     
     labels_bins_test = np.array(labels_bins_test)                                                     
                   
                     
-                  
-                                                     
-    self.lstm = create_lstm(input_size=bin_width, hidden_size=units, learning_rate=learning_rate)
+    self.tmp = [activity_binned_train,activity_binned_test]              
+    timesteps = maxlength//sliding_amount
+    features = bin_width*(last_bottlnck_size+1)
+    self.lstm = create_lstm(timesteps=timesteps, features=features,
+                            hidden_size=units, learning_rate=learning_rate)
     self.lstm.summary()
     # Set early stopping
     es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
     
     # fit model
-    self.lstm.fit(np.array(activity_binned_train), labels_bins_train,
+    self.lstm.fit(np.array(activity_binned_train), np.array(labels_trim),
       epochs=epochs,
-      batch_size=batch_size, shuffle=True, validation_data=(np.array(activity_binned_test), labels_bins_test),
+      batch_size=batch_size, validation_data=(np.array(activity_binned_test), np.array(labels_trim_test)),
       callbacks=[es], verbose=1)
         
     return 
 
 # Method for training a lstm classification model 
 # =============================================================================      
-def lstm_classification_test(self, labels_test, number_of_labels, bin_width, 
+def lstm_classification_test(self, labels, labels_test, number_of_labels, bin_width, 
                              sliding_amount, batch_size, threshold ):
     
     """
@@ -512,21 +527,48 @@ def lstm_classification_test(self, labels_test, number_of_labels, bin_width,
     """
     
     # Exctracting last layer activity         
+    last_layer_activity = self.last_layer_activity.copy()
     last_layer_activity_test = self.last_layer_activity_test.copy()
+    num_of_recordings=len(last_layer_activity)
     num_of_recordings_test=len(last_layer_activity_test)
     
+    data_train = []
     data_test = []
-    n_events = []
     
+    labels_trim=labels.copy()
     labels_trim_test=labels_test.copy()
  
     # remove the labels of discarded files from the method .learn
+    for i in range(len(self.abs_rem_ind)-1,-1,-1):
+        labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
     for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
         labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])      
+
+    length_array_train = [len(last_layer_activity[i][0]) for i in range(num_of_recordings)]
+    length_array_test = [len(last_layer_activity_test[i][0]) for i in range(num_of_recordings_test)]
+   
+    maxlength = np.max(length_array_train+length_array_test) # information to be used to pad data
     
+    last_bottlnck_size = self.features_number[-1][1] # Last layer of Solid HOTS 
+                                                     # bottleneck size.    
+    
+    for recording in range(num_of_recordings):
+        #calculate delta t
+        delta_t_recording = np.empty(last_layer_activity[recording][0].shape[0], dtype=int)
+        delta_t_recording[0] = int(0)
+        for event in range(1, len(delta_t_recording)):
+            delta_t_recording[event] = last_layer_activity[recording][0][event] - last_layer_activity[recording][0][event-1]
         
+        #We expand the number of columns in last_layer_activity[i][1] 
+        #from n to n+1, in order to include delta_t
+        lstm_input = np.zeros((maxlength, last_bottlnck_size+1))
+        lstm_input[:length_array_train[recording],:-1] = last_layer_activity[recording][1]
+        lstm_input[:length_array_train[recording],-1] = delta_t_recording
+        data_train.append(lstm_input)
+    
+    data_train=np.array(data_train)      
                                                     
-    for recording in range(len(last_layer_activity_test)):
+    for recording in range(num_of_recordings_test):
         #calculate delta t
         delta_t_recording = np.empty(last_layer_activity_test[recording][0].shape[0], dtype=int)
         delta_t_recording[0] = int(0)
@@ -534,74 +576,96 @@ def lstm_classification_test(self, labels_test, number_of_labels, bin_width,
             delta_t_recording[event] = last_layer_activity_test[recording][0][event] - last_layer_activity_test[recording][0][event-1]
         
         #We expand the number of columns in last_layer_activity[i][1] 
-        #from 10 to 11, in order to include delta_t
-        lstm_input = np.zeros((last_layer_activity_test[recording][1].shape[0], 11))
-        lstm_input[:,:-1] = last_layer_activity_test[recording][1]
-        lstm_input[:,10] = delta_t_recording
+        #from n to n+1, in order to include delta_t
+        lstm_input = np.zeros((maxlength, last_bottlnck_size+1))
+        lstm_input[:length_array_test[recording],:-1] = last_layer_activity_test[recording][1]
+        lstm_input[:length_array_test[recording],-1] = delta_t_recording
         data_test.append(lstm_input)
           
     data_test=np.array(data_test)                                      
-                     
+                      
+    # Create the bins    
+    activity_binned_train = []
+    labels_bins_train = []
+    for i in range(len(data_train)):
+        recording_train = []
+        if data_train[i].shape[0] >= bin_width: #if bin_width >= data_train length for that file
+            recording_train.append(np.reshape(data_train[i][0:bin_width, :], bin_width*(last_bottlnck_size+1)))
+            labels_bins_train.append(labels_trim[i])
+            for j in range(bin_width - 1 + sliding_amount, data_train[i].shape[0], sliding_amount):
+                recording_train.append(np.reshape(data_train[i][j-bin_width:j, :], bin_width*(last_bottlnck_size+1)))
+                labels_bins_train.append(labels_trim[i])
+        activity_binned_train.append(np.array(recording_train))
+        # else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
+        #     z = np.zeros([bin_width, data_train[i].shape[1]])
+        #     z[:data_train[i].shape[0],:data_train[i].shape[1]] = data_train[i]
+        #     activity_binned_train.append(z)
+        #     labels_bins_train.append(labels_trim[i])
     
+    labels_bins_train = np.array(labels_bins_train)
+
+
     activity_binned_test = []
     labels_bins_test = []
     for i in range(len(data_test)):
+        recording_test=[]
         if data_test[i].shape[0] >= bin_width: #if bin_width >= data_test length for that file
-            activity_binned_test.append(data_test[i][0:bin_width, :])
+            recording_test.append(np.reshape(data_test[i][0:bin_width, :], bin_width*(last_bottlnck_size+1)))
             labels_bins_test.append(labels_trim_test[i])
-            counter_events = 0
             for j in range(bin_width - 1 + sliding_amount, data_test[i].shape[0], sliding_amount):
-                activity_binned_test.append(data_test[i][j-bin_width:j, :])
+                recording_test.append(np.reshape(data_test[i][j-bin_width:j, :], bin_width*(last_bottlnck_size+1)))
                 labels_bins_test.append(labels_trim_test[i])
-                counter_events+=1
-            n_events.append(counter_events)
-        else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
-            z = np.zeros([bin_width, data_test[i].shape[1]])
-            z[:data_test[i].shape[0],:data_test[i].shape[1]] = data_test[i]
-            activity_binned_test.append(z)
-            labels_bins_test.append(labels_trim_test[i])
-            n_events.append(bin_width)
-        
-    labels_bins_test = np.array(labels_bins_test)                                                    
+        activity_binned_test.append(np.array(recording_test))
+        # else: # if the last layer activity length for this file is less than the bin_width, we have to pad with zeros
+        #     z = np.zeros([bin_width, data_test[i].shape[1]])
+        #     z[:data_test[i].shape[0],:data_test[i].shape[1]] = data_test[i]
+        #     activity_binned_test.append(z)
+        #     labels_bins_test.append(labels_trim_test[i])
+    
+    labels_bins_test = np.array(labels_bins_test)                                                        
                   
     # fit model
-    predicted_labels_ev = self.lstm.predict(np.array(activity_binned_test))
+    predicted_labels_ev_train = self.lstm.predict(np.array(activity_binned_train))
+    predicted_labels_ev_test = self.lstm.predict(np.array(activity_binned_test))
+    # # Compute accuracy
+    # net_activity =[]
+    # predicted_labels=[]
+    # event_counter = 0
     
-    # Compute accuracy
-    net_activity =[]
-    predicted_labels=[]
-    event_counter = 0
-    
-    for recording in range(len(n_events)):
-        # Exctracting events per recording
-        predicted_labels_recording = predicted_labels_ev[event_counter:event_counter+n_events[recording]]
-        event_counter+=n_events[recording]
-        net_activity.append(predicted_labels_recording)
-        predicted_labels_recording_pos=(np.asarray(predicted_labels_recording)>=threshold)*np.asarray(predicted_labels_recording)
-        predicted_labels_recording_neg=(np.asarray(1-predicted_labels_recording)>=threshold)*np.asarray(1-predicted_labels_recording)
-        predicted_labels_recording_pos_sum = np.sum(predicted_labels_recording_pos)    
-        predicted_labels_recording_neg_sum = np.sum(predicted_labels_recording_neg)  
-        if (predicted_labels_recording_neg_sum+predicted_labels_recording_pos_sum) == 0:
-            predicted_labels.append(-1)
-        elif(predicted_labels_recording_pos_sum>predicted_labels_recording_neg_sum):
-            predicted_labels.append(1)
-        else:
-             predicted_labels.append(0)
+    # for recording in range(len(n_events)):
+    #     # Exctracting events per recording
+    #     predicted_labels_recording = predicted_labels_ev[event_counter:event_counter+n_events[recording]]
+    #     event_counter+=n_events[recording]
+    #     net_activity.append(predicted_labels_recording)
+    #     predicted_labels_recording_pos=(np.asarray(predicted_labels_recording)>=threshold)*np.asarray(predicted_labels_recording)
+    #     predicted_labels_recording_neg=(np.asarray(1-predicted_labels_recording)>=threshold)*np.asarray(1-predicted_labels_recording)
+    #     predicted_labels_recording_pos_sum = np.sum(predicted_labels_recording_pos)    
+    #     predicted_labels_recording_neg_sum = np.sum(predicted_labels_recording_neg)  
+    #     if (predicted_labels_recording_neg_sum+predicted_labels_recording_pos_sum) == 0:
+    #         predicted_labels.append(-1)
+    #     elif(predicted_labels_recording_pos_sum>predicted_labels_recording_neg_sum):
+    #         predicted_labels.append(1)
+    #     else:
+    #          predicted_labels.append(0)
    
-    prediction_rate = 0
-    prediction_rate_wht_uncert = 0 # Prediction rate without uncertain responses
-                                   # in which the classifiers didn't produced 
-                                   # any values higher than the threshold
-    for i,true_label in enumerate(labels_trim_test):
-        prediction_rate += (predicted_labels[i] == true_label)/len(labels_trim_test)
-        prediction_rate_wht_uncert += (predicted_labels[i] == true_label)/(len(labels_trim_test)-sum(np.asarray(predicted_labels)==-1))
+    # prediction_rate = 0
+    # prediction_rate_wht_uncert = 0 # Prediction rate without uncertain responses
+    #                                # in which the classifiers didn't produced 
+    #                                # any values higher than the threshold
+    # for i,true_label in enumerate(labels_trim_test):
+    #     prediction_rate += (predicted_labels[i] == true_label)/len(labels_trim_test)
+    #     prediction_rate_wht_uncert += (predicted_labels[i] == true_label)/(len(labels_trim_test)-sum(np.asarray(predicted_labels)==-1))
         
     # Save mlp classifier response for debugging:
-    self.lstm_class_response = [predicted_labels, net_activity, n_events, activity_binned_test, predicted_labels_ev, predicted_labels_recording_pos, predicted_labels_recording_neg]
+    self.lstm_class_response = [predicted_labels_ev_train, predicted_labels_ev_test]
+    prediction_rate_train=sum(labels_trim==np.around(np.reshape(predicted_labels_ev_train,len(predicted_labels_ev_train))))/len(labels_trim)
+    prediction_rate_test=sum(labels_trim_test==np.around(np.reshape(predicted_labels_ev_test,len(predicted_labels_ev_test))))/len(labels_trim_test)
     
-    print('Prediction rate is: '+str(prediction_rate*100)+'%') 
-    print('Prediction rate without uncertain responses (in which the classifiers did not produced'+\
-          ' any values higher than the threshold) is: ' +str(prediction_rate_wht_uncert*100)+'%') 
+    print('Train Prediction rate is: '+str(prediction_rate_train*100)+'%') 
+    print('Test Prediction rate is: '+str(prediction_rate_test*100)+'%') 
+    # print('Prediction rate is: '+str(prediction_rate*100)+'%') 
+    # print('Prediction rate without uncertain responses (in which the classifiers did not produced'+\
+    #       ' any values higher than the threshold) is: ' +str(prediction_rate_wht_uncert*100)+'%') 
         
         
         

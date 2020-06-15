@@ -140,11 +140,11 @@ epochs = [[900,900],[900,900]]
 local_surface_lengths = [20,500]
 input_channels = 32 + 32*use_all_addr
 """
-features_number=[[6,10]] 
+features_number=[[2,10]] 
 l1_norm_coeff=[[0,0]]
 learning_rate = [[3e-4,3e-4]]
-epochs = [[10,10]]         #epochs = [[1,1]] #epochs = [[900,900]]
-local_surface_lengths = [20]
+epochs = [[10,20]]         #epochs = [[1,1]] #epochs = [[900,900]]
+local_surface_lengths = [5]
 input_channels = 32 + 32*use_all_addr
 
 ### Channel Taus ###
@@ -160,16 +160,16 @@ input_channels = 32 + 32*use_all_addr
 #Linear interpolation between highest spike frequency 90ks/s to lowest 20ks/s, used to balance the filters
 channel_taus = np.arange(1,9,(9-1)/32)
                                                              
-taus_T_coeff = np.array([15000,500000]) # Multiplicative coefficients to help to change quickly the taus_T
+taus_T_coeff = np.array([5000,500000]) # Multiplicative coefficients to help to change quickly the taus_T
 taus_T = (taus_T_coeff*[channel_taus,np.ones(features_number[0][1])]).tolist()
-spacing_local_T = [1,2]
-taus_2D = [50000,500000]  
+spacing_local_T = [1,1]
+taus_2D = [500000,500000]  
 
-batch_size = [512,512] #batch_size = [200000,200000]
+batch_size = [2048,2048] #batch_size = [200000,200000]
 
 activity_th = 0
-intermediate_dim_T=20
-intermediate_dim_2D=90
+intermediate_dim_T=10
+intermediate_dim_2D=40
 
 threads=1 # Due to weird problem for memory access the data is copied,
           # if you don't have enough ram, decrease this or the number of files 
@@ -216,14 +216,16 @@ Net.learn(dataset_train, dataset_test)
 
 #%% LSTM classifier training
 # Simple LSTM applied on all output events, binned in last_bin_width-size windows.
+gc.collect()
 
-lstm_bin_width = 150
-lstm_sliding_amount = 10
-lstm_units = 50
-lstm_learning_rate = 1e-4
-lstm_epochs = 5
+lstm_bin_width = 50
+lstm_sliding_amount = 30
+lstm_units = 60
+lstm_learning_rate = 5e-6
+lstm_epochs = 1200
 lstm_batch_size = 64
-lstm_patience = 30
+lstm_patience = 8000
+
 
 Net.lstm_classification_train(labels_train, labels_test, number_of_labels, lstm_bin_width, 
                               lstm_sliding_amount, lstm_learning_rate, lstm_units, lstm_epochs, 
@@ -231,16 +233,10 @@ Net.lstm_classification_train(labels_train, labels_test, number_of_labels, lstm_
 gc.collect()
 
 #%% LSTM test
-threshold = 0.6
-Net.lstm_classification_test(labels_test, number_of_labels, lstm_bin_width, 
+threshold = 0.5
+Net.lstm_classification_test(labels_train,labels_test, number_of_labels, lstm_bin_width, 
                              lstm_sliding_amount, lstm_batch_size, threshold )
 
-#%%
-tmp=Net.last_layer_activity_test
-i=0
-for recording in range(len(tmp)):
-    i+=len(tmp[recording][0])
-    
  
 #%% Mlp classifier training
 # Simple MLP applied on all output events as a weak classifier to prove HOTS
@@ -257,7 +253,7 @@ Net.mlp_classification_train(labels_train, labels_test, number_of_labels, mlp_le
 gc.collect()
 
 #%% Mlp classifier testing
-threshold = 0.8
+threshold = 0.5
 Net.mlp_classification_test(labels_test, number_of_labels, mlp_batch_size,
                             threshold)
 
@@ -291,13 +287,13 @@ Net.plt_loss_history(layer=0)
 
 #%% Print last layer activity 
 # Method to plot last layer activation of the network
-Net.plt_last_layer_activation(file=1, labels=labels_train, labels_test=labels_test,
+Net.plt_last_layer_activation(file=5, labels=labels_train, labels_test=labels_test,
                               classes=classes, test=True)
 
      
 #%% Reverse activation
 # Method to plot reverse activation of a sublayer output (output related to input)
-Net.plt_reverse_activation(file=0, layer=1, sublayer=0, labels=labels_train, 
+Net.plt_reverse_activation(file=5, layer=0, sublayer=1, labels=labels_train, 
                            labels_test=labels_test, classes=classes, test=True)
 
 

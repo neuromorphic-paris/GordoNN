@@ -180,7 +180,7 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
     return mlp
 
 
-def create_lstm(input_size, hidden_size, learning_rate):
+def create_lstm(timesteps, features, hidden_size, learning_rate):
     """
     Function used to create a small LSTM used for classification porpuses 
     Arguments :
@@ -193,12 +193,17 @@ def create_lstm(input_size, hidden_size, learning_rate):
     """
     
     lstm = keras.models.Sequential()
-    lstm.add(keras.layers.LSTM(hidden_size, input_shape=(input_size, 11)))
+    # lstm.add(keras.layers.Dense(30, activation='sigmoid'))
+    # lstm.add(keras.layers.Dense(30, activation='sigmoid'))
+    lstm.add(keras.layers.Masking(input_shape=(timesteps, features)))
+    lstm.add(keras.layers.BatchNormalization())
+    lstm.add(keras.layers.LSTM(hidden_size, dropout=0.1))
+    
+
     #model.add(LSTM(4, input_shape=(bin_width, 11), return_sequences=True))
     #model.add(LSTM(4))
+    # lstm.add(keras.layers.Dense(hidden_size//2, activation='relu'))
     lstm.add(keras.layers.Dense(1, activation='sigmoid'))
-    
-    
     adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     lstm.compile(optimizer=adam, loss='binary_crossentropy', metrics=['accuracy'])
     
@@ -241,7 +246,7 @@ def create_autoencoder(original_dim, latent_dim, intermediate_dim, learning_rate
     inputs = Input(shape=input_shape, name='encoder_input')
     x = BatchNormalization()(inputs)
     x = Dense(intermediate_dim, activation=act)(x)
-    x = Dense(intermediate_dim, activation=act)(x)
+    # x = Dense(intermediate_dim, activation=act)(x)
     
     
     encoded = Dense(latent_dim, name='encoded', activation="sigmoid", activity_regularizer=reg)(x)
@@ -254,7 +259,7 @@ def create_autoencoder(original_dim, latent_dim, intermediate_dim, learning_rate
     # build decoder model
     latent_inputs = Input(shape=(latent_dim,), name='decoder_inputs')
     x = Dense(intermediate_dim, activation=act)(latent_inputs)
-    x = Dense(intermediate_dim, activation=act)(x)
+    # x = Dense(intermediate_dim, activation=act)(x)
 
     outputs = Dense(original_dim, activation="sigmoid")(x)
     
