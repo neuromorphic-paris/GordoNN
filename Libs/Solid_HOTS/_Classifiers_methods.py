@@ -9,12 +9,19 @@ HOTS
 
 # Computation libraries
 from tensorflow.keras.callbacks import EarlyStopping
-import numpy as np 
+import numpy as np
+import sklearn
+from sklearn import model_selection
+from sklearn.metrics import accuracy_score
+import keras
+#from keras.utils import to_categorical
 
 # Homemade Fresh Libraries like Grandma does (careful, it's still hot!)
 from ._General_Func import create_mlp
 from ._General_Func import create_lstm
+from ._General_Func import create_CNN
 
+import pyNAVIS
 
 # Method for training a mlp classification model 
 # =============================================================================      
@@ -499,7 +506,7 @@ def lstm_classification_test(self, labels, labels_test, number_of_labels, bin_wi
                              sliding_amount, batch_size, threshold ):
     
     """
-    Method to train a simple lstm, to a classification task, to test the feature 
+    Method to test a previously-trained LSTM, to a classification task, to test the feature 
     rapresentation automatically extracted by HOTS
     
     Arguments:
@@ -670,4 +677,195 @@ def lstm_classification_test(self, labels, labels_test, number_of_labels, bin_wi
         
         
      
+    return
+
+
+
+# Method for training a cnn classification model 
+# =============================================================================      
+def cnn_classification_train(self, dataset_train, labels_train, number_of_labels, learning_rate,
+                             epochs, batch_size, bin_size, patience=90000000):
+    
+    """
+    Method to train a simple cnn, to a classification task, to compare the 
+    feature extraction from the CNN with the feature representation 
+    automatically extracted by HOTS
+    
+    Arguments:
+        dataset_train (list): list of lists with timestamps and addresses of all training files
+        labels_train (numpy array int) : array of integers (labels) of the dataset
+                                    used for training
+        number_of_labels (int) : The total number of different labels that
+                                 I am excepting in the dataset, (I know that i could
+                                 max(labels) but, first, it's wasted computation, 
+                                 second, the user should move his/her ass and eat 
+                                 less donuts)
+        learning_rate (float) : The learning rate used for the backprop method,
+                                Adam
+        epochs (int) : number of training cycles
+        batch_size (int) : mlp batchsize
+        bin_size (int) : size (microseconds) of the window to integrate the spikes when 
+                        calculating the sonogram
+        patience (int) : number of consecutive higher test_loss cycles before 
+                         early stopping (90000000 by default)
+
+    """
+    
+    train_images = []
+    train_labels = []
+    
+    
+    settings = pyNAVIS.MainSettings(num_channels=32, mono_stereo=0, bin_size=bin_size,on_off_both=0)
+    
+    for i in range(len(dataset_train)):
+        spikes_file = pyNAVIS.SpikesFile(dataset_train[i][1], dataset_train[i][0]) #create SpikesFile object
+        sonogram = pyNAVIS.Plots.sonogram(spikes_file, settings, return_data=True) #generate sonogram
+        
+        n_bins = 1000000//bin_size #number of bins that the sonogram should have (audios are 1 s long at maximum)
+        
+        if sonogram.shape[1] < n_bins:
+            m_zeros = np.zeros((32, n_bins - sonogram.shape[1]))
+            sonogram = np.concatenate((sonogram, m_zeros), axis=1)
+        elif sonogram.shape[1] > n_bins:
+            sonogram = sonogram[...,:-(sonogram.shape[1]-n_bins)]
+        
+        train_images.append(sonogram/np.max(sonogram)) #Normalize the sonogram between 0 and 1.
+        train_labels.append(labels_train[i])
+        
+        
+        
+    
+    X_train, X_val, y_train, y_val = sklearn.model_selection.train_test_split(train_images, train_labels, test_size=0.2, random_state=1)
+    
+    y_train = keras.utils.to_categorical(y_train)
+    y_val = keras.utils.to_categorical(y_val)
+    
+    X_val = np.asarray(X_val)
+    X_val = X_val.reshape((-1, settings.num_channels, n_bins, 1))
+    X_train = np.asarray(X_train)
+    X_train = X_train.reshape((-1, settings.num_channels, n_bins, 1))
+        
+    self.cnn = create_CNN(learning_rate=learning_rate, width=n_bins, height=settings.num_channels)
+    self.cnn.summary()
+    
+    # Set early stopping
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
+    
+    # fit model
+    self.cnn.fit(X_train, y_train, 
+      steps_per_epoch= X_train.shape[0]/batch_size,
+      epochs=epochs, batch_size=batch_size, shuffle=True, 
+      validation_data=(X_val, y_val),
+      callbacks=[es])
+
+    if self.exploring is True:
+        print("Training ended, you can now access the trained network with the method .cnn")
+    
+    
+    return
+
+
+
+
+# Method for testing a cnn classification model 
+# =============================================================================      
+def cnn_classification_test(self, dataset_train, labels_train, dataset_test, labels_test, number_of_labels, batch_size, bin_size):
+    
+    """
+    Method to test a previously-trained cnn, to a classification task, to compare the 
+    feature extraction from the CNN with the feature representation 
+    automatically extracted by HOTS
+    
+    Arguments:
+        dataset_train (list) : list of lists with timestamps and addresses of all training files
+        labels_train (numpy array int) : array of integers (labels) of the dataset
+                                    used for training
+        dataset_test (list) : list of lists with timestamps and addresses of all testing files
+        labels_test (numpy array int) : array of integers (labels) of the dataset
+                                    used for testing
+        number_of_labels (int) : The total number of different labels that
+                                 I am excepting in the dataset, (I know that i could
+                                 max(labels) but, first, it's wasted computation, 
+                                 second, the user should move his/her ass and eat 
+                                 less donuts)
+        batch_size (int) : mlp batchsize
+        bin_size (int) : size (microseconds) of the window to integrate the spikes when 
+                        calculating the sonogram
+
+    """
+    
+    ### TRAIN ###
+    
+    train_images = []
+    train_labels = []
+    
+    
+    settings = pyNAVIS.MainSettings(num_channels=32, mono_stereo=0, bin_size=bin_size,on_off_both=0)
+    
+    for i in range(len(dataset_train)):
+        spikes_file = pyNAVIS.SpikesFile(dataset_train[i][1], dataset_train[i][0]) #create SpikesFile object
+        sonogram = pyNAVIS.Plots.sonogram(spikes_file, settings, return_data=True) #generate sonogram
+        
+        n_bins = 1000000//bin_size #number of bins that the sonogram should have (audios are 1 s long at maximum)
+        
+        if sonogram.shape[1] < n_bins:
+            m_zeros = np.zeros((32, n_bins - sonogram.shape[1]))
+            sonogram = np.concatenate((sonogram, m_zeros), axis=1)
+        elif sonogram.shape[1] > n_bins:
+            sonogram = sonogram[...,:-(sonogram.shape[1]-n_bins)]
+        
+        train_images.append(sonogram/np.max(sonogram)) #Normalize the sonogram between 0 and 1.
+        train_labels.append(labels_train[i])
+        
+        
+        
+    
+    y_train = np.asarray(train_labels)
+    X_train = np.asarray(train_images)
+    X_train = X_train.reshape((-1, settings.num_channels, n_bins, 1))
+    
+    
+    
+    
+    ### TEST ###
+    
+    test_images = []
+    test_labels = []    
+    
+    settings = pyNAVIS.MainSettings(num_channels=32, mono_stereo=0, bin_size=bin_size,on_off_both=0)
+    
+    for i in range(len(dataset_test)):
+        spikes_file = pyNAVIS.SpikesFile(dataset_test[i][1], dataset_test[i][0]) #create SpikesFile object
+        sonogram = pyNAVIS.Plots.sonogram(spikes_file, settings, return_data=True) #generate sonogram
+        
+        n_bins = 1000000//bin_size #number of bins that the sonogram should have (audios are 1 s long at maximum)
+        
+        if sonogram.shape[1] < n_bins:
+            m_zeros = np.zeros((32, n_bins - sonogram.shape[1]))
+            sonogram = np.concatenate((sonogram, m_zeros), axis=1)
+        elif sonogram.shape[1] > n_bins:
+            sonogram = sonogram[...,:-(sonogram.shape[1]-n_bins)]
+        
+        test_images.append(sonogram/np.max(sonogram)) #Normalize the sonogram between 0 and 1.
+        test_labels.append(labels_test[i])
+        
+        
+    y_test = np.asarray(test_labels)
+    X_test = np.asarray(test_images)
+    X_test = X_test.reshape((-1, settings.num_channels, n_bins, 1))
+        
+    
+    
+    
+    predicted_labels_train = self.cnn.predict(X_train)
+    predicted_labels_train = np.argmax(predicted_labels_train, axis=1)
+    
+    predicted_labels_test = self.cnn.predict(X_test)
+    predicted_labels_test = np.argmax(predicted_labels_test, axis=1)
+    
+    
+    print('Train Prediction rate is: '+str(accuracy_score(y_train, predicted_labels_train)*100)+'%') 
+    print('Test Prediction rate is: '+str(accuracy_score(y_test, predicted_labels_test)*100)+'%') 
+
+    
     return 

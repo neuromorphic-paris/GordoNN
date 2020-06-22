@@ -154,12 +154,12 @@ def events_from_activations_2D(activations, events):
 # =============================================================================
 def create_mlp(input_size, hidden_size, output_size, learning_rate):
     """
-    Function used to create a small mlp used for classification porpuses 
+    Function used to create a small mlp used for classification purposes 
     Arguments :
         input_size (int) : size of the input layer
         hidden_size (int) : size of the hidden layer
         output_size (int) : size of the output layer
-        learning_rate (int) : the learning rate for the optiomization alg.
+        learning_rate (int) : the learning rate for the optimization alg.
     Returns :
         mlp (keras model) : the freshly baked network
     """
@@ -182,12 +182,12 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
 
 def create_lstm(timesteps, features, hidden_size, learning_rate):
     """
-    Function used to create a small LSTM used for classification porpuses 
+    Function used to create a small LSTM used for classification purposes 
     Arguments :
         input_size (int) : size of the input layer
         hidden_size (int) : size of the hidden layer
         output_size (int) : size of the output layer
-        learning_rate (int) : the learning rate for the optiomization alg.
+        learning_rate (int) : the learning rate for the optimization alg.
     Returns :
         lstm (keras model) : the freshly baked network
     """
@@ -210,6 +210,46 @@ def create_lstm(timesteps, features, hidden_size, learning_rate):
     return lstm    
     
 
+def create_CNN(width, height, learning_rate):
+    """
+    Function used to create a small CNN used for classification purposes 
+    Arguments :
+        input_size (int) : size of the input layer
+        hidden_size (int) : size of the hidden layer
+        output_size (int) : size of the output layer
+        learning_rate (int) : the learning rate for the optimization alg.
+    Returns :
+        cnn (keras model) : the freshly baked network
+    """
+    
+    def relu_advanced(x): #Just in case we want to use it
+        return keras.activations.relu(x, alpha=0.3)
+    
+    cnn = keras.models.Sequential()
+    
+    cnn.add(keras.layers.Conv2D(filters=6, kernel_size=5, strides=(1, 1), activation='relu', input_shape=(height, width, 1)))
+    cnn.add(keras.layers.BatchNormalization())
+    cnn.add(keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None))
+    
+    cnn.add(keras.layers.Conv2D(filters=16, kernel_size=5, strides=(1, 1), activation='relu'))
+    cnn.add(keras.layers.BatchNormalization())
+    cnn.add(keras.layers.MaxPooling2D(pool_size=(2, 2), strides=None))
+    
+    cnn.add(keras.layers.Flatten())
+    
+    cnn.add(keras.layers.Dense(100))
+    cnn.add(keras.layers.BatchNormalization())
+    cnn.add(keras.layers.Activation('relu'))
+    
+    cnn.add(keras.layers.Dense(2, activation='sigmoid'))
+
+
+    adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+    cnn.compile(optimizer=adam, loss='binary_crossentropy', metrics=['accuracy'])
+    
+    return cnn    
+
+
 def create_autoencoder(original_dim, latent_dim, intermediate_dim, learning_rate, l1_norm_coeff, exploring):
     """
     Function used to create a small autoencoder used each layer of Solid HOTS
@@ -217,7 +257,7 @@ def create_autoencoder(original_dim, latent_dim, intermediate_dim, learning_rate
         original_dim (int) : size of the input layer
         latent_dim (int) : size of the output layer
         intermediate_dim (int) : size of the hidden layer
-        learning_rate (int) : the learning rate for the optiomization alg.
+        learning_rate (int) : the learning rate for the optimization alg.
         l1_norm_coeff (float) : coefficient used to sparse regularization of 
                                 bottleneck layer
         Returns :

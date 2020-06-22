@@ -580,6 +580,14 @@ class Solid_HOTS_Net:
     # =============================================================================      
     from ._Classifiers_methods import lstm_classification_test
     
+    # Method for training a cnn classification model 
+    # =============================================================================      
+    from ._Classifiers_methods import cnn_classification_train
+   
+    # Method for testing a cnn classification model 
+    # =============================================================================      
+    from ._Classifiers_methods import cnn_classification_test
+    
     
 
 ### Plot methods

@@ -237,7 +237,30 @@ threshold = 0.5
 Net.lstm_classification_test(labels_train,labels_test, number_of_labels, lstm_bin_width, 
                              lstm_sliding_amount, lstm_batch_size, threshold )
 
- 
+
+
+#%% CNN classifier training
+
+learning_rate = 1e-4
+epochs = 15000
+batch_size = 64
+patience = 50
+bin_size = 20000
+
+
+Net.cnn_classification_train(dataset_train, labels_train, number_of_labels, learning_rate,
+                             epochs, batch_size, bin_size, patience)
+gc.collect()
+
+
+#%% CNN classifier test
+
+batch_size = 64
+bin_size = 20000
+
+Net.cnn_classification_test(dataset_train, labels_train, dataset_test, labels_test, number_of_labels, batch_size, bin_size)
+
+
 #%% Mlp classifier training
 # Simple MLP applied on all output events as a weak classifier to prove HOTS
 # working.
