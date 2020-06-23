@@ -683,7 +683,8 @@ def lstm_classification_test(self, labels, labels_test, number_of_labels, bin_wi
 
 # Method for training a cnn classification model 
 # =============================================================================      
-def cnn_classification_train(self, dataset_train, labels_train, number_of_labels, learning_rate,
+def cnn_classification_train(self, dataset_train, labels_train, dataset_test,
+                             labels_test, number_of_labels, learning_rate,
                              epochs, batch_size, bin_size, patience=90000000):
     
     """
@@ -711,6 +712,7 @@ def cnn_classification_train(self, dataset_train, labels_train, number_of_labels
 
     """
     
+    ### Sonogram ###
     train_images = []
     train_labels = []
     
@@ -745,21 +747,134 @@ def cnn_classification_train(self, dataset_train, labels_train, number_of_labels
     X_train = np.asarray(X_train)
     X_train = X_train.reshape((-1, settings.num_channels, n_bins, 1))
         
-    self.cnn = create_CNN(learning_rate=learning_rate, width=n_bins, height=settings.num_channels)
-    self.cnn.summary()
+    self.sonogram_cnn = create_CNN(learning_rate=learning_rate, width=n_bins, height=settings.num_channels)
+    self.sonogram_cnn.summary()
     
     # Set early stopping
     es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
     
     # fit model
-    self.cnn.fit(X_train, y_train, 
+    self.sonogram_cnn.fit(X_train, y_train, 
       steps_per_epoch= X_train.shape[0]/batch_size,
       epochs=epochs, batch_size=batch_size, shuffle=True, 
       validation_data=(X_val, y_val),
       callbacks=[es])
 
     if self.exploring is True:
-        print("Training ended, you can now access the trained network with the method .cnn")
+        print("Sonogram training ended, you can now access the trained network with the method .cnn")
+        
+        ##### GORDONN CLASSIFIER ######
+    
+    # Exctracting last layer activity         
+    last_layer_activity = self.last_layer_activity.copy()
+    last_layer_activity_test = self.last_layer_activity_test.copy()
+    num_of_recordings=len(last_layer_activity)
+    num_of_recordings_test=len(last_layer_activity_test)
+
+    for i in range(len(last_layer_activity)):
+        #calcualte delta t
+        delta_t_i = np.empty(last_layer_activity[i][0].shape[0], dtype=int)
+        delta_t_i[0] = int(0)
+        for j in range(1, len(delta_t_i)):
+            delta_t_i[j] = last_layer_activity[i][0][j] - last_layer_activity[i][0][j-1]
+    data_train = []
+    data_test = []
+
+    labels_trim=labels_train.copy()
+    labels_trim_test=labels_test.copy()
+
+    # remove the labels of discarded files from the method .learn
+    for i in range(len(self.abs_rem_ind)-1,-1,-1):
+        labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
+    for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
+        labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])      
+
+
+    for recording in range(len(last_layer_activity)):
+        #calculate delta t
+        delta_t_recording = np.empty(last_layer_activity[recording][0].shape[0], dtype=int)
+        delta_t_recording[0] = int(0)
+        for event in range(1, len(delta_t_recording)):
+            delta_t_recording[event] = last_layer_activity[recording][0][event] - last_layer_activity[recording][0][event-1]
+
+        #We expand the number of columns in last_layer_activity[i][1] 
+        #from 10 to 10+1, in order to include delta_t
+        lstm_input = np.zeros((last_layer_activity[recording][1].shape[0], 11))
+        lstm_input[:,:-1] = last_layer_activity[recording][1]
+        lstm_input[:,10] = delta_t_recording
+        data_train.append(lstm_input)
+
+    data_train=np.array(data_train)      
+
+    for recording in range(len(last_layer_activity_test)):
+        #calculate delta t
+        delta_t_recording = np.empty(last_layer_activity_test[recording][0].shape[0], dtype=int)
+        delta_t_recording[0] = int(0)
+        for event in range(1, len(delta_t_recording)):
+            delta_t_recording[event] = last_layer_activity_test[recording][0][event] - last_layer_activity_test[recording][0][event-1]
+
+        #We expand the number of columns in last_layer_activity[i][1] 
+        #from 10 to 11, in order to include delta_t
+        lstm_input = np.zeros((last_layer_activity_test[recording][1].shape[0], 11))
+        lstm_input[:,:-1] = last_layer_activity_test[recording][1]
+        lstm_input[:,10] = delta_t_recording
+        data_test.append(lstm_input)
+
+    data_test=np.array(data_test)  
+    # Create the bins    
+    activity_binned_train = []
+    labels_bins_train = []
+    sliding_amount=1
+    
+    for i in range(len(data_train)):
+        if data_train[i].shape[0] >= bin_size: #if bin_size >= data_train length for that file
+            activity_binned_train.append(data_train[i][0:bin_size, :])
+            labels_bins_train.append(labels_trim[i])
+            for j in range(bin_size - 1 + sliding_amount, data_train[i].shape[0], sliding_amount):
+                activity_binned_train.append(data_train[i][j-bin_size:j, :])
+                labels_bins_train.append(labels_trim[i])
+        else: # if the last layer activity length for this file is less than the bin_size, we have to pad with zeros
+            z = np.zeros([bin_size, data_train[i].shape[1]])
+            z[:data_train[i].shape[0],:data_train[i].shape[1]] = data_train[i]
+            activity_binned_train.append(z)
+            labels_bins_train.append(labels_trim[i])
+
+    labels_bins_train = np.array(labels_bins_train)
+
+
+    activity_binned_test = []
+    labels_bins_test = []
+    for i in range(len(data_test)):
+        if data_test[i].shape[0] >= bin_size: #if bin_size >= data_test length for that file
+            activity_binned_test.append(data_test[i][0:bin_size, :])
+            labels_bins_test.append(labels_trim_test[i])
+            for j in range(bin_size - 1 + sliding_amount, data_test[i].shape[0], sliding_amount):
+                activity_binned_test.append(data_test[i][j-bin_size:j, :])
+                labels_bins_test.append(labels_trim_test[i])
+        else: # if the last layer activity length for this file is less than the bin_size, we have to pad with zeros
+            z = np.zeros([bin_size, data_test[i].shape[1]])
+            z[:data_test[i].shape[0],:data_test[i].shape[1]] = data_test[i]
+            activity_binned_test.append(z)
+            labels_bins_test.append(labels_trim_test[i])
+
+    labels_bins_test = np.array(labels_bins_test)                                                     
+
+    self.cnn = create_CNN(learning_rate=learning_rate, width=n_bins, height=11)
+    self.cnn.summary()
+
+    # Set early stopping
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
+    self.tmp = [activity_binned_train, labels_bins_train, activity_binned_test, labels_bins_test]
+    # fit model
+    self.cnn.fit(activity_binned_train, labels_bins_train, 
+      steps_per_epoch= X_train.shape[0]/batch_size,
+      epochs=epochs, batch_size=batch_size, shuffle=True, 
+      validation_data=(activity_binned_test, labels_bins_test),
+      callbacks=[es])
+
+    if self.exploring is True:
+        print("Sonogram training ended, you can now access the trained network with the method .cnn")
+
     
     
     return

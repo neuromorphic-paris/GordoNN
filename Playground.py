@@ -248,7 +248,7 @@ patience = 50
 bin_size = 20000
 
 
-Net.cnn_classification_train(dataset_train, labels_train, number_of_labels, learning_rate,
+Net.cnn_classification_train(dataset_train, labels_train, dataset_test, labels_test, number_of_labels, learning_rate,
                              epochs, batch_size, bin_size, patience)
 gc.collect()
 
