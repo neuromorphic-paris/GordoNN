@@ -218,8 +218,8 @@ Net.learn(dataset_train, dataset_test)
 # Simple LSTM applied on all output events, binned in last_bin_width-size windows.
 gc.collect()
 
-lstm_bin_width = 50
-lstm_sliding_amount = 30
+lstm_bin_width = 600
+lstm_sliding_amount = 200
 lstm_units = 60
 lstm_learning_rate = 5e-6
 lstm_epochs = 1200
