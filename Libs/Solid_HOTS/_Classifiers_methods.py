@@ -352,7 +352,7 @@ def hist_mlp_classification_test(self, labels, number_of_labels, batch_size, thr
 
 # Method for training a lstm classification model 
 # =============================================================================      
-def lstm_classification_train(self, labels, labels_test, number_of_labels, bin_width, 
+def lstm_classification_train(self, dataset_train, labels, dataset_test, labels_test, number_of_labels, bin_width, 
                              sliding_amount, learning_rate, units, epochs, 
                              batch_size, patience=90000000):
     
@@ -383,6 +383,142 @@ def lstm_classification_train(self, labels, labels_test, number_of_labels, bin_w
                          early stopping (90000000 by default)
 
     """
+    
+    ### Sonogram ###
+    
+    bin_size = 1000 #microsec
+    num_channels = 32
+    delta_t = 0
+    settings = pyNAVIS.MainSettings(num_channels=num_channels, mono_stereo=0, bin_size=bin_size, on_off_both=0)
+    
+    
+    labels_trim=labels.copy()
+    labels_trim_test=labels_test.copy()
+ 
+    # remove the labels of discarded files from the method .learn
+    for i in range(len(self.abs_rem_ind)-1,-1,-1):
+        labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
+    for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
+        labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])   
+    
+    
+    sonograms_train = []
+    for i in range(len(dataset_train)):
+        spikes_file = pyNAVIS.SpikesFile(dataset_train[i][1], dataset_train[i][0]) #create SpikesFile object
+        sonogram = pyNAVIS.Plots.sonogram(spikes_file, settings, return_data=True) #generate sonogram
+        sonogram = sonogram/np.max(sonogram) #Normalize the sonogram between 0 and 1.
+        sonograms_train.append(np.transpose(sonogram))
+    
+    sonograms_test = []
+    for i in range(len(dataset_test)):
+        spikes_file = pyNAVIS.SpikesFile(dataset_test[i][1], dataset_test[i][0]) #create SpikesFile object
+        sonogram = pyNAVIS.Plots.sonogram(spikes_file, settings, return_data=True) #generate sonogram
+        sonogram = sonogram/np.max(sonogram) #Normalize the sonogram between 0 and 1.
+        sonograms_test.append(np.transpose(sonogram))
+    
+    
+    length_array_train = [sonogram.shape[0] for sonogram in sonograms_train]
+    length_array_test = [sonogram.shape[0] for sonogram in sonograms_test]
+    maxlength = np.max(length_array_train+length_array_test) # information to be used to pad data
+    
+    
+    data_sonograms_train = []
+    data_sonograms_test = []
+    
+
+    for i in range(len(sonograms_train)):
+        
+        if delta_t:
+            #calculate delta t
+            delta_t_sonogram = range(0, sonograms_train[i].shape[0]*bin_size, bin_size)
+            
+            #We expand the number of rows in last_layer_activity[i][1] 
+            #from n to n+1, in order to include delta_t
+            lstm_input = np.zeros((maxlength, num_channels+1))
+            lstm_input[:length_array_train[i],:-1] = sonograms_train[i]
+            lstm_input[:length_array_train[i],-1] = delta_t_sonogram
+        else:
+            lstm_input = np.zeros((maxlength, num_channels))
+            lstm_input[:length_array_train[i],:] = sonograms_train[i]
+        data_sonograms_train.append(lstm_input)
+    
+    data_sonograms_train=np.array(data_sonograms_train) 
+    
+    
+    for i in range(len(sonograms_test)):
+        
+        if delta_t:
+            #calculate delta t
+            delta_t_sonogram = range(0, sonograms_test[i].shape[0]*bin_size, bin_size)
+            
+            #We expand the number of rows in last_layer_activity[i][1] 
+            #from n to n+1, in order to include delta_t
+            lstm_input = np.zeros((maxlength, num_channels+1))
+            lstm_input[:length_array_test[i],:-1] = sonograms_test[i]
+            lstm_input[:length_array_test[i],-1] = delta_t_sonogram
+        else:
+            lstm_input = np.zeros((maxlength, num_channels))
+            lstm_input[:length_array_test[i],:] = sonograms_test[i]
+        data_sonograms_test.append(lstm_input)
+    
+    data_sonograms_test=np.array(data_sonograms_test)     
+    
+    
+    
+    
+    # Create the bins    
+    sonogram_activity_binned_train = []
+    sonogram_labels_bins_train = []
+    for i in range(len(data_sonograms_train)):
+        recording_train = []
+        if data_sonograms_train[i].shape[0] >= bin_width: #if bin_width >= data_sonograms_train length for that file
+            recording_train.append(np.reshape(data_sonograms_train[i][0:bin_width, :], bin_width*num_channels))
+            sonogram_labels_bins_train.append(labels_trim[i])
+            for j in range(bin_width - 1 + sliding_amount, data_sonograms_train[i].shape[0], sliding_amount):
+                recording_train.append(np.reshape(data_sonograms_train[i][j-bin_width:j, :], bin_width*num_channels))
+                sonogram_labels_bins_train.append(labels_trim[i])
+        sonogram_activity_binned_train.append(np.array(recording_train))
+    
+    sonogram_labels_bins_train = np.array(sonogram_labels_bins_train)
+    
+    
+    sonogram_activity_binned_test = []
+    sonogram_labels_bins_test = []
+    for i in range(len(data_sonograms_test)):
+        recording_test = []
+        if data_sonograms_test[i].shape[0] >= bin_width: #if bin_width >= data_sonograms_test length for that file
+            recording_test.append(np.reshape(data_sonograms_test[i][0:bin_width, :], bin_width*num_channels))
+            sonogram_labels_bins_test.append(labels_trim_test[i])
+            for j in range(bin_width - 1 + sliding_amount, data_sonograms_test[i].shape[0], sliding_amount):
+                recording_test.append(np.reshape(data_sonograms_test[i][j-bin_width:j, :], bin_width*num_channels))
+                sonogram_labels_bins_test.append(labels_trim_test[i])
+        sonogram_activity_binned_test.append(np.array(recording_test))
+    
+    sonogram_labels_bins_test = np.array(sonogram_labels_bins_test)
+    
+    
+    #self.tmp = [activity_binned_train,activity_binned_test]              
+    timesteps = maxlength//sliding_amount
+    features = bin_width*(num_channels)
+    self.sonogram_lstm = create_lstm(timesteps=timesteps, features=features,
+                            hidden_size=units, learning_rate=learning_rate)
+    self.sonogram_lstm.summary()
+    # Set early stopping
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
+    
+    # fit model
+    self.sonogram_lstm.fit(np.array(sonogram_activity_binned_train), np.array(labels_trim),
+      epochs=epochs,
+      batch_size=batch_size, validation_data=(np.array(sonogram_activity_binned_test), np.array(labels_trim_test)),
+      callbacks=[es], verbose=1)
+    
+    
+    
+    
+    
+    
+    ### GORDONN ###
+    
     
     # Exctracting last layer activity         
     last_layer_activity = self.last_layer_activity.copy()
@@ -502,7 +638,7 @@ def lstm_classification_train(self, labels, labels_test, number_of_labels, bin_w
 
 # Method for training a lstm classification model 
 # =============================================================================      
-def lstm_classification_test(self, labels, labels_test, number_of_labels, bin_width, 
+def lstm_classification_test(self, dataset_train, labels, dataset_test, labels_test, number_of_labels, bin_width, 
                              sliding_amount, batch_size, threshold ):
     
     """
@@ -532,6 +668,134 @@ def lstm_classification_test(self, labels, labels_test, number_of_labels, bin_wi
                          early stopping (90000000 by default)
 
     """
+    
+    bin_size = 1000 #microsec
+    num_channels = 32
+    delta_t = 0
+    settings = pyNAVIS.MainSettings(num_channels=num_channels, mono_stereo=0, bin_size=bin_size, on_off_both=0)
+    
+    
+    labels_trim=labels.copy()
+    labels_trim_test=labels_test.copy()
+ 
+    # remove the labels of discarded files from the method .learn
+    for i in range(len(self.abs_rem_ind)-1,-1,-1):
+        labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
+    for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
+        labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])   
+    
+    
+    sonograms_train = []
+    for i in range(len(dataset_train)):
+        spikes_file = pyNAVIS.SpikesFile(dataset_train[i][1], dataset_train[i][0]) #create SpikesFile object
+        sonogram = pyNAVIS.Plots.sonogram(spikes_file, settings, return_data=True) #generate sonogram
+        sonogram = sonogram/np.max(sonogram) #Normalize the sonogram between 0 and 1.
+        sonograms_train.append(np.transpose(sonogram))
+    
+    sonograms_test = []
+    for i in range(len(dataset_test)):
+        spikes_file = pyNAVIS.SpikesFile(dataset_test[i][1], dataset_test[i][0]) #create SpikesFile object
+        sonogram = pyNAVIS.Plots.sonogram(spikes_file, settings, return_data=True) #generate sonogram
+        sonogram = sonogram/np.max(sonogram) #Normalize the sonogram between 0 and 1.
+        sonograms_test.append(np.transpose(sonogram))
+    
+    
+    length_array_train = [sonogram.shape[0] for sonogram in sonograms_train]
+    length_array_test = [sonogram.shape[0] for sonogram in sonograms_test]
+    maxlength = np.max(length_array_train+length_array_test) # information to be used to pad data
+    
+    
+    data_sonograms_train = []
+    data_sonograms_test = []
+    
+
+    for i in range(len(sonograms_train)):
+        
+        if delta_t:
+            #calculate delta t
+            delta_t_sonogram = range(0, sonograms_train[i].shape[0]*bin_size, bin_size)
+            
+            #We expand the number of rows in last_layer_activity[i][1] 
+            #from n to n+1, in order to include delta_t
+            lstm_input = np.zeros((maxlength, num_channels+1))
+            lstm_input[:length_array_train[i],:-1] = sonograms_train[i]
+            lstm_input[:length_array_train[i],-1] = delta_t_sonogram
+        else:
+            lstm_input = np.zeros((maxlength, num_channels))
+            lstm_input[:length_array_train[i],:] = sonograms_train[i]
+        data_sonograms_train.append(lstm_input)
+    
+    data_sonograms_train=np.array(data_sonograms_train) 
+    
+    
+    for i in range(len(sonograms_test)):
+        
+        if delta_t:
+            #calculate delta t
+            delta_t_sonogram = range(0, sonograms_test[i].shape[0]*bin_size, bin_size)
+            
+            #We expand the number of rows in last_layer_activity[i][1] 
+            #from n to n+1, in order to include delta_t
+            lstm_input = np.zeros((maxlength, num_channels+1))
+            lstm_input[:length_array_test[i],:-1] = sonograms_test[i]
+            lstm_input[:length_array_test[i],-1] = delta_t_sonogram
+        else:
+            lstm_input = np.zeros((maxlength, num_channels))
+            lstm_input[:length_array_test[i],:] = sonograms_test[i]
+        data_sonograms_test.append(lstm_input)
+    
+    data_sonograms_test=np.array(data_sonograms_test)     
+    
+    
+    
+    
+    # Create the bins    
+    sonogram_activity_binned_train = []
+    sonogram_labels_bins_train = []
+    for i in range(len(data_sonograms_train)):
+        recording_train = []
+        if data_sonograms_train[i].shape[0] >= bin_width: #if bin_width >= data_sonograms_train length for that file
+            recording_train.append(np.reshape(data_sonograms_train[i][0:bin_width, :], bin_width*num_channels))
+            sonogram_labels_bins_train.append(labels_trim[i])
+            for j in range(bin_width - 1 + sliding_amount, data_sonograms_train[i].shape[0], sliding_amount):
+                recording_train.append(np.reshape(data_sonograms_train[i][j-bin_width:j, :], bin_width*num_channels))
+                sonogram_labels_bins_train.append(labels_trim[i])
+        sonogram_activity_binned_train.append(np.array(recording_train))
+    
+    sonogram_labels_bins_train = np.array(sonogram_labels_bins_train)
+    
+    
+    sonogram_activity_binned_test = []
+    sonogram_labels_bins_test = []
+    for i in range(len(data_sonograms_test)):
+        recording_test = []
+        if data_sonograms_test[i].shape[0] >= bin_width: #if bin_width >= data_sonograms_test length for that file
+            recording_test.append(np.reshape(data_sonograms_test[i][0:bin_width, :], bin_width*num_channels))
+            sonogram_labels_bins_test.append(labels_trim_test[i])
+            for j in range(bin_width - 1 + sliding_amount, data_sonograms_test[i].shape[0], sliding_amount):
+                recording_test.append(np.reshape(data_sonograms_test[i][j-bin_width:j, :], bin_width*num_channels))
+                sonogram_labels_bins_test.append(labels_trim_test[i])
+        sonogram_activity_binned_test.append(np.array(recording_test))
+    
+    sonogram_labels_bins_test = np.array(sonogram_labels_bins_test)
+    
+    
+    # fit model
+    predicted_labels_sonogram_ev_train = self.sonogram_lstm.predict(np.array(sonogram_activity_binned_train))
+    predicted_labels_sonogram_ev_test = self.sonogram_lstm.predict(np.array(sonogram_activity_binned_test))
+    
+    
+    prediction_rate_train_sonogram=sum(labels_trim==np.around(np.reshape(predicted_labels_sonogram_ev_train,len(predicted_labels_sonogram_ev_train))))/len(labels_trim)
+    prediction_rate_test_sonogram=sum(labels_trim_test==np.around(np.reshape(predicted_labels_sonogram_ev_test,len(predicted_labels_sonogram_ev_test))))/len(labels_trim_test)
+    
+    print('Train Prediction rate is: '+str(prediction_rate_train_sonogram*100)+'%') 
+    print('Test Prediction rate is: '+str(prediction_rate_test_sonogram*100)+'%')
+    
+    
+    
+    
+    
+    ### GORDONN ###
     
     # Exctracting last layer activity         
     last_layer_activity = self.last_layer_activity.copy()
@@ -761,7 +1025,7 @@ def cnn_classification_train(self, dataset_train, labels_train, dataset_test,
       callbacks=[es])
 
     if self.exploring is True:
-        print("Sonogram training ended, you can now access the trained network with the method .cnn")
+        print("Sonogram training ended, you can now access the trained network with the method .sonogram_cnn")
         
         ##### GORDONN CLASSIFIER ######
     
