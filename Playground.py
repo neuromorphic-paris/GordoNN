@@ -224,17 +224,27 @@ lstm_units = 60
 lstm_learning_rate = 5e-6
 lstm_epochs = 1200
 lstm_batch_size = 64
-lstm_patience = 8000
+lstm_patience = 300
+
+"""
+bin_width = lstm_bin_width
+sliding_amount = lstm_sliding_amount
+units = lstm_units
+learning_rate = lstm_learning_rate
+epochs = lstm_epochs
+batch_size = lstm_batch_size
+patience = lstm_patience
+"""
 
 
-Net.lstm_classification_train(labels_train, labels_test, number_of_labels, lstm_bin_width, 
+Net.lstm_classification_train(dataset_train, labels_train, dataset_test, labels_test, number_of_labels, lstm_bin_width, 
                               lstm_sliding_amount, lstm_learning_rate, lstm_units, lstm_epochs, 
                               lstm_batch_size, lstm_patience)
 gc.collect()
 
 #%% LSTM test
 threshold = 0.5
-Net.lstm_classification_test(labels_train,labels_test, number_of_labels, lstm_bin_width, 
+Net.lstm_classification_test(dataset_train, labels_train, dataset_test, labels_test, number_of_labels, lstm_bin_width, 
                              lstm_sliding_amount, lstm_batch_size, threshold )
 
 
