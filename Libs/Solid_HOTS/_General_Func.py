@@ -197,7 +197,7 @@ def create_lstm(timesteps, features, hidden_size, learning_rate):
     # lstm.add(keras.layers.Dense(30, activation='sigmoid'))
     lstm.add(keras.layers.Masking(input_shape=(timesteps, features)))
     lstm.add(keras.layers.BatchNormalization())
-    lstm.add(keras.layers.LSTM(hidden_size, dropout=0.1))
+    lstm.add(keras.layers.LSTM(hidden_size, dropout=0.4))
     
 
     #model.add(LSTM(4, input_shape=(bin_width, 11), return_sequences=True))
