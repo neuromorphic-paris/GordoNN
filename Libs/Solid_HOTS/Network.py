@@ -14,12 +14,15 @@ import time
 import gc
 import numpy as np 
 from joblib import Parallel, delayed 
+from sklearn.cluster import KMeans, MiniBatchKMeans
+from sklearn.decomposition import IncrementalPCA
+from sklearn.preprocessing import StandardScaler
+import hdbscan
 
 # Homemade Fresh Libraries like Grandma does
-from Libs.Solid_HOTS._General_Func import create_autoencoder, events_from_activations_T_mod,\
-     events_from_activations_T_next_mod, local_surface_plot, surfaces_plot,\
-     recording_local_surface_generator, recording_local_surface_generator_rate,\
-     recording_surface_generator, compute_abs_ind
+from Libs.Solid_HOTS._General_Func import local_surface_plot, surfaces_plot,\
+     local_tv_generator, \
+     cross_tv_generator, compute_abs_ind
      
 
 
@@ -39,42 +42,30 @@ class Solid_HOTS_Net:
                                 the first index identifies the layer, the second one
                                 is the number of  for units of the 0D sublayer,
                                 and the third for the 2D units
-    l1_norm_coeff (nested lists of int) : Same structure of feature_number but used to store l1 normalization to sparify 
-                                          bottleneck layer of each autoencoder
-    learning_rate (nested lists of int) : Same structure of feature_number but 
-                                          used to store the learning rates of 
-                                          each autoencoder
-    epochs (nested lists of int) : Same structure of feature_number but 
-                                          used to store the epochs to train 
-                                          each autoencoder
-    local_surface_length (list of int): the length of the Local time surfaces generated per each layer
-    input_channels (int) : thex total number of channels of the cochlea in the input files 
+    local_tv_length (list of int): the length of the Local time vector generated per each layer
+    input_channels (int) : the total number of channels of the cochlea in the input files 
     taus_T(list of float lists) :  a list containing the time coefficient used for 
-                                   the local_surface creations for each layer (first index)
+                                   the local time vector creations for each layer (first index)
                                    and each channel (second index). To keep it simple, 
                                    it's the result of a multiplication between a vector for each 
                                    layer(channel_taus) and a coefficient (taus_T_coeff).
     taus_2D (list of float) : a list containing the time coefficients used for the 
                              creation of timesurfaces per each layer
-    batch_size (list of int) : a list containing the batch sizes used for the 
-                             training of each layer
     activity_th (float) : The code will check that the sum(local surface)
-    intermediate_dim_T (int) : Number of units used for intermediate layers
-    intermediate_dim_2D (int) : Number of units used for intermediate layers
     threads (int) : The network can compute timesurfaces in a parallel way,
                     this parameter set the number of multiple threads allowed to run
  
 
-    exploring (boolean) : If True, the network will output messages to inform the 
+    verbose (boolean) : If True, the network will output messages to inform the 
                           the users about the current states as well as plots
     """
     def __init__(self, network_parameters):
         
-        [[features_number, l1_norm_coeff, learning_rate, local_surface_length,\
-        input_channels, taus_T, taus_2D, threads, exploring], [learning_rate,\
-        epochs, l1_norm_coeff, intermediate_dim_T, intermediate_dim_2D,\
-        activity_th, batch_size, spacing_local_T]] = network_parameters
-        
+        [[features_number, local_surface_length,\
+        input_channels, taus_T, taus_2D, threads, verbose], [
+        n_batch_files, dataset_runs]] = network_parameters
+            
+                                                               
         # Setting network parameters as attributes
         self.taus_T = taus_T
         self.taus_2D = taus_2D
@@ -83,27 +74,21 @@ class Solid_HOTS_Net:
         self.features_number = features_number
         self.polarities = []
         self.polarities.append(input_channels)
-        self.input_channels = input_channels
-        
-        self.batch_size=batch_size
-        self.intermediate_dim_T=intermediate_dim_T
-        self.intermediate_dim_2D=intermediate_dim_2D
-        self.activity_th = activity_th
-        self.spacing_local_T = spacing_local_T
-        self.learning_rate = learning_rate
-        self.l1_norm_coeff = l1_norm_coeff
-        self.epochs = epochs
+        self.input_channels = input_channels       
+        self.n_batch_files = n_batch_files
+        self.dataset_runs  = dataset_runs
+
         
         for layer in range(self.layers-1): # It's the number of different signals 
                                            # the 0D sublayer is receiveing
             self.polarities.append(features_number[layer][1])
 
         self.threads=threads
-        self.exploring = exploring
+        self.verbose = verbose
       
     
     # =============================================================================  
-    def learn(self, dataset, dataset_test, rerun_layer=0):
+    def learn_old(self, dataset, dataset_test, labels, labels_test, num_classes, rerun_layer=0):
         """
         Network learning method, it also processes the test dataset, to show 
         reconstruction error on it too. It saves net responses recallable with 
@@ -128,22 +113,16 @@ class Solid_HOTS_Net:
 
         #check if you only want to rerun a layer
         if rerun_layer == 0:
-            self.aenc_T=[] # Autoencoder models for 0D Sublayers
-            self.aenc_2D=[] # Autoencoder models for 2D Sublayers
+            self.local_sublayer=[] # Kmeans for 0D Sublayers
+            self.cross_sublayer=[] # Kmeans models for 2D Sublayers
             layers_index = np.arange(self.layers)
-            self.tmporig=[]
-            self.tmpcr=[]
-            self.tmporig_c=[]
-            self.tmpcr_c=[]
-            self.net_0D_response=[]
+            self.net_local_response=[]
             self.net_0D_response_test=[]
-            self.net_2D_response = []
-            self.net_2D_response_test = []
+            self.net_cross_response = []
+            self.net_cross_response_test = []
             self.layer_dataset = []
             self.layer_dataset_test = []
 
-            # The code is going to run on gpus, to improve performances rather than 
-            # a pure online algorithm I am going to minibatch 
             
             self.removed_ind = []
             self.removed_ind_test = []
@@ -164,37 +143,24 @@ class Solid_HOTS_Net:
                 if layer==rerun_layer:
                     # The 2D net response is organized to directly feed the 
                     # second layer
-                    layer_dataset=self.net_2D_response[layer-1]
-                    layer_dataset_test=self.net_2D_response_test[layer-1]
+                    layer_dataset=self.net_cross_response[layer-1]
+                    layer_dataset_test=self.net_cross_response_test[layer-1]
                     self.layer_dataset=self.layer_dataset[:layer+1]
                     self.layer_dataset_test=self.layer_dataset_test[:layer+1]
               
-                self.aenc_T=self.aenc_T[:layer]
-                self.aenc_2D=self.aenc_2D[:layer]
-                self.tmporig_c = self.tmporig_c[:layer]
-                self.tmpcr_c = self.tmpcr_c[:layer]
-                self.net_0D_response = self.net_0D_response[:layer]
+                self.local_sublayer=self.local_sublayer[:layer]
+                self.cross_sublayer=self.cross_sublayer[:layer]
+                self.net_local_response = self.net_local_response[:layer]
                 self.net_0D_response_test = self.net_0D_response_test[:layer]
-                self.net_2D_response = self.net_2D_response[:layer]
-                self.net_2D_response_test = self.net_2D_response_test[:layer]
-                self.tmporig = self.tmporig[:layer]
-                self.tmpcr = self.tmpcr[:layer]
+                self.net_cross_response = self.net_cross_response[:layer]
+                self.net_cross_response_test = self.net_cross_response_test[:layer]
                 self.removed_ind = self.removed_ind[:layer]
                 self.removed_ind_test = self.removed_ind_test[:layer]
                 
             
                 
-            # Create the autoencoder for this layer
-            
-            self.aenc_T.append(create_autoencoder(self.local_surface_length[layer],
-                                          self.features_number[layer][0],
-                                          self.intermediate_dim_T,
-                                          self.learning_rate[layer][0],
-                                          self.l1_norm_coeff[layer][0],
-                                          self.exploring))
-
             # GENERATING AND COMPUTING TIME LOCAL SURFACES RESPONSES
-            if self.exploring is True:
+            if self.verbose is True:
                 print('\n--- LAYER '+str(layer)+' LOCAL SURFACES GENERATION ---')
                 start_time = time.time()
            
@@ -215,20 +181,20 @@ class Solid_HOTS_Net:
             total_events=0                                  
             
             # The first layer doesn't have rate, thus i have to check that
-            if layer == 0 :
-                # Generation of local surfaces, computed on multiple threads
-                results = Parallel(n_jobs=self.threads)(delayed(recording_local_surface_generator)\
-                                    (recording, layer_dataset, self.polarities[layer],\
-                                    self.taus_T[layer], self.local_surface_length[layer],
-                                    self.exploring, self.activity_th, self.spacing_local_T[layer])\
-                                    for recording in range(len(layer_dataset)))
-            else:
-                # Generation of local surfaces, computed on multiple threads
-                results = Parallel(n_jobs=self.threads)(delayed(recording_local_surface_generator_rate)\
-                                    (recording, layer_dataset, self.polarities[layer],\
-                                    self.taus_T[layer], self.local_surface_length[layer],
-                                    self.exploring, self.activity_th, self.spacing_local_T[layer])\
-                                    for recording in range(len(layer_dataset)))        
+            # if layer == 0 :
+            # Generation of local surfaces, computed on multiple threads
+            results = Parallel(n_jobs=self.threads)(delayed(local_tv_generator)\
+                                (recording, layer_dataset, self.polarities[layer],\
+                                self.taus_T[layer], self.local_surface_length[layer],
+                                self.verbose, self.activity_th, self.spacing_local_T[layer])\
+                                for recording in range(len(layer_dataset)))
+            # else:
+            #     # Generation of local surfaces, computed on multiple threads
+            #     results = Parallel(n_jobs=self.threads)(delayed(local_tv_generator_rate)\
+            #                         (recording, layer_dataset, self.polarities[layer],\
+            #                         self.taus_T[layer], self.local_surface_length[layer],
+            #                         self.verbose, self.activity_th, self.spacing_local_T[layer])\
+            #                         for recording in range(len(layer_dataset)))        
              
             for recording in range(len(layer_dataset)):                    
                 all_local_surfaces.append(results[recording][1])
@@ -256,20 +222,20 @@ class Solid_HOTS_Net:
             total_events=0
 
             # The first layer doesn't have rate, thus i have to check that
-            if layer == 0 :
-                # Generation of local surfaces, computed on multiple threads                   
-                results = Parallel(n_jobs=self.threads)(delayed(recording_local_surface_generator)\
-                                    (recording, layer_dataset_test, self.polarities[layer],\
-                                    self.taus_T[layer], self.local_surface_length[layer],
-                                    self.exploring, self.activity_th, self.spacing_local_T[layer])\
-                                    for recording in range(len(layer_dataset_test)))
-            else:
-                # Generation of local surfaces, computed on multiple threads
-                results = Parallel(n_jobs=self.threads)(delayed(recording_local_surface_generator_rate)\
-                                    (recording, layer_dataset_test, self.polarities[layer],\
-                                    self.taus_T[layer], self.local_surface_length[layer],
-                                    self.exploring, self.activity_th, self.spacing_local_T[layer])\
-                                    for recording in range(len(layer_dataset_test)))   
+            # if layer == 0 :
+            # Generation of local surfaces, computed on multiple threads                   
+            results = Parallel(n_jobs=self.threads)(delayed(local_tv_generator)\
+                                (recording, layer_dataset_test, self.polarities[layer],\
+                                self.taus_T[layer], self.local_surface_length[layer],
+                                self.verbose, self.activity_th, self.spacing_local_T[layer])\
+                                for recording in range(len(layer_dataset_test)))
+            # else:
+            #     # Generation of local surfaces, computed on multiple threads
+            #     results = Parallel(n_jobs=self.threads)(delayed(local_tv_generator_rate)\
+            #                         (recording, layer_dataset_test, self.polarities[layer],\
+            #                         self.taus_T[layer], self.local_surface_length[layer],
+            #                         self.verbose, self.activity_th, self.spacing_local_T[layer])\
+            #                         for recording in range(len(layer_dataset_test)))   
            
             gc.collect()
             
@@ -297,16 +263,23 @@ class Solid_HOTS_Net:
 
 
             # TRAINING LOCAL SURFACES FEATURES
-            if self.exploring is True:    
+            if self.verbose is True:    
                 print("Generating local_surfaces took %s seconds." % (time.time() - start_time))
                 print('\n--- LAYER '+str(layer)+' LOCAL SURFACES FEATURES EXTRACTION ---')
                 start_time = time.time()
+            # batch_size=len(all_local_surfaces)//self.features_number[layer][1]  
+            batch_size = 256*24 #Times the number of threads
+            self.local_sublayer.append(MiniBatchKMeans(n_clusters=self.features_number[layer][0], batch_size=batch_size).fit(all_local_surfaces))
+            # kmeans = MiniBatchKMeans(n_clusters=self.features_number[layer][0], batch_size=batch_size)
+            
+            # n_batches=4
+            # for i_batch in range(n_batches):
+            #     kmeans.partial_fit(all_local_surfaces[i_batch::n_batches])
                 
-            self.aenc_T[layer][0].fit(all_local_surfaces, all_local_surfaces,  shuffle=True,
-                     epochs=self.epochs[layer][0], batch_size=self.batch_size[layer],
-                     validation_data=(all_local_surfaces_test, all_local_surfaces_test))
+            # self.local_sublayer.append(kmeans)
 
-            if self.exploring is True:
+
+            if self.verbose is True:
                 print("\n Features extraction took %s seconds." % (time.time() - start_time))
                 local_surface_plot(layer_dataset, local_surface_indices, all_local_surfaces, layer)
                 local_surface_plot(layer_dataset_test, local_surface_indices_test, all_local_surfaces_test, layer)
@@ -315,85 +288,66 @@ class Solid_HOTS_Net:
             # Compute 0D sublayer activations
             # Train set
             current_pos = 0
-            if layer == 0 :
-                net_0D_response = []
-                for recording in range(len(layer_dataset)):                
-                    # Get network activations at steady state (after learning)
-                    recording_results = self.aenc_T[layer][1].predict(np.array(all_local_surfaces[current_pos:current_pos+len(local_surface_indices[recording])]), batch_size=self.batch_size[layer])
-                    current_pos += len(local_surface_indices[recording])
-                    net_0D_response.append(events_from_activations_T_mod(recording_results, local_surface_indices[recording], layer_dataset[recording]))
-            else:
+            net_local_response = []
+            for recording in range(len(layer_dataset)):                
                 # Get network activations at steady state (after learning)
-                net_0D_response = []
-                for recording in range(len(layer_dataset)):   
-                    recording_results = self.aenc_T[layer][1].predict(np.array(all_local_surfaces[current_pos:current_pos+len(local_surface_indices[recording])]), batch_size=self.batch_size[layer])
-                    current_pos += len(local_surface_indices[recording])
-                    net_0D_response.append(events_from_activations_T_next_mod(recording_results, self.polarities[layer], local_surface_indices[recording], layer_dataset[recording]))
-
+                recording_results = self.local_sublayer[layer].predict(np.array(all_local_surfaces[current_pos:current_pos+len(local_surface_indices[recording])]))                                
+                current_pos += len(local_surface_indices[recording])
+                net_local_response.append(events_from_activations(recording_results, local_surface_indices[recording], layer_dataset[recording]))
             # Test set            
             current_pos = 0
-            if layer == 0 :
-                net_0D_response_test = []
-                for recording in range(len(layer_dataset_test)):                
-                    # Get network activations at steady state (after learning)
-                    recording_results = self.aenc_T[layer][1].predict(np.array(all_local_surfaces_test[current_pos:current_pos+len(local_surface_indices_test[recording])]), batch_size=self.batch_size[layer])
-                    current_pos += len(local_surface_indices_test[recording])
-                    net_0D_response_test.append(events_from_activations_T_mod(recording_results, local_surface_indices_test[recording], layer_dataset_test[recording]))
-            else:
+            net_0D_response_test = []
+            for recording in range(len(layer_dataset_test)):                
                 # Get network activations at steady state (after learning)
-                net_0D_response_test = []
-                for recording in range(len(layer_dataset_test)):   
-                    recording_results = self.aenc_T[layer][1].predict(np.array(all_local_surfaces_test[current_pos:current_pos+len(local_surface_indices_test[recording])]), batch_size=self.batch_size[layer])
-                    current_pos += len(local_surface_indices_test[recording])
-                    net_0D_response_test.append(events_from_activations_T_next_mod(recording_results, self.polarities[layer], local_surface_indices_test[recording], layer_dataset_test[recording]))
+                recording_results = self.local_sublayer[layer].predict(np.array(all_local_surfaces_test[current_pos:current_pos+len(local_surface_indices_test[recording])]))
+                current_pos += len(local_surface_indices_test[recording])
+                net_0D_response_test.append(events_from_activations(recording_results, local_surface_indices_test[recording], layer_dataset_test[recording]))
             
             
             # clearing some variables
             gc.collect()
             
             # Save the 0D response
-            self.net_0D_response.append(net_0D_response)
+            self.net_local_response.append(net_local_response)
             self.net_0D_response_test.append(net_0D_response_test)
             
-            # Create the varational autoencoder for this layer
-            self.aenc_2D.append(create_autoencoder(self.polarities[layer]*self.features_number[layer][0],
-                                        self.features_number[layer][1], self.intermediate_dim_2D, self.learning_rate[layer][1],  self.l1_norm_coeff[layer][1], self.exploring))
             
             # GENERATING AND COMPUTING SURFACES RESPONSES
-            if self.exploring is True:
+            if self.verbose is True:
                 print('\n--- LAYER '+str(layer)+' SURFACES GENERATION ---')
             start_time = time.time()
-            # Temporary lists used to store all the local surfaces produced here
-            all_surfaces=[]
+            
+            # Temporary lists used to store all the local surfaces produced here one for each class
+            all_surfaces=[] 
             surface_indices=[]
             all_surfaces_test=[]
             surface_indices_test=[]
             
             # Generation of cross surfaces, computed on multiple threads
-            results = Parallel(n_jobs=self.threads)(delayed(recording_surface_generator)\
+            results = Parallel(n_jobs=self.threads)(delayed(cross_tv_generator)\
                                                                   (recording,
-                                                                   net_0D_response, 
+                                                                   net_local_response, 
                                                                    self.polarities[layer],
                                                                    self.features_number[layer],
                                                                    self.taus_2D[layer],
-                                                                   self.exploring)\
-                                    for recording in range(len(net_0D_response)))
+                                                                   self.verbose)\
+                                    for recording in range(len(net_local_response)))
            
             # unpacking the results                   
-            for recording in range(len(net_0D_response)):                    
+            for recording in range(len(net_local_response)):                    
                 all_surfaces.append(results[recording][1])
                 surface_indices.append(results[recording][0])
            
-            all_surfaces = np.concatenate(all_surfaces, axis=0)
+            all_surfaces = np.concatenate(all_surfaces, axis=0) 
 
             # Generation of cross surfaces, computed on multiple threads
-            results = Parallel(n_jobs=self.threads)(delayed(recording_surface_generator)\
+            results = Parallel(n_jobs=self.threads)(delayed(cross_tv_generator)\
                                                                   (recording,
                                                                    net_0D_response_test, 
                                                                    self.polarities[layer],
                                                                    self.features_number[layer],
                                                                    self.taus_2D[layer],
-                                                                   self.exploring)\
+                                                                   self.verbose)\
                                     for recording in range(len(net_0D_response_test)))
            
             # unpacking the results                   
@@ -401,26 +355,68 @@ class Solid_HOTS_Net:
                 all_surfaces_test.append(results[recording][1])
                 surface_indices_test.append(results[recording][0])
                 
-            all_surfaces_test = np.concatenate(all_surfaces_test, axis=0)
+            all_surfaces_test = np.concatenate(all_surfaces_test, axis=0) 
             
-            if self.exploring is True:
+            if self.verbose is True:
                 print("Generating surfaces took %s seconds." % (time.time() - start_time))
                 print('\n--- LAYER '+str(layer)+' SURFACES FEATURES EXTRACTION ---')
             start_time = time.time()
             
             # The final results of the local surfaces test dataset computation
-            all_surfaces = np.array(all_surfaces, dtype='float16')
+            all_surfaces = np.array(all_surfaces, dtype='float16') 
             all_surfaces_test = np.array(all_surfaces_test, dtype='float16')
             gc.collect()
             
+            
+            # # TRAINING CROSS SURFACES FEATURES
+            # print('PCA')
 
-            # TRAINING CROSS SURFACES FEATURES
-            self.aenc_2D[layer][0].fit(all_surfaces, all_surfaces, shuffle=True,
-                     epochs=self.epochs[layer][1], batch_size=self.batch_size[layer],
-                     validation_data=(all_surfaces_test, all_surfaces_test))
+            # all_surfaces_scaled = all_surfaces
+            # all_surfaces_test_scaled = all_surfaces_test
+            # pca_surf=IncrementalPCA(batch_size=50000)
+            # surf_embedd=pca_surf.fit(all_surfaces_scaled)
+            # exp_var=pca_surf.explained_variance_ratio_
+            # n_dims = [i  for i in range(len(exp_var)) if sum(exp_var[:i])>0.95][0]
+            # surf_embedd = pca_surf.transform(all_surfaces_scaled)[:,:n_dims]
+            # self.PCA=pca_surf
+            # print('PCA_DONE selected: '+str(n_dims)+' dimensions')
+            # self.dimensions_selected = n_dims
+            # batch_size=len(surf_embedd)//self.features_number[layer][1]
+            # self.cross_sublayer.append(MiniBatchKMeans(n_clusters=self.features_number[layer][1], batch_size=batch_size).fit(surf_embedd))
+            # batch_size=len(all_surfaces)//self.features_number[layer][1]
+            batch_size = 256*24*1000#Times the number of threads
+            # self.cross_sublayer.append(MiniBatchKMea0ns(verbose=2, n_clusters=self.features_number[layer][1], batch_size=batch_size).fit(all_surfaces))
+            kmeans2d = MiniBatchKMeans(n_clusters=self.features_number[layer][1], batch_size=batch_size, verbose=True)
+            
+            # n_batches=64#On_OFF
+            n_batches=2048#FUll_data
+
+            n_k_runs = 5
+            old_inertia = 0
+            partial_initail = 8
+            all_surfaces_shuffl = np.random.permutation(all_surfaces) 
+            try:
+                for run_i in range(n_k_runs):
+                    for i_batch in range(n_batches):
+                        if run_i==-1 and i_batch==-1:
+                            kmeans2d.fit(np.random.permutation(all_surfaces)[0::partial_initail])
+                        else:
+                            kmeans2d.partial_fit(np.random.permutation(all_surfaces)[i_batch::n_batches])
+                        batch_distances = kmeans2d.transform(all_surfaces_shuffl[i_batch::n_batches])**2
+                        batch_labels = kmeans2d.predict(all_surfaces_shuffl[i_batch::n_batches])
+                        inertia = np.mean(batch_distances[(np.arange(len(batch_labels)), batch_labels)])
+                        print("Partial fit of %4i out of %i" % (i_batch+run_i*n_batches, n_batches * n_k_runs))
+                        print("Batch Inertia = %6f" % (inertia))
+                        if np.abs(inertia-old_inertia) <= 0.0001:
+                            raise StopIteration
+            except StopIteration:
+                print("Stopped for lack of improvement")
+                pass
+                    
+            self.cross_sublayer.append(kmeans2d)
             
             
-            if self.exploring is True:
+            if self.verbose is True:
                 print("\n Features extraction took %s seconds." % (time.time() - start_time))
                 surfaces_plot(all_surfaces, self.polarities[layer], self.features_number[layer][0])
                 surfaces_plot(all_surfaces_test, self.polarities[layer], self.features_number[layer][0])
@@ -436,20 +432,24 @@ class Solid_HOTS_Net:
             
             # Train set            
             for recording in range(len(surface_indices)):
-                recording_results = self.aenc_2D[layer][1].predict(np.array(all_surfaces[current_pos:current_pos+len(surface_indices[recording])]), batch_size=self.batch_size[layer])
+                # surf_embedd=pca_surf.transform(np.array(all_surfaces_scaled[current_pos:current_pos+len(surface_indices[recording])]))[:,:n_dims]
+                recording_results=self.cross_sublayer[layer].predict(np.array(all_surfaces[current_pos:current_pos+len(surface_indices[recording])]))
+                # recording_results = self.cross_sublayer[layer].predict(surf_embedd)
                 current_pos += len(surface_indices[recording])
-                layer_2D_activations.append([net_0D_response[recording][0][surface_indices[recording]],recording_results])
-            del net_0D_response
+                layer_2D_activations.append([net_local_response[recording][0][surface_indices[recording]], recording_results])
+            del net_local_response
 
             # Test set            
             for recording in range(len(surface_indices_test)):
-                recording_results = self.aenc_2D[layer][1].predict(np.array(all_surfaces_test[current_pos_test:current_pos_test+len(surface_indices_test[recording])]), batch_size=self.batch_size[layer])
+                # surf_embedd=pca_surf.transform(np.array(all_surfaces_test_scaled[current_pos_test:current_pos_test+len(surface_indices_test[recording])]))[:,:n_dims]
+                recording_results=self.cross_sublayer[layer].predict(np.array(all_surfaces_test[current_pos_test:current_pos_test+len(surface_indices_test[recording])]))
+                # recording_results = self.cross_sublayer[layer].predict(surf_embedd)
                 current_pos_test += len(surface_indices_test[recording])
-                layer_2D_activations_test.append([net_0D_response_test[recording][0][surface_indices_test[recording]],recording_results])
+                layer_2D_activations_test.append([net_0D_response_test[recording][0][surface_indices_test[recording]], recording_results])
             del net_0D_response_test
-            
-            self.net_2D_response.append(layer_2D_activations)
-            self.net_2D_response_test.append(layer_2D_activations_test)
+            self.surfaces=[all_local_surfaces, all_local_surfaces_test, all_surfaces, all_surfaces_test]
+            self.net_cross_response.append(layer_2D_activations)
+            self.net_cross_response_test.append(layer_2D_activations_test)
             
             layer_dataset = layer_2D_activations
             layer_dataset_test = layer_2D_activations_test
@@ -468,6 +468,525 @@ class Solid_HOTS_Net:
         self.abs_rem_ind = compute_abs_ind(self.removed_ind)
         self.abs_rem_ind_test = compute_abs_ind(self.removed_ind_test)
 
+    # =============================================================================  
+    def learn(self, dataset, rerun_layer=0):
+        """
+        Network learning method. It saves net responses recallable with 
+        method .last_layer_activity, so it can be used to train the classifiers.
+        
+        Arguments:
+            dataset (nested lists) : the dataset used to extract features in a unsupervised 
+                                     manner
+
+            rerun_layer (int) : If you want to rerun a layer (remember that the
+                                net is sequential, if you run a layer then the 
+                                net WILL HAVE TO run all the layers on top of the 
+                                one selected), if rerun_layer is 2 for a 4 layer
+                                net, then the network will run the 2,3,4 layer
+                                keeping only layer 0,1 
+        """
+        
+        layer_dataset = dataset 
+        
+        #check if you only want to rerun a layer
+        if rerun_layer == 0:
+            self.local_sublayer=[] # Kmeans for 0D Sublayers
+            self.cross_sublayer=[] # Kmeans models for 2D Sublayers
+            layers_index = np.arange(self.layers)
+            self.net_local_response=[]
+            self.net_cross_response = []
+            self.layer_dataset = []
+
+        else:
+            layers_index = np.arange(rerun_layer,self.layers)
+
+                    
+        for layer in layers_index: 
+            
+            
+            # Check if the attributes need to be overwritten or created anew
+            # This part of the code is only managing attributes to rerun a layer 
+            # Or to append the datasets to data managing attributes
+            if rerun_layer == 0:
+                self.layer_dataset.append(layer_dataset)
+            else:
+                if layer==rerun_layer:
+                    # The 2D net response is organized to directly feed the 
+                    # second layer
+                    layer_dataset=self.net_cross_response[layer-1]
+                    self.layer_dataset=self.layer_dataset[:layer+1]
+              
+                self.local_sublayer=self.local_sublayer[:layer]
+                self.cross_sublayer=self.cross_sublayer[:layer]
+                self.net_local_response = self.net_local_response[:layer]
+                self.net_cross_response = self.net_cross_response[:layer]
+                
+            
+            
+            self.local_sublayer.append(MiniBatchKMeans(n_clusters=self.features_number[layer][0], verbose=self.verbose))  
+            self.local_batch_learning(layer_dataset, layer)
+            self.net_local_response.append(self.local_batch_infering(layer_dataset, layer))
+            # self.net_local_response.append(self.local_batch_infering_mod(layer_dataset, layer))
+            
+            self.cross_sublayer.append(MiniBatchKMeans(n_clusters=self.features_number[layer][1], verbose=self.verbose))
+            self.cross_batch_learning(self.net_local_response, layer)
+            self.net_cross_response.append(self.cross_batch_infering(self.net_local_response, layer))
+            
+          
+            
+            layer_dataset = self.net_cross_response[-1]
+
+
+                        
+            # clearing some rubbish
+            gc.collect()
+            
+  
+        self.last_layer_activity = self.net_cross_response[-1]
+        
+        
+    # =============================================================================  
+    def learn_mod(self, dataset, rerun_layer=0):
+        """
+        Network learning method. It saves net responses recallable with 
+        method .last_layer_activity, so it can be used to train the classifiers.
+        
+        Arguments:
+            dataset (nested lists) : the dataset used to extract features in a unsupervised 
+                                     manner
+
+            rerun_layer (int) : If you want to rerun a layer (remember that the
+                                net is sequential, if you run a layer then the 
+                                net WILL HAVE TO run all the layers on top of the 
+                                one selected), if rerun_layer is 2 for a 4 layer
+                                net, then the network will run the 2,3,4 layer
+                                keeping only layer 0,1 
+        """
+        
+        layer_dataset = dataset 
+        
+        #check if you only want to rerun a layer
+        if rerun_layer == 0:
+            self.local_sublayer=[] # Kmeans for 0D Sublayers
+            self.cross_sublayer=[] # Kmeans models for 2D Sublayers
+            layers_index = np.arange(self.layers)
+            self.net_local_response=[]
+            self.net_cross_response = []
+            self.layer_dataset = []
+
+        else:
+            layers_index = np.arange(rerun_layer,self.layers)
+
+                    
+        for layer in layers_index: 
+            
+            
+            # Check if the attributes need to be overwritten or created anew
+            # This part of the code is only managing attributes to rerun a layer 
+            # Or to append the datasets to data managing attributes
+            if rerun_layer == 0:
+                self.layer_dataset.append(layer_dataset)
+            else:
+                if layer==rerun_layer:
+                    # The 2D net response is organized to directly feed the 
+                    # second layer
+                    layer_dataset=self.net_cross_response[layer-1]
+                    self.layer_dataset=self.layer_dataset[:layer+1]
+              
+                self.local_sublayer=self.local_sublayer[:layer]
+                self.cross_sublayer=self.cross_sublayer[:layer]
+                self.net_local_response = self.net_local_response[:layer]
+                self.net_cross_response = self.net_cross_response[:layer]
+                
+            
+            
+            self.net_local_response.append(self.local_batch_infering_mod(layer_dataset, layer))
+            
+            self.cross_sublayer.append(MiniBatchKMeans(n_clusters=self.features_number[layer][1], verbose=self.verbose))
+            self.cross_batch_learning(self.net_local_response, layer)
+            self.net_cross_response.append(self.cross_batch_infering(self.net_local_response, layer))
+            
+          
+            
+            layer_dataset = self.net_cross_response[-1]
+
+
+                        
+            # clearing some rubbish
+            gc.collect()
+            
+  
+        self.last_layer_activity = self.net_cross_response[-1]
+
+    # =============================================================================  
+    def infer(self, dataset, rerun_layer=0):
+        """
+        Network infer method. It saves net responses recallable with 
+        method .last_layer_activity_test, so it can be used to test the classifiers.
+        
+        Arguments:
+            dataset (nested lists) : the test dataset the features will match.
+    
+            rerun_layer (int) : If you want to rerun a layer (remember that the
+                                net is sequential, if you run a layer then the 
+                                net WILL HAVE TO run all the layers on top of the 
+                                one selected), if rerun_layer is 2 for a 4 layer
+                                net, then the network will run the 2,3,4 layer
+                                keeping only layer 0,1 
+        """
+        
+        layer_dataset_test = dataset 
+        
+        #check if you only want to rerun a layer
+        if rerun_layer == 0:
+            layers_index = np.arange(self.layers)
+            self.net_local_response_test = []
+            self.net_cross_response_test = []
+            self.layer_dataset_test = []
+    
+        else:
+            layers_index = np.arange(rerun_layer,self.layers)
+    
+                    
+        for layer in layers_index: 
+            
+            
+            # Check if the attributes need to be overwritten or created anew
+            # This part of the code is only managing attributes to rerun a layer 
+            # Or to append the datasets to data managing attributes
+            if rerun_layer == 0:
+                self.layer_dataset_test.append(layer_dataset_test)
+            else:
+                if layer==rerun_layer:
+                    # The 2D net response is organized to directly feed the 
+                    # second layer
+                    layer_dataset_test=self.net_cross_response_test[layer-1]
+                    self.layer_dataset_test=self.layer_dataset_test[:layer+1]
+              
+    
+                self.net_local_response_test = self.net_local_response_test[:layer]
+                self.net_cross_response_test = self.net_cross_response_test[:layer]
+                
+            
+            self.net_local_response_test.append(self.local_batch_infering(layer_dataset_test, layer))
+            # self.net_local_response_test.append(self.local_batch_infering_mod(layer_dataset_test, layer))
+            
+            self.net_cross_response_test.append(self.cross_batch_infering(self.net_local_response_test, layer))
+            
+          
+            
+            layer_dataset_test = self.net_cross_response_test[-1]
+    
+    
+                        
+            # clearing some rubbish
+            gc.collect()
+        
+
+        self.last_layer_activity_test = self.net_cross_response_test[-1]
+        
+    # =============================================================================  
+    def infer_mod(self, dataset, rerun_layer=0):
+        """
+        Network infer method. It saves net responses recallable with 
+        method .last_layer_activity_test, so it can be used to test the classifiers.
+        
+        Arguments:
+            dataset (nested lists) : the test dataset the features will match.
+    
+            rerun_layer (int) : If you want to rerun a layer (remember that the
+                                net is sequential, if you run a layer then the 
+                                net WILL HAVE TO run all the layers on top of the 
+                                one selected), if rerun_layer is 2 for a 4 layer
+                                net, then the network will run the 2,3,4 layer
+                                keeping only layer 0,1 
+        """
+        
+        layer_dataset_test = dataset 
+        
+        #check if you only want to rerun a layer
+        if rerun_layer == 0:
+            layers_index = np.arange(self.layers)
+            self.net_local_response_test = []
+            self.net_cross_response_test = []
+            self.layer_dataset_test = []
+    
+        else:
+            layers_index = np.arange(rerun_layer,self.layers)
+    
+                    
+        for layer in layers_index: 
+            
+            
+            # Check if the attributes need to be overwritten or created anew
+            # This part of the code is only managing attributes to rerun a layer 
+            # Or to append the datasets to data managing attributes
+            if rerun_layer == 0:
+                self.layer_dataset_test.append(layer_dataset_test)
+            else:
+                if layer==rerun_layer:
+                    # The 2D net response is organized to directly feed the 
+                    # second layer
+                    layer_dataset_test=self.net_cross_response_test[layer-1]
+                    self.layer_dataset_test=self.layer_dataset_test[:layer+1]
+              
+    
+                self.net_local_response_test = self.net_local_response_test[:layer]
+                self.net_cross_response_test = self.net_cross_response_test[:layer]
+                
+            
+            self.net_local_response_test.append(self.local_batch_infering_mod(layer_dataset_test, layer))
+            
+            self.net_cross_response_test.append(self.cross_batch_infering(self.net_local_response_test, layer))
+            
+          
+            
+            layer_dataset_test = self.net_cross_response_test[-1]
+    
+    
+                        
+            # clearing some rubbish
+            gc.collect()
+        
+
+        self.last_layer_activity_test = self.net_cross_response_test[-1]
+       
+
+    def local_batch_learning(self, layer_dataset, layer) :
+        """
+        Internal method to process and learn local features batch_wise
+        """
+        
+        n_files = len(layer_dataset)
+        n_batches=int(np.ceil(n_files/self.n_batch_files)) # number of batches per run
+        n_runs = self.dataset_runs # how many time a single dataset get cycled.
+        total_batches  = n_batches*n_runs
+        
+        #Set the verbose parameter for the parallel function.
+        if self.verbose:
+            par_verbose = 0
+            print('\n--- LAYER '+str(layer)+' LOCAL TIME VECTORS LEARNING ---')
+            batch_start_time = time.time()
+            total_time = batch_start_time-batch_start_time
+        else:
+            par_verbose = 0
+            
+        for run in range(n_runs):    
+            for i_batch_run in range(n_batches):
+                
+                data_subset = layer_dataset[i_batch_run*self.n_batch_files:(i_batch_run+1)*self.n_batch_files]
+                
+                # Generation of local surfaces, computed on multiple threads
+                results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(local_tv_generator)\
+                                    (data_subset[recording], self.polarities[layer],\
+                                    self.taus_T[layer], self.local_surface_length[layer])\
+                                    for recording in range(len(data_subset)))     
+            
+                # The final results of the local surfaces train dataset computation
+                batch_local_tv = np.concatenate(results, axis=0)
+                self.local_sublayer[layer].partial_fit(batch_local_tv)
+                if self.verbose is True: 
+                    batch_time = time.time()-batch_start_time
+                    i_batch = i_batch_run + n_batches*run                    
+                    expected_t = batch_time*(total_batches-i_batch-1)
+                    total_time += (time.time() - batch_start_time)
+                    print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,total_batches,expected_t))                
+                    batch_start_time = time.time()
+            
+
+        if self.verbose is True:    
+            print("learning time vectors took %s seconds." % (total_time))
+            
+        
+    def cross_batch_learning(self, net_local_response, layer): 
+        """
+        Internal method to process and learn cross features batch_wise
+        """
+        
+        n_files = len(net_local_response[layer])
+        n_batches=int(np.ceil(n_files/self.n_batch_files)) # number of batches per run
+        n_runs = self.dataset_runs # how many time a single dataset get cycled.
+        total_batches  = n_batches*n_runs
+        
+        #Set the verbose parameter for the parallel function.
+        if self.verbose:
+            par_verbose = 0
+            print('\n--- LAYER '+str(layer)+' CROSS TIME VECTORS LEARNING ---')
+            batch_start_time = time.time()
+            total_time = batch_start_time-batch_start_time
+        else:
+            par_verbose = 0
+            
+        for run in range(n_runs):        
+            for i_batch_run in range(n_batches):
+                
+                data_subset = net_local_response[layer][i_batch_run*self.n_batch_files:(i_batch_run+1)*self.n_batch_files]
+                
+                # Generation of cross surfaces, computed on multiple threads
+                results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator)\
+                                    (data_subset[recording], self.polarities[layer],\
+                                    self.features_number[layer], self.taus_2D[layer])\
+                                    for recording in range(len(data_subset)))
+                    
+
+              
+                # results = []
+                # for recording in range(len(data_subset)):
+                #     results.append(cross_tv_generator(data_subset[recording], self.polarities[layer],\
+                #     self.features_number[layer], self.taus_2D[layer]))
+    
+    
+                # The final results of the local surfaces train dataset computation
+                batch_cross_tv = np.concatenate(results, axis=0)
+                self.cross_sublayer[layer].partial_fit(batch_cross_tv)
+                if self.verbose is True: 
+                    batch_time = time.time()-batch_start_time
+                    i_batch = i_batch_run + n_batches*run                    
+                    expected_t = batch_time*(total_batches-i_batch-1)
+                    total_time += (time.time() - batch_start_time)
+                    print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,total_batches,expected_t))         
+                    # batch_distances = self.cross_sublayer[layer].transform(batch_cross_tv)**2
+                    # batch_labels = self.cross_sublayer[layer].predict(batch_cross_tv)
+                    # inertia = np.mean(batch_distances[(np.arange(len(batch_labels)), batch_labels)])
+                    # print("Batch Inertia = %6f" % (inertia))
+                    batch_start_time = time.time()
+            
+
+        if self.verbose is True:    
+            print("learning time vectors took %s seconds." % (total_time))        
+        
+            
+    
+    def local_batch_infering(self, layer_dataset, layer) :
+        """
+        Internal method to generate the response of a local features layer batch_wise
+        """
+        
+        n_files = len(layer_dataset)
+        n_batches=int(np.ceil(n_files/self.n_batch_files))
+        
+        #Set the verbose parameter for the parallel function.
+        if self.verbose:
+            par_verbose = 0
+            print('\n--- LAYER '+str(layer)+' LOCAL TIME VECTORS GENERATION ---')
+            batch_start_time = time.time()
+            total_time = batch_start_time-batch_start_time
+        else:
+            par_verbose = 0
+            
+        local_response=[]    
+        for i_batch in range(n_batches):
+            
+            data_subset = layer_dataset[i_batch*self.n_batch_files:(i_batch+1)*self.n_batch_files]
+            
+            # Generation of local surfaces, computed on multiple threads
+            results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(local_tv_generator)\
+                                (data_subset[recording], self.polarities[layer],\
+                                self.taus_T[layer], self.local_surface_length[layer])\
+                                for recording in range(len(data_subset)))   
+            
+                
+            for i_result in range(len(results)):
+                batch_response=self.local_sublayer[layer].predict(results[i_result])
+                local_response.append([data_subset[i_result][0], data_subset[i_result][1], batch_response])
+
+            if self.verbose is True: 
+                batch_time = time.time()-batch_start_time
+                expected_t = batch_time*(n_batches-i_batch-1)
+                total_time += (time.time() - batch_start_time)
+                print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,n_batches,expected_t))               
+                batch_start_time = time.time()                
+                
+        if self.verbose is True:    
+            print("learning time vectors took %s seconds." % (total_time))                
+                        
+                        
+        return local_response
+        
+    def local_batch_infering_mod(self, layer_dataset, layer) :
+        """
+        Internal method to generate the response of a local features layer batch_wise
+        """
+        
+        n_files = len(layer_dataset)
+        n_batches=int(np.ceil(n_files/self.n_batch_files))
+        
+        #Set the verbose parameter for the parallel function.
+        if self.verbose:
+            par_verbose = 0
+            print('\n--- LAYER '+str(layer)+' LOCAL TIME VECTORS GENERATION ---')
+            batch_start_time = time.time()
+            total_time = batch_start_time-batch_start_time
+        else:
+            par_verbose = 0
+            
+        local_response=[]    
+        for i_batch in range(n_batches):
+            
+            data_subset = layer_dataset[i_batch*self.n_batch_files:(i_batch+1)*self.n_batch_files]
+            
+ 
+            for i_result in range(len(data_subset)):
+                local_response.append([data_subset[i_result][0], data_subset[i_result][1], np.zeros(len(data_subset[i_result][0]),dtype=int)])
+
+            if self.verbose is True: 
+                batch_time = time.time()-batch_start_time
+                expected_t = batch_time*(n_batches-i_batch-1)
+                total_time += (time.time() - batch_start_time)
+                print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,n_batches,expected_t))               
+                batch_start_time = time.time()                
+                
+        if self.verbose is True:    
+            print("learning time vectors took %s seconds." % (total_time))                
+                        
+                        
+        return local_response
+    
+    def cross_batch_infering(self, net_local_response, layer):  
+        """
+        Internal method to generate the response of a cross features layer batch_wise
+        """
+        
+        n_files = len(net_local_response[layer])
+        n_batches=int(np.ceil(n_files/self.n_batch_files))
+        
+        #Set the verbose parameter for the parallel function.
+        if self.verbose:
+            par_verbose = 0
+            print('\n--- LAYER '+str(layer)+' CROSS TIME VECTORS GENERATION ---')
+            batch_start_time = time.time()
+            total_time = batch_start_time-batch_start_time
+        else:
+            par_verbose = 0
+            
+        cross_response=[]    
+        for i_batch in range(n_batches):
+            
+            data_subset = net_local_response[layer][i_batch*self.n_batch_files:(i_batch+1)*self.n_batch_files]
+            
+            # Generation of cross surfaces, computed on multiple threads
+            results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator)\
+                                (data_subset[recording], self.polarities[layer],\
+                                self.features_number[layer], self.taus_2D[layer])\
+                                for recording in range(len(data_subset)))  
+            
+                
+            for i_result in range(len(results)):
+                batch_response=self.cross_sublayer[layer].predict(results[i_result])
+                cross_response.append([data_subset[i_result][0],batch_response])
+
+            if self.verbose is True: 
+                batch_time = time.time()-batch_start_time
+                expected_t = batch_time*(n_batches-i_batch-1)
+                total_time += (time.time() - batch_start_time)
+                print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,n_batches,expected_t))               
+                batch_start_time = time.time()                
+                
+        if self.verbose is True:    
+            print("learning time vectors took %s seconds." % (total_time))                
+                        
+                        
+        return cross_response
 
     def add_layers(self, network_parameters):        
         """
@@ -480,10 +999,9 @@ class Solid_HOTS_Net:
         Net.add_layers(network_parameters)
         Net.learn(dataset_train, dataset_test, rerun_layer = 2)
         """
-        [[features_number, l1_norm_coeff, learning_rate, local_surface_length,\
-        input_channels, taus_T, taus_2D, threads, exploring], [learning_rate,\
-        epochs, l1_norm_coeff, intermediate_dim_T, intermediate_dim_2D,\
-        activity_th, batch_size, spacing_local_T]] = network_parameters
+        [[features_number, local_surface_length,\
+        input_channels, taus_T, taus_2D, threads, verbose], [
+        activity_th, spacing_local_T]] = network_parameters
         
         # Setting network parameters as attributes
         self.taus_T = taus_T
@@ -494,21 +1012,16 @@ class Solid_HOTS_Net:
         self.polarities = []
         self.polarities.append(input_channels)
         
-        self.batch_size=batch_size
-        self.intermediate_dim_T=intermediate_dim_T
-        self.intermediate_dim_2D=intermediate_dim_2D
+
         self.activity_th = activity_th
         self.spacing_local_T = spacing_local_T
-        self.learning_rate = learning_rate
-        self.l1_norm_coeff = l1_norm_coeff
-        self.epochs = epochs
         
         for layer in range(self.layers-1): # It's the number of different signals 
                                            # the 0D sublayer is receiveing
             self.polarities.append(features_number[layer][1])
 
         self.threads=threads
-        self.exploring = exploring
+        self.verbose = verbose
         
         # Load the results of the last layer as input for the next one.
         self.layer_dataset.append(self.last_layer_activity)
@@ -524,10 +1037,9 @@ class Solid_HOTS_Net:
         Net.load_parameters(network_parameters)
         Net.learn(dataset_train, dataset_test, rerun_layer = 1)
         """
-        [[features_number, l1_norm_coeff, learning_rate, local_surface_length,\
-        input_channels, taus_T, taus_2D, threads, exploring], [learning_rate,\
-        epochs, l1_norm_coeff, intermediate_dim_T, intermediate_dim_2D,\
-        activity_th, batch_size, spacing_local_T]] = network_parameters
+        [[features_number, local_surface_length,\
+        input_channels, taus_T, taus_2D, threads, verbose], [
+        activity_th, spacing_local_T]] = network_parameters
         
         # Setting network parameters as attributes
         self.taus_T = taus_T
@@ -538,21 +1050,17 @@ class Solid_HOTS_Net:
         self.polarities = []
         self.polarities.append(input_channels)
         
-        self.batch_size=batch_size
-        self.intermediate_dim_T=intermediate_dim_T
-        self.intermediate_dim_2D=intermediate_dim_2D
+
         self.activity_th = activity_th
         self.spacing_local_T = spacing_local_T
-        self.learning_rate = learning_rate
-        self.l1_norm_coeff = l1_norm_coeff
-        self.epochs = epochs
+
         
         for layer in range(self.layers-1): # It's the number of different signals 
                                            # the 0D sublayer is receiveing
             self.polarities.append(features_number[layer][1])
 
         self.threads=threads
-        self.exploring = exploring
+        self.verbose = verbose
 
 ### Classifiers
 
@@ -588,7 +1096,9 @@ class Solid_HOTS_Net:
     # =============================================================================      
     from ._Classifiers_methods import cnn_classification_test
     
-    
+    # Method for testing an histogram classificator  
+    # =============================================================================      
+    from ._Classifiers_methods import hist_classification_test
 
 ### Plot methods
     

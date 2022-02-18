@@ -17,7 +17,7 @@ import keras
 #from keras.utils import to_categorical
 
 # Homemade Fresh Libraries like Grandma does (careful, it's still hot!)
-from ._General_Func import create_mlp, create_simple_mlp
+from ._General_Func import create_mlp
 from ._General_Func import create_lstm
 from ._General_Func import create_CNN
 
@@ -62,52 +62,35 @@ def mlp_classification_train(self, labels, labels_test, number_of_labels, learni
     labels_trim_test=labels_test.copy()
  
     # remove the labels of discarded files from the method .learn
-    # for i in range(len(self.abs_rem_ind)-1,-1,-1):
-    #     labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
-    # for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
-    #     labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])        
+    for i in range(len(self.abs_rem_ind)-1,-1,-1):
+        labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
+    for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
+        labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])        
     
     # Generate a label for each event of the train dataset and concatenate last
     # layer activity
     labelled_ev=[]
-    input_ev = []
-    for recording in range(num_of_recordings):
-        record_labels=np.zeros([len(last_layer_activity[recording][0]),number_of_labels])
-        record_labels[:,labels_trim[recording]] = 1
+    for record in range(num_of_recordings):
+        record_labels=np.zeros([len(last_layer_activity[record][0]),2])
+        record_labels[:,labels_trim[record]] = 1
         labelled_ev.append(record_labels)
-        
-        # Generate a one hot output
-        output_pol = last_layer_activity[recording][1] 
-        output_pol_one_hot = np.zeros((output_pol.size, self.features_number[-1][1]))
-        output_pol_one_hot[np.arange(output_pol.size),output_pol] = 1
-        input_ev.append(output_pol_one_hot)
-    
     labelled_ev=np.concatenate(labelled_ev)
-    last_layer_activity_concatenated = np.concatenate(input_ev)
+    last_layer_activity_concatenated = np.concatenate([last_layer_activity[recording][1] for recording in range(num_of_recordings)])
     
     # Generate a label for each event of the train dataset and concatenate last
     # layer activity
     labelled_ev_test=[]
-    input_ev_test = []
-    for recording in range(num_of_recordings_test):
-        record_labels_test=np.ones([len(last_layer_activity_test[recording][0]),number_of_labels])
-        record_labels_test[:,labels_trim_test[recording]] = 1
+    for record in range(num_of_recordings_test):
+        record_labels_test=np.ones([len(last_layer_activity_test[record][0]),2])
+        record_labels_test[:,labels_trim_test[record]] = 1
         labelled_ev_test.append(record_labels_test)
-        
-        # Generate a one hot output
-        output_pol = last_layer_activity_test[recording][1] 
-        output_pol_one_hot = np.zeros((output_pol.size, self.features_number[-1][1]))
-        output_pol_one_hot[np.arange(output_pol.size),output_pol] = 1
-        input_ev_test.append(output_pol_one_hot)
-        
-        
     labelled_ev_test=np.concatenate(labelled_ev_test)
-    last_layer_activity_test_concatenated = np.concatenate(input_ev_test)
+    last_layer_activity_test_concatenated = np.concatenate([last_layer_activity_test[recording][1] for recording in range(num_of_recordings_test)])
     
     # Generate the mlp
     last_bottlnck_size = self.features_number[-1][1] # Last layer of Solid HOTS 
                                                      # bottleneck size.
-    self.mlp = create_simple_mlp(input_size=last_bottlnck_size, hidden_size=hidden_size,
+    self.mlp = create_mlp(input_size=last_bottlnck_size, hidden_size=hidden_size,
                           output_size=number_of_labels, learning_rate=learning_rate)
     self.mlp.summary()
     # Set early stopping
@@ -119,7 +102,7 @@ def mlp_classification_train(self, labels, labels_test, number_of_labels, learni
       batch_size=batch_size, shuffle=True, validation_data=(np.array(last_layer_activity_test_concatenated),labelled_ev_test),
       callbacks=[es])
         
-    if self.verbose is True:
+    if self.exploring is True:
         print("Training ended, you can now access the trained network with the method .mlp")
     
     
@@ -162,20 +145,11 @@ def mlp_classification_test(self, labels, number_of_labels, batch_size, threshol
     labels_trim=labels.copy()
     
     # remove the labels of discarded files from the method .learn
-    # for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
-    #     labels_trim=np.delete(labels_trim, self.abs_rem_ind_test[i])
+    for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
+        labels_trim=np.delete(labels_trim, self.abs_rem_ind_test[i])
     
     # concatenate last layer activity and generate predicted label per event
-    input_ev = []
-    for recording in range(num_of_recordings):       
-        # Generate a one hot output
-        output_pol = last_layer_activity[recording][1] 
-        output_pol_one_hot = np.zeros((output_pol.size, self.features_number[-1][1]))
-        output_pol_one_hot[np.arange(output_pol.size),output_pol] = 1
-        input_ev.append(output_pol_one_hot)
-    
-    last_layer_activity_concatenated = np.concatenate(input_ev)
-    
+    last_layer_activity_concatenated = np.concatenate([last_layer_activity[recording][1] for recording in range(num_of_recordings)])
     predicted_labels_ev=self.mlp.predict(np.array(last_layer_activity_concatenated),batch_size=batch_size)
     
     events_counter = 0 # counter used to cycle through all concatenated events
@@ -242,18 +216,18 @@ def hist_classification_test(self, labels, labels_test, number_of_labels):
     labels_trim_test=labels_test.copy()
  
     # remove the labels of discarded files from the method .learn
-    # for i in range(len(self.abs_rem_ind)-1,-1,-1):
-    #     labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
-    # for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
-    #     labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])        
+    for i in range(len(self.abs_rem_ind)-1,-1,-1):
+        labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
+    for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
+        labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])        
         
     # The histograms for each class, also known as "signatures"     
-    cl_hist = np.zeros([num_of_recordings,self.features_number[-1][-1]])
-    cl_hist_test = np.zeros([num_of_recordings_test,self.features_number[-1][-1]])
+    cl_hist = np.zeros([num_of_recordings,self.features_number[-1][-1]*number_of_labels])
+    cl_hist_test = np.zeros([num_of_recordings_test,self.features_number[-1][-1]*number_of_labels])
     
     # The histograms for each class, also known as "signatures"     
-    cl_hist_norm = np.zeros([num_of_recordings,self.features_number[-1][-1]])
-    cl_hist_norm_test = np.zeros([num_of_recordings_test,self.features_number[-1][-1]])
+    cl_hist_norm = np.zeros([num_of_recordings,self.features_number[-1][-1]*number_of_labels])
+    cl_hist_norm_test = np.zeros([num_of_recordings_test,self.features_number[-1][-1]*number_of_labels])
     
     # The array of lables in the same structure required to train the mlp
     n_events=np.zeros([len(labels_trim)])
@@ -273,8 +247,8 @@ def hist_classification_test(self, labels, labels_test, number_of_labels):
         cl_hist_norm_test[i]=cl_hist_test[i]/n_events[i]
         
     # Computing the signatures
-    signatures = np.zeros([number_of_labels,self.features_number[-1][-1]])
-    signatures_norm = np.zeros([number_of_labels,self.features_number[-1][-1]])
+    signatures = np.zeros([number_of_labels,self.features_number[-1][-1]*number_of_labels])
+    signatures_norm = np.zeros([number_of_labels,self.features_number[-1][-1]*number_of_labels])
     
     for i,cl in enumerate(labels_trim): 
         signatures[cl] += cl_hist[i]/len(labels_trim)
@@ -282,68 +256,38 @@ def hist_classification_test(self, labels, labels_test, number_of_labels):
         
     self.hist_signatures= [signatures, signatures_norm, cl_hist_test, cl_hist_norm_test]
     
-    #train_results
+    
     eucl_success_rate = 0        
     norm_eucl_success_rate = 0        
     sign_eucl_success_rate = 0        
     sign_norm_eucl_success_rate = 0  
     
-    
-    for i,cl in enumerate(labels_trim): 
-        eucl_distance=np.linalg.norm(cl_hist-cl_hist[i],axis=1)
-        closest_file = np.argmin(eucl_distance)
-        if labels_trim[i]==labels_trim[closest_file]:
-            eucl_success_rate+=1/(len(labels_trim))
-        norm_eucl_distance=np.linalg.norm(cl_hist_norm-cl_hist_norm[i],axis=1)
-        closest_file = np.argmin(norm_eucl_distance)
-        if labels_trim[i]==labels_trim[closest_file]:
-            norm_eucl_success_rate+=1/(len(labels_trim))
-            
-        eucl_distance=np.linalg.norm(signatures-cl_hist[i],axis=1)
-        closest_file = np.argmin(eucl_distance)
-        if labels_trim[i]==closest_file:
-            sign_eucl_success_rate+=1/(len(labels_trim))
-        norm_eucl_distance=np.linalg.norm(signatures_norm-cl_hist_norm[i],axis=1)
-        closest_file = np.argmin(norm_eucl_distance)
-        if labels_trim[i]==closest_file:
-            sign_norm_eucl_success_rate+=1/(len(labels_trim))
-            
-    print('Prediction rate for euclidean distance is: ' +str(eucl_success_rate*100)+'%') 
-    print('Prediction rate for normalised euclidean distance is: ' +str(norm_eucl_success_rate*100)+'%') 
-    print('Sign prediction rate for euclidean distance is: ' +str(sign_eucl_success_rate*100)+'%') 
-    print('Sign prediction rate for normalised euclidean distance is: ' +str(sign_norm_eucl_success_rate*100)+'%') 
-
-    #test_results (validation)
-    val_eucl_success_rate = 0        
-    val_norm_eucl_success_rate = 0        
-    val_sign_eucl_success_rate = 0        
-    val_sign_norm_eucl_success_rate = 0  
-
     for i,cl in enumerate(labels_trim_test): 
         eucl_distance=np.linalg.norm(cl_hist-cl_hist_test[i],axis=1)
         closest_file = np.argmin(eucl_distance)
         if labels_trim_test[i]==labels_trim[closest_file]:
-            val_eucl_success_rate+=1/(len(labels_trim_test))
+            eucl_success_rate+=1/(len(labels_trim_test))
         norm_eucl_distance=np.linalg.norm(cl_hist_norm-cl_hist_norm_test[i],axis=1)
         closest_file = np.argmin(norm_eucl_distance)
         if labels_trim_test[i]==labels_trim[closest_file]:
-            val_norm_eucl_success_rate+=1/(len(labels_trim_test))
+            norm_eucl_success_rate+=1/(len(labels_trim_test))
             
         eucl_distance=np.linalg.norm(signatures-cl_hist_test[i],axis=1)
         closest_file = np.argmin(eucl_distance)
         if labels_trim_test[i]==closest_file:
-            val_sign_eucl_success_rate+=1/(len(labels_trim_test))
+            sign_eucl_success_rate+=1/(len(labels_trim_test))
         norm_eucl_distance=np.linalg.norm(signatures_norm-cl_hist_norm_test[i],axis=1)
         closest_file = np.argmin(norm_eucl_distance)
         if labels_trim_test[i]==closest_file:
-            val_sign_norm_eucl_success_rate+=1/(len(labels_trim_test))
+            sign_norm_eucl_success_rate+=1/(len(labels_trim_test))
 
-    print('Validation Prediction rate for euclidean distance is: ' +str(val_eucl_success_rate*100)+'%') 
-    print('Validation Prediction rate for normalised euclidean distance is: ' +str(val_norm_eucl_success_rate*100)+'%') 
-    print('Validation Sign prediction rate for euclidean distance is: ' +str(val_sign_eucl_success_rate*100)+'%') 
-    print('Validation Sign prediction rate for normalised euclidean distance is: ' +str(val_sign_norm_eucl_success_rate*100)+'%') 
+
+    print('Prediction rate for euclidean distance is: ' +str(eucl_success_rate*100)+'%') 
+    print('Prediction rate for normalised euclidean distance is: ' +str(norm_eucl_success_rate*100)+'%') 
+    print('Sign prediction rate for euclidean distance is: ' +str(sign_eucl_success_rate*100)+'%') 
+    print('Sign prediction rate for normalised euclidean distance is: ' +str(sign_norm_eucl_success_rate*100)+'%') 
             
-    return (val_sign_eucl_success_rate, val_sign_norm_eucl_success_rate)
+    return 
 
 
 
@@ -388,15 +332,15 @@ def hist_mlp_classification_train(self, labels, labels_test, number_of_labels, l
     labels_trim=labels.copy()
     labels_trim_test=labels_test.copy()
  
-    # # remove the labels of discarded files from the method .learn
-    # for i in range(len(self.abs_rem_ind)-1,-1,-1):
-    #     labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
-    # for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
-    #     labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])        
+    # remove the labels of discarded files from the method .learn
+    for i in range(len(self.abs_rem_ind)-1,-1,-1):
+        labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
+    for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
+        labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i]*number_of_labels)        
         
     # The histograms for each class, also known as "signatures"     
-    cl_hist = np.zeros([num_of_recordings,self.features_number[-1][-1]])
-    cl_hist_test = np.zeros([num_of_recordings_test,self.features_number[-1][-1]])
+    cl_hist = np.zeros([num_of_recordings,self.features_number[-1][-1]*number_of_labels])
+    cl_hist_test = np.zeros([num_of_recordings_test,self.features_number[-1][-1]*number_of_labels])
     
     # The array of lables in the same structure required to train the mlp
     mlp_labels=np.zeros([len(labels_trim),number_of_labels])
@@ -415,7 +359,7 @@ def hist_mlp_classification_train(self, labels, labels_test, number_of_labels, l
             
     
     # Generate the mlp
-    last_bottlnck_size = self.features_number[-1][1] # Last layer of Solid HOTS 
+    last_bottlnck_size = self.features_number[-1][1]*number_of_labels # Last layer of Solid HOTS 
                                                      # bottleneck size.
     self.hist_mlp = create_mlp(input_size=last_bottlnck_size, hidden_size=hidden_size,
                           output_size=number_of_labels, learning_rate=learning_rate)
@@ -429,7 +373,7 @@ def hist_mlp_classification_train(self, labels, labels_test, number_of_labels, l
       validation_data=(np.array(cl_hist_test),mlp_labels_test),
       callbacks=[es])
         
-    if self.verbose is True:
+    if self.exploring is True:
         print("Training ended, you can now access the trained network with the method .hist_mlp")
     
     return 
@@ -465,13 +409,13 @@ def hist_mlp_classification_test(self, labels, number_of_labels, batch_size, thr
     
     labels_trim=labels.copy()
  
-    # # remove the labels of discarded files from the method .learn
-    # for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
-    #     labels_trim=np.delete(labels_trim,self.abs_rem_ind_test[i])
+    # remove the labels of discarded files from the method .learn
+    for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
+        labels_trim=np.delete(labels_trim,self.abs_rem_ind_test[i])
  
         
     # The histograms for each class, also known as "signatures"     
-    cl_hist_test = np.zeros([num_of_recordings, self.features_number[-1][-1]])
+    cl_hist_test = np.zeros([num_of_recordings, self.features_number[-1][-1]*number_of_labels])
     
     # The array of lables in the same structure required to train the mlp
     mlp_labels_test=np.zeros([len(labels_trim),number_of_labels])

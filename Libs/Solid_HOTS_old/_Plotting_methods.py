@@ -11,7 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Homemade Fresh Libraries like Grandma does
-from ._General_Func import local_tv_generator, cross_tv_generator
+from ._General_Func import recording_local_surface_generator,\
+    recording_local_surface_generator_rate, recording_surface_generator
 
 
 # =============================================================================
@@ -34,22 +35,22 @@ def plt_surfaces_vs_reconstructions(self, file, layer=0, test=False):
     
     if layer == 0:
         # Build the original local time surfaces
-        results = local_tv_generator(file, data_lc[0],
+        results = recording_local_surface_generator(file, data_lc[0],
                                         self.polarities[layer], self.taus_T[layer],
                                         self.local_surface_length[layer], False,
                                         self.activity_th, self.spacing_local_T[layer])
-    # else:
-    #     # Build the original local time surfaces
-    #     results = local_tv_generator_rate(file, data_lc[layer],
-    #                                     self.polarities[layer], self.taus_T[layer],
-    #                                     self.local_surface_length[layer], False,
-    #                                     self.activity_th, self.spacing_local_T[layer])      
+    else:
+        # Build the original local time surfaces
+        results = recording_local_surface_generator_rate(file, data_lc[layer],
+                                        self.polarities[layer], self.taus_T[layer],
+                                        self.local_surface_length[layer], False,
+                                        self.activity_th, self.spacing_local_T[layer])      
     
     original_lc_surfaces=results[1]
             
     # Reconstructing the local time surfaces
-    encoded_lc_surfaces=self.sub_t[layer].predict(np.asarray(original_lc_surfaces))
-    reconstr_lc_surfaces=self.sub_t[layer].cluster_centers_[encoded_lc_surfaces]
+    encoded_lc_surfaces=self.aenc_T[layer].predict(np.asarray(original_lc_surfaces))
+    reconstr_lc_surfaces=self.aenc_T[layer].cluster_centers_[encoded_lc_surfaces]
     
     # Build the original local time surfaces
     results = recording_surface_generator(file, data[layer],self.polarities[layer],
@@ -58,8 +59,8 @@ def plt_surfaces_vs_reconstructions(self, file, layer=0, test=False):
     
     original_surfaces=results[1]
     # Reconstructing the local time surfaces
-    encoded_surfaces=self.sub_2D[layer].predict(original_surfaces)
-    reconstr_surfaces=self.sub_2D[layer].cluster_centers_[encoded_surfaces]
+    encoded_surfaces=self.aenc_2D[layer].predict(original_surfaces)
+    reconstr_surfaces=self.aenc_2D[layer].cluster_centers_[encoded_surfaces]
     
     # Plotting
     plt.figure()
@@ -74,12 +75,12 @@ def plt_surfaces_vs_reconstructions(self, file, layer=0, test=False):
     plt.suptitle('Reconstructed local surfaces layer: '+ str(layer), fontsize=16)
     
     plt.figure()
-    plt.imshow(np.transpose(original_surfaces.astype('float32')))
+    plt.imshow(original_surfaces.astype('float32'))
     plt.suptitle('Original surfaces layer: '+ str(layer), fontsize=16)
     # plt.yscale('log')
     plt.clim(0,1)
     plt.figure()
-    plt.imshow(np.transpose(reconstr_surfaces.astype('float32')))
+    plt.imshow(reconstr_surfaces.astype('float32'))
     # plt.yscale('log')
     plt.clim(0,1)
     plt.suptitle('Reconstructed surfaces layer: '+ str(layer), fontsize=16)
@@ -202,10 +203,10 @@ def plt_reverse_activation(self, file, layer, sublayer, labels, labels_test,
     # First print the original recording
     plt.figure()
     plt.suptitle('Original file: '+ str(file) +' Class: '+ file_class, fontsize=16)
-    plt.scatter(original_data[file][0], original_data[file][1], s=1)
+    plt.scatter(original_data[file][0], original_data[file][1], s=0.1)
     xlims = plt.xlim()
     ylims = plt.ylim()
-    [ind, lcs] = local_tv_generator(file, original_data,
+    [ind, lcs] = recording_local_surface_generator(file, original_data,
                                         self.polarities[0], self.taus_T[0],
                                         self.local_surface_length[0], False,
                                         self.activity_th, self.spacing_local_T[0])
@@ -241,7 +242,7 @@ def plt_reverse_activation(self, file, layer, sublayer, labels, labels_test,
     orig_channels = orig[1][abs_indx]
     
     # Get the number of plots
-    n_features = self.features_number[layer][sublayer]
+    n_features = self.features_number[layer][sublayer]*len(classes)
     
     plt.figure()
     plt.suptitle('Layer: '+str(layer)+' '+which_sublayer+'-response File: '+ str(file) +' Class: '+ file_class, fontsize=16)
