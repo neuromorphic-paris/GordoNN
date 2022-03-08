@@ -987,6 +987,56 @@ class Solid_HOTS_Net:
                         
                         
         return cross_response
+    
+    def cross_batch_tsMI_infering(self, net_local_response, layer, clusters_ind):  
+        """
+        Internal method to generate the response of a cross features layer batch_wise
+        """
+        
+        n_files = len(net_local_response[layer])
+        n_batches=int(np.ceil(n_files/self.n_batch_files))        
+        #Set the verbose parameter for the parallel function.
+        if self.verbose:
+            par_verbose = 0
+            print('\n--- LAYER '+str(layer)+' CROSS TIME VECTORS GENERATION ---')
+            batch_start_time = time.time()
+            total_time = batch_start_time-batch_start_time
+        else:
+            par_verbose = 0
+            
+        cross_response=[] 
+        timesurfaces = []
+        for i_batch in range(n_batches):
+            
+            data_subset = net_local_response[layer][i_batch*self.n_batch_files:(i_batch+1)*self.n_batch_files]
+            
+            # Generation of cross surfaces, computed on multiple threads
+            results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator)\
+                                (data_subset[recording], self.polarities[layer],\
+                                self.features_number[layer], self.taus_2D[layer])\
+                                for recording in range(len(data_subset)))  
+            
+                
+            for i_result in range(len(results)):
+                batch_response=self.cross_sublayer[layer].predict(results[i_result])
+                ts_indx = np.ones(len(batch_response))
+                for cluster_i in clusters_ind:
+                    ts_indx *= batch_response!=cluster_i #it set at 0 
+                timesurfaces.append(results[i_result][ts_indx==0])
+                cross_response.append([data_subset[i_result][0][ts_indx==0],batch_response[ts_indx==0]])
+                
+            if self.verbose is True: 
+                batch_time = time.time()-batch_start_time
+                expected_t = batch_time*(n_batches-i_batch-1)
+                total_time += (time.time() - batch_start_time)
+                print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,n_batches,expected_t))               
+                batch_start_time = time.time()                
+                
+        if self.verbose is True:    
+            print("learning time vectors took %s seconds." % (total_time))                
+                        
+                        
+        return cross_response, timesurfaces
 
     def add_layers(self, network_parameters):        
         """

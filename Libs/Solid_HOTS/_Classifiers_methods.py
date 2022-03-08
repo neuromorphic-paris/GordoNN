@@ -277,8 +277,8 @@ def hist_classification_test(self, labels, labels_test, number_of_labels):
     signatures_norm = np.zeros([number_of_labels,self.features_number[-1][-1]])
     
     for i,cl in enumerate(labels_trim): 
-        signatures[cl] += cl_hist[i]/len(labels_trim)
-        signatures_norm[cl] += cl_hist_norm[i]/len(labels_trim)
+        signatures[cl] += cl_hist[i]/sum((labels_trim==cl))
+        signatures_norm[cl] += cl_hist_norm[i]/sum((labels_trim==cl))
         
     self.hist_signatures= [signatures, signatures_norm, cl_hist_test, cl_hist_norm_test]
     

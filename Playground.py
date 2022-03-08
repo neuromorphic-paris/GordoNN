@@ -27,6 +27,8 @@ import seaborn as sns
 import os, gc, pickle
 from tensorflow.keras.callbacks import EarlyStopping
 from Libs.Solid_HOTS._General_Func import create_mlp
+from joblib import Parallel, delayed 
+from sklearn import svm
 
 
 # To use CPU for training
@@ -135,6 +137,7 @@ spacing = 1
 
 # number_files_dataset = 1712
 number_files_dataset = 1000
+# number_files_dataset = 50
 
 # train_test_ratio = 0.70
 train_test_ratio = 0.80
@@ -180,7 +183,7 @@ classes=['stop', 'left', 'no', 'go', 'yes', 'down', 'right', 'up']
 
 # features_number=[[6,96]] 
 # features_number=[[6,256]] 
-features_number=[[6,256] ] 
+features_number=[[20,256] ] 
 
 # features_number=[[6,32],[1,64],[1,64],[1,64],[1,96]] 
 # local_surface_lengths = [5,1,1,1,1]
@@ -208,17 +211,21 @@ channel_taus = np.linspace(2,9,32)
 # taus_2D = [10000,20000,40000,80000,100000]  
 
 
-taus_T_coeff = np.array([1000,1]) # Multiplicative coefficients to help to change quickly the taus_T  #1000
-# taus_T_coeff = np.array([200,1]) # Multiplicative coefficients to help to change quickly the taus_T  #1000
+# taus_T_coeff = np.array([1000,1]) # Multiplicative coefficients to help to change quickly the taus_T  #1000
+taus_T_coeff = np.array([1500,1]) # Multiplicative coefficients to help to change quickly the taus_T  #1000
 taus_T = (taus_T_coeff*[channel_taus,np.ones(256)]).tolist()
 taus_2D = [100000]  
 
 # taus_2D = [taus_T[0], 100000]  
 
 #n_batch_files = 128
-n_batch_files = 2048
+# n_batch_files = 2048
+n_batch_files = 512
 
-dataset_runs = 10 #how many times the dataset is run for clustering
+
+# dataset_runs = 10 #how many times the dataset is run for clustering
+dataset_runs = 25 #how many times the dataset is run for clustering
+
 
 
 threads=24 
@@ -239,6 +246,36 @@ Net = Solid_HOTS_Net(network_parameters)
 Net.learn(dataset_train)
 Net.infer(dataset_test)
 
+#%% Net Mutual info
+n_recordings = len(Net.last_layer_activity)
+n_clusters = Net.features_number[-1][-1]
+labels = labels_train
+activity = np.zeros([n_recordings, n_clusters])
+for recording in range(n_recordings): 
+    clusters = np.unique(Net.last_layer_activity[recording][1])
+    activity[recording, clusters]=1;
+
+p_r_s = np.zeros([number_of_labels, n_clusters])
+p_s = 1/number_of_labels
+p_r = np.sum(activity,axis=0)/(n_recordings)
+for label in range(number_of_labels):
+    indx = labels==label
+    p_r_s[label]+=np.sum(activity[indx,:],axis=0)/sum(labels_train==label)
+
+#number of recordings is the same per each label.
+# p_r = p_r/(n_recordings*number_of_labels)
+
+IndividualMI = p_s*p_r_s*np.log2(p_r_s/((p_r)+np.logical_not(p_r)) + np.logical_not(p_r_s))
+clusterMI = np.sum(IndividualMI, axis=0)
+topclusters = np.argsort(clusterMI)
+sortedrelClusterMI = clusterMI[topclusters]#/sum(clusterMI)
+plt.figure()
+plt.plot(np.cumsum(sortedrelClusterMI[::-1]))
+plt.ylabel("Bits of information (over 3)")
+# topclusters = np.argsort(clusterMI)[-150:]
+
+
+    
 #%% Look at the activations per per label
 
 data =  np.array(Net.last_layer_activity_test)
@@ -398,7 +435,7 @@ Net.hist_mlp_classification_test(labels_test, number_of_labels,
 #training error
 Net.hist_classification_test(labels_train, labels_test, number_of_labels)
                         
-#%% Test histograms:
+#%% MI histograms:
 
 # Exctracting last layer activity         
 last_layer_activity = Net.last_layer_activity.copy()
@@ -406,36 +443,91 @@ last_layer_activity_test = Net.last_layer_activity_test.copy()
 num_of_recordings=len(last_layer_activity)
 num_of_recordings_test=len(last_layer_activity_test)
     
-labels_trim=labels_train.copy()
-labels_trim_test=labels_test.copy()
- 
-    # # remove the labels of discarded files from the method .learn
-    # for i in range(len(self.abs_rem_ind)-1,-1,-1):
-    #     labels_trim=np.delete(labels_trim,self.abs_rem_ind[i])
-    # for i in range(len(self.abs_rem_ind_test)-1,-1,-1):
-    #     labels_trim_test=np.delete(labels_trim_test,self.abs_rem_ind_test[i])        
-        
+n_clusters = len(topclusters)
 # The histograms for each class, also known as "signatures"     
-cl_hist = np.zeros([num_of_recordings,Net.features_number[-1][-1]])
-cl_hist_test = np.zeros([num_of_recordings_test,Net.features_number[-1][-1]])
-    
-# The array of lables in the same structure required to train the mlp
-mlp_labels=np.zeros([len(labels_trim),number_of_labels])
-mlp_labels_test=np.zeros([len(labels_trim_test),number_of_labels])
-    
-# Computing the signatures
-for i,cl in enumerate(labels_trim): 
-    mlp_labels[i,cl] = 1
-    for event in range(len(last_layer_activity[i][1])):
-        cl_hist[i,last_layer_activity[i][1][event]] += 1
+signatures = np.zeros([number_of_labels,n_clusters])
+cl_hist_test = np.zeros([num_of_recordings_test,n_clusters])
 
-for i,cl in enumerate(labels_trim_test): 
-    mlp_labels_test[i,cl] = 1
-    for event in range(len(last_layer_activity_test[i][1])):
-        cl_hist_test[i,last_layer_activity_test[i][1][event]] += 1         
+signatures_norm = np.zeros([number_of_labels,n_clusters])
+cl_hist_test_norm = np.zeros([num_of_recordings_test,n_clusters])
+
+def cluster_counter(rec_activity, cluster_i):
+    return sum(rec_activity==cluster_i)
+    
+
+for recording in range(num_of_recordings):
+    rec_activity = last_layer_activity[recording][1]    
+    label = labels_train[recording]
+    rec_hist = Parallel(n_jobs=22)(delayed(cluster_counter)(rec_activity, cluster_i)\
+                                   for cluster_i in topclusters)
+    # rec_hist = [sum(rec_activity==cluster_i) for cluster_i in topclusters]
+    signatures[label] += rec_hist
+    n_events = (sum(rec_hist)+ (not sum(rec_hist)))
+    signatures_norm[label] += rec_hist/n_events
+    
+for label in range(number_of_labels):
+    signatures[label]=signatures[label]/sum(labels_train==label)
+    signatures_norm[label]=signatures_norm[label]/sum(labels_train==label)
+
+for recording in range(num_of_recordings_test):
+    rec_activity = last_layer_activity_test[recording][1]    
+    # rec_hist = [sum(rec_activity==cluster_i) for cluster_i in topclusters]
+    rec_hist = Parallel(n_jobs=22)(delayed(cluster_counter)(rec_activity, cluster_i)\
+                                   for cluster_i in topclusters)
+    cl_hist_test[recording] = rec_hist
+    n_events = (sum(rec_hist)+ (not sum(rec_hist)))
+    cl_hist_test_norm[recording] = rec_hist/n_events
+
+accuracy=np.zeros(n_clusters)
+norm_accuracy=np.zeros(n_clusters)
+
+for cluster_i in range(n_clusters):
+    for recording in range(num_of_recordings_test):
+        eucl_distance=np.linalg.norm(signatures[:,-(cluster_i+1):]-cl_hist_test[recording,-(cluster_i+1):],axis=1)
+        eucl_distance_norm=np.linalg.norm(signatures_norm[:,-(cluster_i+1):]-cl_hist_test_norm[recording,-(cluster_i+1):],axis=1)
+        closest_file = np.argmin(eucl_distance)
+        closest_file_norm = np.argmin(eucl_distance_norm)
+    
+        label = labels_test[recording]
+        if closest_file==label:
+            accuracy[cluster_i]+=1/num_of_recordings_test
+       
+        if closest_file_norm==label:
+                norm_accuracy[cluster_i]+=1/num_of_recordings_test
+    
+
+# print("Accuracy is; "+str(accuracy*100))
+# print("Accuracy of normalized signatures is; "+str(norm_accuracy*100))
+
+#%% Time based classifier: 
+
+n_clusters = 100    
+    
+#Train    
+response,ts = Net.cross_batch_tsMI_infering(Net.net_local_response, layer=0, clusters_ind=topclusters[-n_clusters:])
+ts_labels = [labels_train[recording]*np.ones(len(ts[recording])) for recording in range(len(labels_train))]
+svc = svm.SVC(decision_function_shape='ovr', kernel='poly')
+ts=np.concatenate(ts)[::20]
+ts_labels=np.concatenate(ts_labels)[::20]
+# svc = svm.LinearSVC(multi_class='ovr')
+svc.fit(ts, ts_labels)
+
+#Test
+response,ts = Net.cross_batch_tsMI_infering(Net.net_local_response_test, layer=0, clusters_ind=topclusters[-n_clusters:])
+ts_labels = [labels_test[recording]*np.ones(len(ts[recording])) for recording in range(len(labels_test))]
+
+accuracy_time=0
+for recording in range(len(labels_test)):
+    if ts[recording].size != 0:#check if it is not empty
+        pred_labels_test = svc.predict(ts[recording])
+        vals,counts = np.unique(pred_labels_test, return_counts=True)
+        predicted_label = np.argmax(counts)
+        if predicted_label==labels_test[recording]:
+            accuracy_time+=1/len(labels_test)
+
+print("Accuracy is; "+str(accuracy_time*100))
         
-        
-        
+
 #%%
 Net.hist_classification_test(labels_train,labels_test,number_of_labels)
 #%% Save the network state. (Not Working) InvalidArgumentError: Cannot convert a Tensor of dtype resource to a NumPy array.

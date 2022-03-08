@@ -112,7 +112,7 @@ classes=['stop', 'left', 'no', 'go', 'yes', 'down', 'right', 'up']
 # =============================================================================
 
 
-features_number=[[10,256]] 
+features_number=[[20,256]] 
 
 local_surface_lengths = [10,1]
 
@@ -127,10 +127,11 @@ channel_taus = np.linspace(2,9,32)
 
 taus_2D = [100000]  
 
-#n_batch_files = 128
-n_batch_files = 2048
+# n_batch_files = 2048
+n_batch_files = 512
 
-dataset_runs = 10 #how many times the dataset is run for clustering
+#dataset_runs = 10 #how many times the dataset is run for clustering
+dataset_runs = 20 #how many times the dataset is run for clustering
 
 
 threads=24 
@@ -172,24 +173,24 @@ for Tau_T in Tau_T_first:
 #%% Save Layer results
 layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res, 'Taus_T' : Tau_T_first}
 
-with open('Results/Decay_search/Layer_1.pickle', 'wb') as handle:
+with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features.pickle', 'wb') as handle:
     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
+# #%% Load Layer results
+
+# with open('Results/Decay_search/Layer_1.pickle', 'rb') as handle:
+#     layer_res = pickle.load(handle)
+# 
+
 #%% Load Layer results
 
 with open('Results/Decay_search/Layer_1.pickle', 'rb') as handle:
-    layer_res = pickle.load(handle)
-
-
-#%% Load Layer results
-
-with open('Results/Decay_search/HOTS_layer_1.pickle', 'rb') as handle:
     layer_res_old = pickle.load(handle)
 
 #%% Comparison HOTS layer and Hack Layer
 plt.figure()
-plt.plot(layer_res_old['Taus_T'], layer_res_old['Norm_eucl_res'], label="First layer: HOTS")
-plt.plot(layer_res['Taus_T'], layer_res['Norm_eucl_res'], label="First layer: HACK")
+plt.plot(layer_res_old['Taus_T'], layer_res_old['Norm_eucl_res'], label="First layer: 10f-2048b-10r")
+plt.plot(layer_res['Taus_T'], layer_res['Norm_eucl_res'], label="First layer: 20f-512b-20r")
 plt.xlabel("Tau first layer (us)")
 plt.ylabel("Recognition rates")
 plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
