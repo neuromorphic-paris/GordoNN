@@ -574,6 +574,53 @@ def cross_tv_generator(recording_data, n_polarities, features_number, tau_2D):
 
     return cross_tvs
 
+def cross_tv_generator_conv(recording_data, n_polarities, features_number, cross_size, tau_2D):
+    """
+    Function used to generate cross time vectors.
+    
+    Arguments:
+        
+        recording_data: (list of 2 numpy 1D arrays) It consists of the time stamps 
+                        and polarity indeces for all the events of a single 
+                        recording.
+                        
+        n_polarities: (int) the number of channels/polarities of the dataset.
+        tau_2D: (float) the single decay of the cross time vector layer.
+        context_length: (int) the length of the cross time vector 
+                              (the length of its context).  
+    
+    Returns:
+        
+        cross_tvs: (2D numpy array of floats) the timevectors generated for the 
+                   recording where the dimensions are [i_event, 2D timevector element]
+    """
+    
+    
+    n_events = len(recording_data[0])
+    
+    # 2D timesurface dimension
+    ydim,xdim = [n_polarities, features_number[0]]
+    cross_tvs_conv = np.zeros([len(recording_data[0]),cross_size], dtype="float16")
+    zerp_off =  cross_size//2#zeropad offset
+    timestamps = np.zeros([ydim+zerp_off*2, xdim], dtype=int) # ydim + 2* zeropad
+    
+    if type(tau_2D)==np.ndarray:
+        tau_2D_new = np.reshape(tau_2D, [ydim,xdim])
+    else:
+        tau_2D_new = tau_2D
+    for event_ind in range(n_events):   
+        new_timestamp = recording_data[0][event_ind]                                   
+        polarity = recording_data[1][event_ind]
+        feature = recording_data[2][event_ind]
+        timestamps[polarity+zerp_off, feature] = recording_data[0][event_ind]
+        # timesurf = np.exp(-(new_timestamp-timestamps)/tau_2D)*(timestamps!=0)   
+        timesurf = np.exp(-(new_timestamp-timestamps)/tau_2D_new)*(timestamps!=0)   
+        timesurf = timesurf[(np.range(cross_size))+polarity]
+        cross_tvs_conv[event_ind,:] = (timesurf).flatten() 
+
+
+    return cross_tvs_conv
+
 
 # compute absolute removed indices 
 def compute_abs_ind(rel_ind):

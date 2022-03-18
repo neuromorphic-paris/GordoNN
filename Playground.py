@@ -246,6 +246,21 @@ Net = Solid_HOTS_Net(network_parameters)
 Net.learn(dataset_train)
 Net.infer(dataset_test)
 
+
+#%% Network creation and learning 
+
+# Create the network
+Net = Solid_HOTS_Net(network_parameters)
+
+Net.cross_surface_width = [5,1]
+
+    
+# Learn the features
+Net.learn(dataset_train)
+Net.infer(dataset_test)
+
+
+
 #%% Net Mutual info
 n_recordings = len(Net.last_layer_activity)
 n_clusters = Net.features_number[-1][-1]

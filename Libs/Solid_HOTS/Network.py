@@ -21,7 +21,7 @@ from sklearn.cluster import KMeans, MiniBatchKMeans
 
 # Homemade Fresh Libraries like Grandma does
 from Libs.Solid_HOTS._General_Func import local_surface_plot, surfaces_plot,\
-     local_tv_generator, \
+     local_tv_generator, cross_tv_generator_conv, \
      cross_tv_generator, compute_abs_ind
      
 
@@ -619,6 +619,83 @@ class Solid_HOTS_Net:
         self.last_layer_activity = self.net_cross_response[-1]
 
     # =============================================================================  
+    def learn_conv(self, dataset, rerun_layer=0):
+        """
+        Network learning method. It saves net responses recallable with 
+        method .last_layer_activity, so it can be used to train the classifiers.
+        
+        Arguments:
+            dataset (nested lists) : the dataset used to extract features in a unsupervised 
+                                     manner
+
+            rerun_layer (int) : If you want to rerun a layer (remember that the
+                                net is sequential, if you run a layer then the 
+                                net WILL HAVE TO run all the layers on top of the 
+                                one selected), if rerun_layer is 2 for a 4 layer
+                                net, then the network will run the 2,3,4 layer
+                                keeping only layer 0,1 
+        """
+        
+        layer_dataset = dataset 
+        
+        #check if you only want to rerun a layer
+        if rerun_layer == 0:
+            self.local_sublayer=[] # Kmeans for 0D Sublayers
+            self.cross_sublayer=[] # Kmeans models for 2D Sublayers
+            layers_index = np.arange(self.layers)
+            self.net_local_response=[]
+            self.net_cross_response = []
+            self.layer_dataset = []
+
+        else:
+            layers_index = np.arange(rerun_layer,self.layers)
+
+                    
+        for layer in layers_index: 
+            
+            
+            # Check if the attributes need to be overwritten or created anew
+            # This part of the code is only managing attributes to rerun a layer 
+            # Or to append the datasets to data managing attributes
+            if rerun_layer == 0:
+                self.layer_dataset.append(layer_dataset)
+            else:
+                if layer==rerun_layer:
+                    # The 2D net response is organized to directly feed the 
+                    # second layer
+                    layer_dataset=self.net_cross_response[layer-1]
+                    self.layer_dataset=self.layer_dataset[:layer+1]
+              
+                self.local_sublayer=self.local_sublayer[:layer]
+                self.cross_sublayer=self.cross_sublayer[:layer]
+                self.net_local_response = self.net_local_response[:layer]
+                self.net_cross_response = self.net_cross_response[:layer]
+                
+            
+            
+            self.local_sublayer.append(MiniBatchKMeans(n_clusters=self.features_number[layer][0], verbose=self.verbose))  
+            self.local_batch_learning(layer_dataset, layer)
+            self.net_local_response.append(self.local_batch_infering(layer_dataset, layer))
+            # self.net_local_response.append(self.local_batch_infering_mod(layer_dataset, layer))
+            
+            self.cross_sublayer.append(MiniBatchKMeans(n_clusters=self.features_number[layer][1], verbose=self.verbose))
+            self.cross_batch_learning_conv(self.net_local_response, layer)
+            self.net_cross_response.append(self.cross_batch_infering_conv(self.net_local_response, layer))
+            
+          
+            
+            layer_dataset = self.net_cross_response[-1]
+
+
+                        
+            # clearing some rubbish
+            gc.collect()
+            
+  
+        self.last_layer_activity = self.net_cross_response[-1]
+        
+
+    # =============================================================================  
     def infer(self, dataset, rerun_layer=0):
         """
         Network infer method. It saves net responses recallable with 
@@ -751,6 +828,72 @@ class Solid_HOTS_Net:
 
         self.last_layer_activity_test = self.net_cross_response_test[-1]
        
+    # =============================================================================  
+    def infer_conv(self, dataset, rerun_layer=0):
+        """
+        Network infer method. It saves net responses recallable with 
+        method .last_layer_activity_test, so it can be used to test the classifiers.
+        
+        Arguments:
+            dataset (nested lists) : the test dataset the features will match.
+    
+            rerun_layer (int) : If you want to rerun a layer (remember that the
+                                net is sequential, if you run a layer then the 
+                                net WILL HAVE TO run all the layers on top of the 
+                                one selected), if rerun_layer is 2 for a 4 layer
+                                net, then the network will run the 2,3,4 layer
+                                keeping only layer 0,1 
+        """
+        
+        layer_dataset_test = dataset 
+        
+        #check if you only want to rerun a layer
+        if rerun_layer == 0:
+            layers_index = np.arange(self.layers)
+            self.net_local_response_test = []
+            self.net_cross_response_test = []
+            self.layer_dataset_test = []
+    
+        else:
+            layers_index = np.arange(rerun_layer,self.layers)
+    
+                    
+        for layer in layers_index: 
+            
+            
+            # Check if the attributes need to be overwritten or created anew
+            # This part of the code is only managing attributes to rerun a layer 
+            # Or to append the datasets to data managing attributes
+            if rerun_layer == 0:
+                self.layer_dataset_test.append(layer_dataset_test)
+            else:
+                if layer==rerun_layer:
+                    # The 2D net response is organized to directly feed the 
+                    # second layer
+                    layer_dataset_test=self.net_cross_response_test[layer-1]
+                    self.layer_dataset_test=self.layer_dataset_test[:layer+1]
+              
+    
+                self.net_local_response_test = self.net_local_response_test[:layer]
+                self.net_cross_response_test = self.net_cross_response_test[:layer]
+                
+            
+            self.net_local_response_test.append(self.local_batch_infering(layer_dataset_test, layer))
+            # self.net_local_response_test.append(self.local_batch_infering_mod(layer_dataset_test, layer))
+            
+            self.net_cross_response_test.append(self.cross_batch_infering_conv(self.net_local_response_test, layer))
+            
+          
+            
+            layer_dataset_test = self.net_cross_response_test[-1]
+    
+    
+                        
+            # clearing some rubbish
+            gc.collect()
+        
+
+        self.last_layer_activity_test = self.net_cross_response_test[-1]
 
     def local_batch_learning(self, layer_dataset, layer) :
         """
@@ -854,8 +997,65 @@ class Solid_HOTS_Net:
 
         if self.verbose is True:    
             print("learning time vectors took %s seconds." % (total_time))        
+    
         
+    def conv_cross_batch_learning(self, net_local_response, layer): 
+        """
+        Internal method to process and learn cross features batch_wise
+        """
+        
+        n_files = len(net_local_response[layer])
+        n_batches=int(np.ceil(n_files/self.n_batch_files)) # number of batches per run
+        n_runs = self.dataset_runs # how many time a single dataset get cycled.
+        total_batches  = n_batches*n_runs
+        
+        #Set the verbose parameter for the parallel function.
+        if self.verbose:
+            par_verbose = 0
+            print('\n--- LAYER '+str(layer)+' CROSS TIME VECTORS LEARNING ---')
+            batch_start_time = time.time()
+            total_time = batch_start_time-batch_start_time
+        else:
+            par_verbose = 0
             
+        for run in range(n_runs):        
+            for i_batch_run in range(n_batches):
+                
+                data_subset = net_local_response[layer][i_batch_run*self.n_batch_files:(i_batch_run+1)*self.n_batch_files]
+                
+                # Generation of cross surfaces, computed on multiple threads
+                results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator_conv)\
+                                    (data_subset[recording], self.polarities[layer],\
+                                    self.features_number[layer], self.cross_surface_width[layer],\
+                                    self.taus_2D[layer])\
+                                    for recording in range(len(data_subset)))
+                    
+
+              
+                # results = []
+                # for recording in range(len(data_subset)):
+                #     results.append(cross_tv_generator(data_subset[recording], self.polarities[layer],\
+                #     self.features_number[layer], self.taus_2D[layer]))
+    
+    
+                # The final results of the local surfaces train dataset computation
+                batch_cross_tv = np.concatenate(results, axis=0)
+                self.cross_sublayer[layer].partial_fit(batch_cross_tv)
+                if self.verbose is True: 
+                    batch_time = time.time()-batch_start_time
+                    i_batch = i_batch_run + n_batches*run                    
+                    expected_t = batch_time*(total_batches-i_batch-1)
+                    total_time += (time.time() - batch_start_time)
+                    print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,total_batches,expected_t))         
+                    # batch_distances = self.cross_sublayer[layer].transform(batch_cross_tv)**2
+                    # batch_labels = self.cross_sublayer[layer].predict(batch_cross_tv)
+                    # inertia = np.mean(batch_distances[(np.arange(len(batch_labels)), batch_labels)])
+                    # print("Batch Inertia = %6f" % (inertia))
+                    batch_start_time = time.time()
+            
+
+        if self.verbose is True:    
+            print("learning time vectors took %s seconds." % (total_time))              
     
     def local_batch_infering(self, layer_dataset, layer) :
         """
@@ -968,6 +1168,53 @@ class Solid_HOTS_Net:
             results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator)\
                                 (data_subset[recording], self.polarities[layer],\
                                 self.features_number[layer], self.taus_2D[layer])\
+                                for recording in range(len(data_subset)))  
+            
+                
+            for i_result in range(len(results)):
+                batch_response=self.cross_sublayer[layer].predict(results[i_result])
+                cross_response.append([data_subset[i_result][0],batch_response])
+
+            if self.verbose is True: 
+                batch_time = time.time()-batch_start_time
+                expected_t = batch_time*(n_batches-i_batch-1)
+                total_time += (time.time() - batch_start_time)
+                print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,n_batches,expected_t))               
+                batch_start_time = time.time()                
+                
+        if self.verbose is True:    
+            print("learning time vectors took %s seconds." % (total_time))                
+                        
+                        
+        return cross_response
+    
+    def conv_cross_batch_infering(self, net_local_response, layer):  
+        """
+        Internal method to generate the response of a cross features layer batch_wise
+        """
+        
+        n_files = len(net_local_response[layer])
+        n_batches=int(np.ceil(n_files/self.n_batch_files))
+        
+        #Set the verbose parameter for the parallel function.
+        if self.verbose:
+            par_verbose = 0
+            print('\n--- LAYER '+str(layer)+' CROSS TIME VECTORS GENERATION ---')
+            batch_start_time = time.time()
+            total_time = batch_start_time-batch_start_time
+        else:
+            par_verbose = 0
+            
+        cross_response=[]    
+        for i_batch in range(n_batches):
+            
+            data_subset = net_local_response[layer][i_batch*self.n_batch_files:(i_batch+1)*self.n_batch_files]
+            
+            # Generation of cross surfaces, computed on multiple threads
+            results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator_conv)\
+                                (data_subset[recording], self.polarities[layer],\
+                                self.features_number[layer], self.cross_surface_width[layer],\
+                                self.taus_2D[layer])\
                                 for recording in range(len(data_subset)))  
             
                 
