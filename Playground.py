@@ -188,7 +188,9 @@ features_number=[[20,256] ]
 # features_number=[[6,32],[1,64],[1,64],[1,64],[1,96]] 
 # local_surface_lengths = [5,1,1,1,1]
 # local_surface_lengths = [5,1]
-local_surface_lengths = [5,1]
+local_surface_lengths = [30,1]
+
+cross_surface_width = [-1,1]
 
 
 input_channels = 32 + 32*use_all_addr
@@ -204,8 +206,17 @@ input_channels = 32 + 32*use_all_addr
 #channel_taus = np.arange(32)*1
 
 #Linear interpolation between highest spike frequency 90ks/s to lowest 20ks/s, used to balance the filters
-channel_taus = np.linspace(2,9,32)
-                                                             
+# channel_taus = np.linspace(2,9,32)
+
+#NEW LOGISTIC INTERPOLATION         
+channel_taus=1/np.array([2.        , 2.09818492, 2.19739597, 2.30845776, 2.42444764,
+       2.54123647, 2.67160239, 2.80743423, 2.94395277, 3.09176148,
+       3.24720257, 3.41043852, 3.57786533, 3.75780207, 3.94362851,
+       4.14023903, 4.34601214, 4.56200522, 4.78905638, 5.02749048,
+       5.27770753, 5.53978449, 5.81554546, 6.10468077, 6.40818066,
+       6.72679013, 7.06129558, 7.41233318, 7.78086536, 8.16764435,
+       8.57370814, 9.        ])   
+                                                  
 # taus_T_coeff = np.array([1000,1,1,1,1]) # Multiplicative coefficients to help to change quickly the taus_T  #1000
 # taus_T = (taus_T_coeff*[channel_taus,np.ones(32),np.ones(64),np.ones(64),np.ones(96)]).tolist()
 # taus_2D = [10000,20000,40000,80000,100000]  
@@ -232,7 +243,7 @@ threads=24
           
 verbose=True
 
-network_parameters = [[features_number, local_surface_lengths, input_channels, taus_T, taus_2D, 
+network_parameters = [[features_number, local_surface_lengths, cross_surface_width, input_channels, taus_T, taus_2D, 
                  threads, verbose],[n_batch_files, dataset_runs]]
 
 
@@ -245,20 +256,6 @@ Net = Solid_HOTS_Net(network_parameters)
 # Learn the features
 Net.learn(dataset_train)
 Net.infer(dataset_test)
-
-
-#%% Network creation and learning 
-
-# Create the network
-Net = Solid_HOTS_Net(network_parameters)
-
-Net.cross_surface_width = [5,1]
-
-    
-# Learn the features
-Net.learn(dataset_train)
-Net.infer(dataset_test)
-
 
 
 #%% Net Mutual info

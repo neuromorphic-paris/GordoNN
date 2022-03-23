@@ -114,7 +114,9 @@ classes=['stop', 'left', 'no', 'go', 'yes', 'down', 'right', 'up']
 
 features_number=[[20,256]] 
 
-local_surface_lengths = [10,1]
+# local_surface_lengths = [10,1]
+local_surface_lengths = [50,1]
+cross_surface_width = [-1,1]
 
 
 input_channels = 32 + 32*use_all_addr
@@ -122,8 +124,19 @@ input_channels = 32 + 32*use_all_addr
 ### Channel Taus ###
 
 #Linear interpolation between highest spike frequency 90ks/s to lowest 20ks/s, used to balance the filters
-channel_taus = np.linspace(2,9,32)
-                                                             
+# channel_taus = np.linspace(2,9,32)
+
+#NEW LOGISTIC INTERPOLATION         
+channel_taus=1/(np.array([2.        , 2.09818492, 2.19739597, 2.30845776, 2.42444764,
+        2.54123647, 2.67160239, 2.80743423, 2.94395277, 3.09176148,
+        3.24720257, 3.41043852, 3.57786533, 3.75780207, 3.94362851,
+        4.14023903, 4.34601214, 4.56200522, 4.78905638, 5.02749048,
+        5.27770753, 5.53978449, 5.81554546, 6.10468077, 6.40818066,
+        6.72679013, 7.06129558, 7.41233318, 7.78086536, 8.16764435,
+        8.57370814, 9.        ])[::-1]) 
+
+channel_taus = (channel_taus/channel_taus[0])*2
+                                                                                               
 
 taus_2D = [100000]  
 
@@ -143,7 +156,8 @@ verbose=True
 
 #%% First layer decay search
 
-Tau_T_first = np.arange(200,2200,200)
+# Tau_T_first = np.arange(200,2200,200)
+Tau_T_first = np.arange(200,20200,200)
 
 eucl_res= []
 euclnorm_res = []
@@ -153,7 +167,7 @@ for Tau_T in Tau_T_first:
     taus_T_coeff = np.array([Tau_T,1]) # Multiplicative coefficients to help to change quickly the taus_T  #1000
     taus_T = (taus_T_coeff*[channel_taus,np.ones(256)]).tolist()
     
-    network_parameters = [[features_number, local_surface_lengths, input_channels, taus_T, taus_2D, 
+    network_parameters = [[features_number, local_surface_lengths, cross_surface_width, input_channels, taus_T, taus_2D, 
                  threads, verbose],[n_batch_files, dataset_runs]]
     
     # Create the network
@@ -173,7 +187,7 @@ for Tau_T in Tau_T_first:
 #%% Save Layer results
 layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res, 'Taus_T' : Tau_T_first}
 
-with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features.pickle', 'wb') as handle:
+with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features_newatt_rule_longer_mult_longer_sweep.pickle', 'wb') as handle:
     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 # #%% Load Layer results
@@ -184,13 +198,13 @@ with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features.pickle', 'wb
 
 #%% Load Layer results
 
-with open('Results/Decay_search/Layer_1.pickle', 'rb') as handle:
+with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features.pickle', 'rb') as handle:
     layer_res_old = pickle.load(handle)
 
 #%% Comparison HOTS layer and Hack Layer
 plt.figure()
-plt.plot(layer_res_old['Taus_T'], layer_res_old['Norm_eucl_res'], label="First layer: 10f-2048b-10r")
-plt.plot(layer_res['Taus_T'], layer_res['Norm_eucl_res'], label="First layer: 20f-512b-20r")
+plt.plot(layer_res_old['Taus_T'], layer_res_old['Norm_eucl_res'], label="Att Original Approximation")
+plt.plot(layer_res['Taus_T'], layer_res['Norm_eucl_res'], label="Att New Approximation")
 plt.xlabel("Tau first layer (us)")
 plt.ylabel("Recognition rates")
 plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)

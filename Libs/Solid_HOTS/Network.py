@@ -61,7 +61,7 @@ class Solid_HOTS_Net:
     """
     def __init__(self, network_parameters):
         
-        [[features_number, local_surface_length,\
+        [[features_number, local_surface_length, cross_surface_width,\
         input_channels, taus_T, taus_2D, threads, verbose], [
         n_batch_files, dataset_runs]] = network_parameters
             
@@ -71,6 +71,7 @@ class Solid_HOTS_Net:
         self.taus_2D = taus_2D
         self.layers = len(features_number)
         self.local_surface_length = local_surface_length
+        self.cross_surface_width = cross_surface_width
         self.features_number = features_number
         self.polarities = []
         self.polarities.append(input_channels)
@@ -679,8 +680,8 @@ class Solid_HOTS_Net:
             # self.net_local_response.append(self.local_batch_infering_mod(layer_dataset, layer))
             
             self.cross_sublayer.append(MiniBatchKMeans(n_clusters=self.features_number[layer][1], verbose=self.verbose))
-            self.cross_batch_learning_conv(self.net_local_response, layer)
-            self.net_cross_response.append(self.cross_batch_infering_conv(self.net_local_response, layer))
+            self.conv_cross_batch_learning(self.net_local_response, layer)
+            self.net_cross_response.append(self.conv_cross_batch_infering(self.net_local_response, layer))
             
           
             
@@ -881,7 +882,7 @@ class Solid_HOTS_Net:
             self.net_local_response_test.append(self.local_batch_infering(layer_dataset_test, layer))
             # self.net_local_response_test.append(self.local_batch_infering_mod(layer_dataset_test, layer))
             
-            self.net_cross_response_test.append(self.cross_batch_infering_conv(self.net_local_response_test, layer))
+            self.net_cross_response_test.append(self.conv_cross_batch_infering(self.net_local_response_test, layer))
             
           
             
@@ -941,6 +942,8 @@ class Solid_HOTS_Net:
             print("learning time vectors took %s seconds." % (total_time))
             
         
+    
+        
     def cross_batch_learning(self, net_local_response, layer): 
         """
         Internal method to process and learn cross features batch_wise
@@ -950,6 +953,7 @@ class Solid_HOTS_Net:
         n_batches=int(np.ceil(n_files/self.n_batch_files)) # number of batches per run
         n_runs = self.dataset_runs # how many time a single dataset get cycled.
         total_batches  = n_batches*n_runs
+        cross_width = self.cross_surface_width[layer]
         
         #Set the verbose parameter for the parallel function.
         if self.verbose:
@@ -965,78 +969,39 @@ class Solid_HOTS_Net:
                 
                 data_subset = net_local_response[layer][i_batch_run*self.n_batch_files:(i_batch_run+1)*self.n_batch_files]
                 
-                # Generation of cross surfaces, computed on multiple threads
-                results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator)\
-                                    (data_subset[recording], self.polarities[layer],\
-                                    self.features_number[layer], self.taus_2D[layer])\
-                                    for recording in range(len(data_subset)))
-                    
-
-              
-                # results = []
-                # for recording in range(len(data_subset)):
-                #     results.append(cross_tv_generator(data_subset[recording], self.polarities[layer],\
-                #     self.features_number[layer], self.taus_2D[layer]))
-    
-    
-                # The final results of the local surfaces train dataset computation
-                batch_cross_tv = np.concatenate(results, axis=0)
-                self.cross_sublayer[layer].partial_fit(batch_cross_tv)
-                if self.verbose is True: 
-                    batch_time = time.time()-batch_start_time
-                    i_batch = i_batch_run + n_batches*run                    
-                    expected_t = batch_time*(total_batches-i_batch-1)
-                    total_time += (time.time() - batch_start_time)
-                    print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,total_batches,expected_t))         
-                    # batch_distances = self.cross_sublayer[layer].transform(batch_cross_tv)**2
-                    # batch_labels = self.cross_sublayer[layer].predict(batch_cross_tv)
-                    # inertia = np.mean(batch_distances[(np.arange(len(batch_labels)), batch_labels)])
-                    # print("Batch Inertia = %6f" % (inertia))
-                    batch_start_time = time.time()
-            
-
-        if self.verbose is True:    
-            print("learning time vectors took %s seconds." % (total_time))        
-    
-        
-    def conv_cross_batch_learning(self, net_local_response, layer): 
-        """
-        Internal method to process and learn cross features batch_wise
-        """
-        
-        n_files = len(net_local_response[layer])
-        n_batches=int(np.ceil(n_files/self.n_batch_files)) # number of batches per run
-        n_runs = self.dataset_runs # how many time a single dataset get cycled.
-        total_batches  = n_batches*n_runs
-        
-        #Set the verbose parameter for the parallel function.
-        if self.verbose:
-            par_verbose = 0
-            print('\n--- LAYER '+str(layer)+' CROSS TIME VECTORS LEARNING ---')
-            batch_start_time = time.time()
-            total_time = batch_start_time-batch_start_time
-        else:
-            par_verbose = 0
-            
-        for run in range(n_runs):        
-            for i_batch_run in range(n_batches):
                 
-                data_subset = net_local_response[layer][i_batch_run*self.n_batch_files:(i_batch_run+1)*self.n_batch_files]
+                if cross_width==-1:
                 
-                # Generation of cross surfaces, computed on multiple threads
-                results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator_conv)\
-                                    (data_subset[recording], self.polarities[layer],\
-                                    self.features_number[layer], self.cross_surface_width[layer],\
-                                    self.taus_2D[layer])\
-                                    for recording in range(len(data_subset)))
-                    
+                    # Generation of cross surfaces, computed on multiple threads
+                    results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator)\
+                                        (data_subset[recording], self.polarities[layer],\
+                                        self.features_number[layer],\
+                                        self.taus_2D[layer])\
+                                        for recording in range(len(data_subset)))
+                        
 
-              
-                # results = []
-                # for recording in range(len(data_subset)):
-                #     results.append(cross_tv_generator(data_subset[recording], self.polarities[layer],\
-                #     self.features_number[layer], self.taus_2D[layer]))
-    
+                  
+                    # results = []
+                    # for recording in range(len(data_subset)):
+                    #     results.append(cross_tv_generator(data_subset[recording], self.polarities[layer],\
+                    #     self.features_number[layer], self.taus_2D[layer]))
+                
+                else:
+                    
+                    # Generation of cross surfaces, computed on multiple threads
+                    results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator_conv)\
+                                        (data_subset[recording], self.polarities[layer],\
+                                        self.features_number[layer], cross_width,\
+                                        self.taus_2D[layer])\
+                                        for recording in range(len(data_subset)))
+                        
+        
+                  
+                    # results = []
+                    # for recording in range(len(data_subset)):
+                    #     results.append(cross_tv_generator(data_subset[recording], self.polarities[layer],\
+                    #     self.features_number[layer], self.taus_2D[layer]))
+
     
                 # The final results of the local surfaces train dataset computation
                 batch_cross_tv = np.concatenate(results, axis=0)
@@ -1142,6 +1107,7 @@ class Solid_HOTS_Net:
                         
         return local_response
     
+    
     def cross_batch_infering(self, net_local_response, layer):  
         """
         Internal method to generate the response of a cross features layer batch_wise
@@ -1149,7 +1115,7 @@ class Solid_HOTS_Net:
         
         n_files = len(net_local_response[layer])
         n_batches=int(np.ceil(n_files/self.n_batch_files))
-        
+        cross_width = self.cross_surface_width[layer]
         #Set the verbose parameter for the parallel function.
         if self.verbose:
             par_verbose = 0
@@ -1164,58 +1130,37 @@ class Solid_HOTS_Net:
             
             data_subset = net_local_response[layer][i_batch*self.n_batch_files:(i_batch+1)*self.n_batch_files]
             
-            # Generation of cross surfaces, computed on multiple threads
-            results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator)\
-                                (data_subset[recording], self.polarities[layer],\
-                                self.features_number[layer], self.taus_2D[layer])\
-                                for recording in range(len(data_subset)))  
+            if cross_width==-1:
             
-                
-            for i_result in range(len(results)):
-                batch_response=self.cross_sublayer[layer].predict(results[i_result])
-                cross_response.append([data_subset[i_result][0],batch_response])
+                # Generation of cross surfaces, computed on multiple threads
+                results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator)\
+                                    (data_subset[recording], self.polarities[layer],\
+                                    self.features_number[layer],\
+                                    self.taus_2D[layer])\
+                                    for recording in range(len(data_subset)))
+                    
 
-            if self.verbose is True: 
-                batch_time = time.time()-batch_start_time
-                expected_t = batch_time*(n_batches-i_batch-1)
-                total_time += (time.time() - batch_start_time)
-                print("Batch %i out of %i processed, %s seconds left " %(i_batch+1,n_batches,expected_t))               
-                batch_start_time = time.time()                
+              
+                # results = []
+                # for recording in range(len(data_subset)):
+                #     results.append(cross_tv_generator(data_subset[recording], self.polarities[layer],\
+                #     self.features_number[layer], self.taus_2D[layer]))
+            
+            else:
                 
-        if self.verbose is True:    
-            print("learning time vectors took %s seconds." % (total_time))                
-                        
-                        
-        return cross_response
+                # Generation of cross surfaces, computed on multiple threads
+                results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator_conv)\
+                                    (data_subset[recording], self.polarities[layer],\
+                                    self.features_number[layer], cross_width,\
+                                    self.taus_2D[layer])\
+                                    for recording in range(len(data_subset)))
+                    
     
-    def conv_cross_batch_infering(self, net_local_response, layer):  
-        """
-        Internal method to generate the response of a cross features layer batch_wise
-        """
-        
-        n_files = len(net_local_response[layer])
-        n_batches=int(np.ceil(n_files/self.n_batch_files))
-        
-        #Set the verbose parameter for the parallel function.
-        if self.verbose:
-            par_verbose = 0
-            print('\n--- LAYER '+str(layer)+' CROSS TIME VECTORS GENERATION ---')
-            batch_start_time = time.time()
-            total_time = batch_start_time-batch_start_time
-        else:
-            par_verbose = 0
-            
-        cross_response=[]    
-        for i_batch in range(n_batches):
-            
-            data_subset = net_local_response[layer][i_batch*self.n_batch_files:(i_batch+1)*self.n_batch_files]
-            
-            # Generation of cross surfaces, computed on multiple threads
-            results = Parallel(n_jobs=self.threads, verbose=par_verbose)(delayed(cross_tv_generator_conv)\
-                                (data_subset[recording], self.polarities[layer],\
-                                self.features_number[layer], self.cross_surface_width[layer],\
-                                self.taus_2D[layer])\
-                                for recording in range(len(data_subset)))  
+              
+                # results = []
+                # for recording in range(len(data_subset)):
+                #     results.append(cross_tv_generator(data_subset[recording], self.polarities[layer],\
+                #     self.features_number[layer], self.taus_2D[layer]))
             
                 
             for i_result in range(len(results)):

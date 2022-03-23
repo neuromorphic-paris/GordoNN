@@ -585,9 +585,9 @@ def cross_tv_generator_conv(recording_data, n_polarities, features_number, cross
                         recording.
                         
         n_polarities: (int) the number of channels/polarities of the dataset.
+        cross_size: (int) the lateral size of the cross time vector.
         tau_2D: (float) the single decay of the cross time vector layer.
-        context_length: (int) the length of the cross time vector 
-                              (the length of its context).  
+ 
     
     Returns:
         
@@ -600,7 +600,7 @@ def cross_tv_generator_conv(recording_data, n_polarities, features_number, cross
     
     # 2D timesurface dimension
     ydim,xdim = [n_polarities, features_number[0]]
-    cross_tvs_conv = np.zeros([len(recording_data[0]),cross_size], dtype="float16")
+    cross_tvs_conv = np.zeros([len(recording_data[0]),cross_size*xdim], dtype="float16")
     zerp_off =  cross_size//2#zeropad offset
     timestamps = np.zeros([ydim+zerp_off*2, xdim], dtype=int) # ydim + 2* zeropad
     
@@ -615,7 +615,7 @@ def cross_tv_generator_conv(recording_data, n_polarities, features_number, cross
         timestamps[polarity+zerp_off, feature] = recording_data[0][event_ind]
         # timesurf = np.exp(-(new_timestamp-timestamps)/tau_2D)*(timestamps!=0)   
         timesurf = np.exp(-(new_timestamp-timestamps)/tau_2D_new)*(timestamps!=0)   
-        timesurf = timesurf[(np.range(cross_size))+polarity]
+        timesurf = timesurf[(np.arange(cross_size))+polarity]
         cross_tvs_conv[event_ind,:] = (timesurf).flatten() 
 
 
