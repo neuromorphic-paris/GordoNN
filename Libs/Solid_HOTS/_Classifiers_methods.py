@@ -21,7 +21,7 @@ from ._General_Func import create_mlp, create_simple_mlp
 from ._General_Func import create_lstm
 from ._General_Func import create_CNN
 
-import pyNAVIS
+#import pyNAVIS
 
 # Method for training a mlp classification model 
 # =============================================================================      
