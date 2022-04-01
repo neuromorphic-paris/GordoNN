@@ -122,6 +122,9 @@ tmp = local.features
 
 # Predict the features
 local_response = local.predict(dataset_test)
+hists, norm_hist = local.gen_histograms(local_response)
+
+sign, norm_sign= local.gen_signatures(hists, norm_hist, classes, labels_test)
 
 #%% Network cross layer stack 
 
@@ -184,3 +187,5 @@ pool = Pool_Layer(n_input_channels=32, pool_factor=4)
 
 tmp=pool.pool(dataset_train)
 tmp=pool.pool(local_response)
+
+

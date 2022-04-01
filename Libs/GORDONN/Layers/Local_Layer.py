@@ -245,9 +245,39 @@ class Local_Layer:
             print("generating time vectors took %s seconds." % (total_time))
             
         return local_response
+    
+    def gen_histograms(self, local_response):
+        """
+        Function used to generate histograms of local layer response.
+        """
+        n_recordings = len(local_response)
+        hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
+        norm_hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
+        for recording_i,data in enumerate(local_response):
+            data = data[1:]
+            indx, occurences = np.unique(data, axis=1, return_counts=True)
+            indx = np.asarray(indx, dtype=(int))
+            hists[recording_i,indx[0],indx[1]] = occurences
+            norm_hists[recording_i,indx[0],indx[1]] = occurences/sum(occurences)
         
-    def tv_batch
-        
+        return hists, norm_hists
+    
+    def gen_signatures(self, histograms, norm_histograms, classes, labels):
+        """
+        Function used to generate signatures of local layer response.
+        Signatures are average histograms of recording for every class.
+        """
+        n_labels = len(classes)
+        signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+        norm_signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+        for class_i in range(n_labels):
+            indx = labels==class_i
+            signatures[class_i] = np.mean(histograms[indx], axis=0)
+            norm_signatures[class_i] = np.mean(norm_histograms[indx], axis=0)
+            
+        return signatures, norm_signatures
+            
+            
 def local_tv_generator(recording_data, n_polarities, taus, context_length):
     """
     Function used to generate local time vectors.
@@ -283,3 +313,4 @@ def local_tv_generator(recording_data, n_polarities, taus, context_length):
             local_tvs[ind] = new_local_tv
 
     return local_tvs        
+
