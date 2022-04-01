@@ -583,8 +583,8 @@ Net.plt_last_layer_activation(file=6, labels=labels_train, labels_test=labels_te
      
 #%% Reverse activation
 # Method to plot reverse activation of a sublayer output (output related to input)
-Net.plt_reverse_activation(file=1, layer=0, sublayer=0, labels=labels_train, 
-                           labels_test=labels_test, classes=classes, test=True)
+Net.plt_reverse_activation(file=0, layer=0, sublayer=0, labels=labels_train, 
+                           labels_test=labels_test, classes=classes, test=False)
 
 #%% Print Histogram 
 file = 6
