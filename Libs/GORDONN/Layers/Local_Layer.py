@@ -246,7 +246,7 @@ class Local_Layer:
             
         return local_response
         
-        
+    def tv_batch
         
 def local_tv_generator(recording_data, n_polarities, taus, context_length):
     """

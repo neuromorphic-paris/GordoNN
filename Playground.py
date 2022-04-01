@@ -29,6 +29,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 from Libs.Solid_HOTS._General_Func import create_mlp
 from joblib import Parallel, delayed 
 from sklearn import svm
+import pandas as pd
 
 
 # To use CPU for training
@@ -180,6 +181,8 @@ classes=['stop', 'left', 'no', 'go', 'yes', 'down', 'right', 'up']
 #                         available cos the learning is offline)
 # =============================================================================
 
+df = pd.read_csv (r'whitenoise.csv')
+mean_rate =np.asarray(df.columns[:], dtype=float)
 
 # features_number=[[6,96]] 
 # features_number=[[6,256]] 
@@ -208,15 +211,20 @@ input_channels = 32 + 32*use_all_addr
 #Linear interpolation between highest spike frequency 90ks/s to lowest 20ks/s, used to balance the filters
 # channel_taus = np.linspace(2,9,32)
 
-#NEW LOGISTIC INTERPOLATION         
-channel_taus=1/np.array([2.        , 2.09818492, 2.19739597, 2.30845776, 2.42444764,
-       2.54123647, 2.67160239, 2.80743423, 2.94395277, 3.09176148,
-       3.24720257, 3.41043852, 3.57786533, 3.75780207, 3.94362851,
-       4.14023903, 4.34601214, 4.56200522, 4.78905638, 5.02749048,
-       5.27770753, 5.53978449, 5.81554546, 6.10468077, 6.40818066,
-       6.72679013, 7.06129558, 7.41233318, 7.78086536, 8.16764435,
-       8.57370814, 9.        ])   
-                                                  
+# #NEW LOGISTIC INTERPOLATION         
+# channel_taus=1/np.array([2.        , 2.09818492, 2.19739597, 2.30845776, 2.42444764,
+#        2.54123647, 2.67160239, 2.80743423, 2.94395277, 3.09176148,
+#        3.24720257, 3.41043852, 3.57786533, 3.75780207, 3.94362851,
+#        4.14023903, 4.34601214, 4.56200522, 4.78905638, 5.02749048,
+#        5.27770753, 5.53978449, 5.81554546, 6.10468077, 6.40818066,
+#        6.72679013, 7.06129558, 7.41233318, 7.78086536, 8.16764435,
+#        8.57370814, 9.        ])   
+                              
+#ACTUAL COCHLEA
+channel_taus = 1/mean_rate
+
+channel_taus = (channel_taus/channel_taus[0])*2
+                    
 # taus_T_coeff = np.array([1000,1,1,1,1]) # Multiplicative coefficients to help to change quickly the taus_T  #1000
 # taus_T = (taus_T_coeff*[channel_taus,np.ones(32),np.ones(64),np.ones(64),np.ones(96)]).tolist()
 # taus_2D = [10000,20000,40000,80000,100000]  
@@ -575,7 +583,7 @@ Net.plt_last_layer_activation(file=6, labels=labels_train, labels_test=labels_te
      
 #%% Reverse activation
 # Method to plot reverse activation of a sublayer output (output related to input)
-Net.plt_reverse_activation(file=5, layer=0, sublayer=0, labels=labels_train, 
+Net.plt_reverse_activation(file=1, layer=0, sublayer=0, labels=labels_train, 
                            labels_test=labels_test, classes=classes, test=True)
 
 #%% Print Histogram 
@@ -586,15 +594,15 @@ plt.hist(file_response[1],bins=Net.features_number[0][1])
 
 #%% Plot T centers
 plt.figure()
-plt.plot(np.transpose(Net.local_sublayer[1].cluster_centers_))
+plt.plot(np.transpose(Net.local_sublayer[0].cluster_centers_))
 
 
 #%% Plot 2D centers
-center_no = 3
+center_no = 6
 plt.figure()
 plt.title("Center  nunber: "+ str(center_no))
-plt.imshow(Net.cross_sublayer[0].cluster_centers_[center_no].reshape([32,6]))
-plt.imshow(Net.cross_sublayer[1].cluster_centers_[center_no].reshape([8,12]))
+plt.imshow(Net.cross_sublayer[0].cluster_centers_[center_no].reshape([32,20]))
+# plt.imshow(Net.cross_sublayer[1].cluster_centers_[center_no].reshape([8,12]))
 
 
 #%% t-SNE to look at the quality of the clustering.

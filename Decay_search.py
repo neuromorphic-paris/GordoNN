@@ -27,6 +27,7 @@ import seaborn as sns
 import os, gc, pickle
 from tensorflow.keras.callbacks import EarlyStopping
 from Libs.Solid_HOTS._General_Func import create_mlp
+import pandas as pd
 
 
 # To use CPU for training
@@ -111,6 +112,9 @@ classes=['stop', 'left', 'no', 'go', 'yes', 'down', 'right', 'up']
 #                         available cos the learning is offline)
 # =============================================================================
 
+df = pd.read_csv (r'whitenoise.csv')
+mean_rate =np.asarray(df.columns[:], dtype=float)
+# mean_rate = 2*mean_rate/mean_rate[-1]
 
 features_number=[[20,256]] 
 
@@ -127,13 +131,15 @@ input_channels = 32 + 32*use_all_addr
 # channel_taus = np.linspace(2,9,32)
 
 #NEW LOGISTIC INTERPOLATION         
-channel_taus=1/(np.array([2.        , 2.09818492, 2.19739597, 2.30845776, 2.42444764,
-        2.54123647, 2.67160239, 2.80743423, 2.94395277, 3.09176148,
-        3.24720257, 3.41043852, 3.57786533, 3.75780207, 3.94362851,
-        4.14023903, 4.34601214, 4.56200522, 4.78905638, 5.02749048,
-        5.27770753, 5.53978449, 5.81554546, 6.10468077, 6.40818066,
-        6.72679013, 7.06129558, 7.41233318, 7.78086536, 8.16764435,
-        8.57370814, 9.        ])[::-1]) 
+# channel_taus=1/(np.array([2.        , 2.09818492, 2.19739597, 2.30845776, 2.42444764,
+#         2.54123647, 2.67160239, 2.80743423, 2.94395277, 3.09176148,
+#         3.24720257, 3.41043852, 3.57786533, 3.75780207, 3.94362851,
+#         4.14023903, 4.34601214, 4.56200522, 4.78905638, 5.02749048,
+#         5.27770753, 5.53978449, 5.81554546, 6.10468077, 6.40818066,
+#         6.72679013, 7.06129558, 7.41233318, 7.78086536, 8.16764435,
+#         8.57370814, 9.        ])[::-1]) 
+
+channel_taus = 1/mean_rate
 
 channel_taus = (channel_taus/channel_taus[0])*2
                                                                                                
@@ -156,8 +162,8 @@ verbose=True
 
 #%% First layer decay search
 
-# Tau_T_first = np.arange(200,2200,200)
-Tau_T_first = np.arange(200,20200,200)
+Tau_T_first = np.arange(200,2200,200)
+# Tau_T_first = np.arange(200,20200,200)
 
 eucl_res= []
 euclnorm_res = []
@@ -187,7 +193,7 @@ for Tau_T in Tau_T_first:
 #%% Save Layer results
 layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res, 'Taus_T' : Tau_T_first}
 
-with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features_newatt_rule_longer_mult_longer_sweep.pickle', 'wb') as handle:
+with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features_actual_att.pickle', 'wb') as handle:
     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 # #%% Load Layer results

@@ -49,9 +49,9 @@ from Libs.Solid_HOTS.Network import Solid_HOTS_Net
 # now disabled
 # os.environ['MKL_NUM_THREADS'] = '1'
 
-from Libs.GORDONN.Local_Layer import Local_Layer
-from Libs.GORDONN.Cross_Layer import Cross_Layer
-from Libs.GORDONN.Pool_Layer import Pool_Layer
+from Libs.GORDONN.Layers.Local_Layer import Local_Layer
+from Libs.GORDONN.Layers.Cross_Layer import Cross_Layer
+from Libs.GORDONN.Layers.Pool_Layer import Pool_Layer
 
 # Plotting settings
 sns.set(style="white")
@@ -183,4 +183,4 @@ cross.learn(cross_response)
 pool = Pool_Layer(n_input_channels=32, pool_factor=4)
 
 tmp=pool.pool(dataset_train)
-tmp=pool.pool(cross_response)
+tmp=pool.pool(local_response)

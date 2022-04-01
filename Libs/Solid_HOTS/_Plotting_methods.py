@@ -177,23 +177,23 @@ def plt_reverse_activation(self, file, layer, sublayer, labels, labels_test,
     # Get the data
     if test:
         original_data = self.layer_dataset_test[0]
-        first_sublayer = self.net_0D_response_test[0]
+        first_sublayer = self.net_local_response_test[0]
         file_class = classes[labels_test[file]]
         if sublayer :
-            sublayer_data = self.net_2D_response_test[layer] 
+            sublayer_data = self.net_cross_response_test[layer] 
             which_sublayer="2D"
         else:
-            sublayer_data = self.net_0D_response_test[layer]
+            sublayer_data = self.net_local_response_test[layer]
             which_sublayer="0T"
     else:
         original_data=self.layer_dataset[0]
-        first_sublayer = self.net_0D_response[0]        
+        first_sublayer = self.net_local_response[0]        
         file_class = classes[labels[file]]
         if sublayer :
-            sublayer_data = self.net_2D_response[layer]
+            sublayer_data = self.net_cross_response[layer]
             which_sublayer="2D"
         else:
-            sublayer_data = self.net_0D_response[layer]
+            sublayer_data = self.net_local_response[layer]
             which_sublayer="0T"
 
 
@@ -205,15 +205,14 @@ def plt_reverse_activation(self, file, layer, sublayer, labels, labels_test,
     plt.scatter(original_data[file][0], original_data[file][1], s=1)
     xlims = plt.xlim()
     ylims = plt.ylim()
-    [ind, lcs] = local_tv_generator(file, original_data,
-                                        self.polarities[0], self.taus_T[0],
-                                        self.local_surface_length[0], False,
-                                        self.activity_th, self.spacing_local_T[0])
+    lcs = local_tv_generator(original_data[file], self.polarities[0],\
+                                    self.taus_T[0],\
+                                    self.local_surface_length[0])
     # Plot heatmap
     plt.figure()
     plt.suptitle('Heatmap file: '+ str(file) +' Class: '+ file_class, fontsize=16)
-    image=plt.scatter(original_data[file][0][ind],original_data[file][1][ind],
-                      c=np.sum(lcs,1)*(np.sum(lcs,1)>self.activity_th), s=0.1)
+    image=plt.scatter(original_data[file][0],original_data[file][1],
+                      c=np.sum(lcs,1), s=0.1)
     plt.xlim(xlims)
     plt.ylim(ylims)
     plt.colorbar(image) 
