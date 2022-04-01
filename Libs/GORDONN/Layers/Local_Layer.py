@@ -10,6 +10,7 @@ import numpy as np
 import time
 from joblib import Parallel, delayed 
 from sklearn.cluster import  MiniBatchKMeans
+import matplotlib.pyplot as plt
 
 class Local_Layer:
     """
@@ -277,7 +278,59 @@ class Local_Layer:
             
         return signatures, norm_signatures
             
-            
+    def response_plot(self, local_response, f_index, class_name = None):
+        """
+        Function used to generate plots of local layer response.
+        It Plots the input data first, a heatmap of the sum(local tv)
+        to show amplitude information
+        And finally the scatter plot of events colored by feature index.
+        """
+        # Build the vector of individual taus
+        if type(self.taus) is np.ndarray or type(self.taus) is list :
+            taus = np.array(self.taus)
+        else:
+            taus = self.taus*np.ones(self.n_input_channels)
+        
+        timestamps = local_response[f_index][0]
+        channels =  local_response[f_index][1]
+        features = local_response[f_index][2]
+        
+        # First print the original recording
+        plt.figure()
+        plt.suptitle('Original file: '+ str(f_index) +' Class: '+ str(class_name), fontsize=16)
+        plt.scatter(timestamps, channels, s=1)
+        xlims = plt.xlim()
+        ylims = plt.ylim()
+        lcs = local_tv_generator(local_response[f_index],\
+                                 self.n_input_channels,\
+                                 taus,\
+                                 self.local_tv_length)
+        # Plot heatmap
+        plt.figure()
+        plt.suptitle('Heatmap file: '+ str(f_index) +' Class: '+ str(class_name), fontsize=16)
+        image=plt.scatter(timestamps, channels,
+                          c=np.sum(lcs,1), s=0.1)
+        plt.xlim(xlims)
+        plt.ylim(ylims)
+        plt.colorbar(image)     
+        
+        plt.figure()
+        for i_feature in range(self.n_features):
+            # Extract events by feature
+            indx = features==i_feature
+
+            image = plt.scatter(timestamps[indx], channels[indx],\
+                                label='Feature '+str(i_feature))
+                
+                
+    def features_plot(self):
+        """
+        Function used to generate a plot of the local layer features.
+        """
+        
+        plt.figure()
+        plt.plot(np.transpose(self.features))
+        
 def local_tv_generator(recording_data, n_polarities, taus, context_length):
     """
     Function used to generate local time vectors.

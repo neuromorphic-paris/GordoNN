@@ -29,6 +29,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 from Libs.Solid_HOTS._General_Func import create_mlp
 from joblib import Parallel, delayed 
 from sklearn import svm
+import pandas as pd
 
 
 # To use CPU for training
@@ -52,6 +53,7 @@ from Libs.Solid_HOTS.Network import Solid_HOTS_Net
 from Libs.GORDONN.Layers.Local_Layer import Local_Layer
 from Libs.GORDONN.Layers.Cross_Layer import Cross_Layer
 from Libs.GORDONN.Layers.Pool_Layer import Pool_Layer
+from Libs.GORDONN.Network import GORDONN
 
 # Plotting settings
 sns.set(style="white")
@@ -74,8 +76,8 @@ shuffle_seed = 25 # seed used for dataset shuffling if set to 0 the process will
 # =============================================================================
 
 
-# number_files_dataset = 1000
-number_files_dataset = 10
+number_files_dataset = 1000
+# number_files_dataset = 10
 
 train_test_ratio = 0.80
 
@@ -125,6 +127,45 @@ local_response = local.predict(dataset_test)
 hists, norm_hist = local.gen_histograms(local_response)
 
 sign, norm_sign= local.gen_signatures(hists, norm_hist, classes, labels_test)
+
+file_i = 0
+local.response_plot(local_response, f_index=file_i, class_name=classes[labels_test[file_i]])
+
+
+#%% Network local layer
+
+input_channels = 32 + 32*use_all_addr
+
+df = pd.read_csv (r'whitenoise.csv')
+mean_rate = np.asarray(df.columns[:], dtype=float)
+channel_taus = 1/mean_rate
+
+channel_taus = channel_taus/channel_taus[0]
+
+tau_K = 5000
+
+taus = tau_K*channel_taus
+
+# Create the network
+local = Local_Layer(n_features=20, local_tv_length=10, 
+                    n_input_channels=input_channels, taus=taus, 
+                    n_batch_files=None, dataset_runs=1, n_threads=22,
+                    verbose=True)
+
+    
+# Learn the features
+local.learn(dataset_train)
+tmp = local.features
+
+# Predict the features
+local_response = local.predict(dataset_test)
+hists, norm_hist = local.gen_histograms(local_response)
+
+sign, norm_sign= local.gen_signatures(hists, norm_hist, classes, labels_test)
+
+file_i = 0
+local.response_plot(local_response, f_index=file_i, class_name=classes[labels_test[file_i]])
+local.features_plot()
 
 #%% Network cross layer stack 
 
@@ -188,4 +229,35 @@ pool = Pool_Layer(n_input_channels=32, pool_factor=4)
 tmp=pool.pool(dataset_train)
 tmp=pool.pool(local_response)
 
+#%% Network test
 
+input_channels = 32 + 32*use_all_addr
+
+df = pd.read_csv (r'whitenoise.csv')
+mean_rate = np.asarray(df.columns[:], dtype=float)
+channel_taus = 1/mean_rate
+
+channel_taus = channel_taus/channel_taus[0]
+
+tau_K = 5000
+
+taus = tau_K*channel_taus
+
+n_features=20
+local_tv_length=10
+n_input_channels=input_channels
+n_batch_files=None
+dataset_runs=1
+
+layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
+                    n_batch_files, dataset_runs]
+                
+Net = GORDONN(n_threads=24, verbose=True)
+Net.add_layer("Local", layer_parameters)
+Net.learn(dataset_train,labels_train,classes)
+Net.predict(dataset_test, labels_train, labels_test, classes)
+
+print("Histogram accuracy: "+str(Net.layers[0].hist_accuracy))
+print("Norm Histogram accuracy: "+str(Net.layers[0].norm_hist_accuracy))
+print("SVC Histogram accuracy: "+str(Net.layers[0].svm_hist_accuracy))
+print("SVC norm Histogram accuracy: "+str(Net.layers[0].svm_norm_hist_accuracy))
