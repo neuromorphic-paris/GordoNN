@@ -118,8 +118,8 @@ mean_rate =np.asarray(df.columns[:], dtype=float)
 
 features_number=[[20,256]] 
 
-# local_surface_lengths = [10,1]
-local_surface_lengths = [50,1]
+local_surface_lengths = [10,1]
+# local_surface_lengths = [50,1]
 cross_surface_width = [-1,1]
 
 
@@ -141,7 +141,7 @@ input_channels = 32 + 32*use_all_addr
 
 channel_taus = 1/mean_rate
 
-channel_taus = (channel_taus/channel_taus[0])*2
+channel_taus = (channel_taus/channel_taus[0])*1
                                                                                                
 
 taus_2D = [100000]  
@@ -162,8 +162,10 @@ verbose=True
 
 #%% First layer decay search
 
-Tau_T_first = np.arange(200,2200,200)
-# Tau_T_first = np.arange(200,20200,200)
+# Tau_T_first = np.arange(200,2200,200)
+# Tau_T_first = np.arange(200,10200,200)
+Tau_T_first = np.power(10,np.arange(0.1,4,0.3))
+
 
 eucl_res= []
 euclnorm_res = []
@@ -193,7 +195,7 @@ for Tau_T in Tau_T_first:
 #%% Save Layer results
 layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res, 'Taus_T' : Tau_T_first}
 
-with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features_actual_att.pickle', 'wb') as handle:
+with open('Results/Decay_search/LOG_SCALE_Layer_1_512_batch_20runs_20Features_actual_att.pickle', 'wb') as handle:
     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 # #%% Load Layer results
@@ -201,6 +203,16 @@ with open('Results/Decay_search/Layer_1_512_batch_20runs_20Features_actual_att.p
 # with open('Results/Decay_search/Layer_1.pickle', 'rb') as handle:
 #     layer_res = pickle.load(handle)
 # 
+
+#%% Plot results
+plt.figure()
+plt.plot(layer_res['Taus_T'], layer_res['Eucl_res'], label="Eucl")
+plt.plot(layer_res['Taus_T'], layer_res['Norm_eucl_res'], label="Norm Eucl")
+plt.xlabel("Tau first layer (us)")
+plt.ylabel("Recognition rates")
+plt.title("Parameter search for 2 layers Audio HOTS")
+plt.legend()
+
 
 #%% Load Layer results
 
