@@ -283,7 +283,7 @@ ax3.set_ylim(ax3.get_ylim()[::-1])
 #%% 200ms Time Vectors (not compensated) CHECK HERE
 #Create Time Vectors
 tv_decay=200#ms
-tv_l = 100# Length of the timevector
+tv_l = 190# Length of the timevector
 fig, (axs) = plt.subplots(2, 2)
 
 #Downsampled tv calculation for plotting
@@ -352,7 +352,7 @@ axs[0,1].set_ylim(axs[0,1].get_ylim()[::-1])
 tv_decay=200#ms
 tv_decays=tv_decay/new_mag_model#inverted magnitude model
 
-tv_l = 100# Length of the timevector
+tv_l = 190# Length of the timevector
 
 #Downsampled tv calculation for plotting
 for channel in range(n_freq):

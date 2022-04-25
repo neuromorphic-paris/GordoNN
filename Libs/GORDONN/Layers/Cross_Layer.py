@@ -10,6 +10,8 @@ import numpy as np
 import time
 from joblib import Parallel, delayed 
 from sklearn.cluster import  MiniBatchKMeans
+import matplotlib.pyplot as plt
+
 
 class Cross_Layer:
     """
@@ -385,6 +387,81 @@ def cross_tv_generator(recording_data, n_polarities, features_number, taus):
 
     return cross_tvs
 
+    def gen_histograms(self, cross_response):
+        """
+        Function used to generate histograms of cross layer response.
+        """
+        n_recordings = len(cross_response)
+        hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
+        norm_hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
+        for recording_i,data in enumerate(cross_response):
+            data = data[1:]
+            indx, occurences = np.unique(data, axis=1, return_counts=True)
+            indx = np.asarray(indx, dtype=(int))
+            hists[recording_i,indx[0],indx[1]] = occurences
+            norm_hists[recording_i,indx[0],indx[1]] = occurences/sum(occurences)
+        
+        return hists, norm_hists
+    
+    def gen_signatures(self, histograms, norm_histograms, classes, labels):
+        """
+        Function used to generate signatures of cross layer response.
+        Signatures are average histograms of recording for every class.
+        """
+        n_labels = len(classes)
+        signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+        norm_signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+        for class_i in range(n_labels):
+            indx = labels==class_i
+            signatures[class_i] = np.mean(histograms[indx], axis=0)
+            norm_signatures[class_i] = np.mean(norm_histograms[indx], axis=0)
+            
+        return signatures, norm_signatures
+    
+    #TODO adapt these methods to cross responses        
+    def response_plot(self, local_response, f_index, class_name = None):
+        """
+        Function used to generate plots of local layer response.
+        It Plots the input data first, a heatmap of the sum(local tv)
+        to show amplitude information
+        And finally the scatter plot of events colored by feature index.
+        """
+        # Build the vector of individual taus
+        if type(self.taus) is np.ndarray or type(self.taus) is list :
+            taus = np.array(self.taus)
+        else:
+            taus = self.taus*np.ones(self.n_input_channels)
+        
+        timestamps = local_response[f_index][0]
+        channels =  local_response[f_index][1]
+        features = local_response[f_index][2]
+        
+        # First print the original recording
+        plt.figure()
+        plt.suptitle('Original file: '+ str(f_index) +' Class: '+ str(class_name), fontsize=16)
+        plt.scatter(timestamps, channels, s=1)
+        xlims = plt.xlim()
+        ylims = plt.ylim()
+        ccs = cross_tv_generator(local_response[f_index],\
+                                 self.n_input_channels,\
+                                 taus,\
+                                 self.local_tv_length)
+        # Plot heatmap
+        plt.figure()
+        plt.suptitle('Heatmap file: '+ str(f_index) +' Class: '+ str(class_name), fontsize=16)
+        image=plt.scatter(timestamps, channels,
+                          c=np.sum(lcs,1), s=0.1)
+        plt.xlim(xlims)
+        plt.ylim(ylims)
+        plt.colorbar(image)     
+        
+        plt.figure()
+        for i_feature in range(self.n_features):
+            # Extract events by feature
+            indx = features==i_feature
+
+            image = plt.scatter(timestamps[indx], channels[indx],\
+                                label='Feature '+str(i_feature))
 def cross_tv_generator_conv(recording_data, n_polarities, features_number, 
                             cross_width, taus):
     """

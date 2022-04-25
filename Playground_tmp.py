@@ -76,8 +76,8 @@ shuffle_seed = 25 # seed used for dataset shuffling if set to 0 the process will
 # =============================================================================
 
 
-number_files_dataset = 1000
-# number_files_dataset = 10
+# number_files_dataset = 1000
+number_files_dataset = 10
 
 train_test_ratio = 0.80
 
@@ -181,6 +181,15 @@ cross = Cross_Layer(n_features=20, cross_tv_width=32,
 cross.learn(local_response)
 tmp = cross.features
 
+
+# Predict the features
+cross_response = cross.predict(local_response)
+hists, norm_hist = cross.gen_histograms(cross_response)
+
+sign, norm_sign= cross.gen_signatures(hists, norm_hist, classes, labels_test)
+
+file_i = 0
+local.response_plot(local_response, f_index=file_i, class_name=classes[labels_test[file_i]])
 
 
 

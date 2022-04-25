@@ -14,25 +14,26 @@ import struct
 import math
 import gc
 
-# A simple function that reads events from AERDATA file
-# =============================================================================
-#    Args:
-#        path(string): file name and its path
-#        use_all_addr : if False all off events will be dropped, and the total
-#                       addresses number will correspond to the number of
-#                       channel of the cochlea
-#    
-#    Returns:
-#        AERDATA_file: Object containing events extracted from the file
-# =============================================================================
 
-def AERDATA_load(path, use_all_addr = False):
+def AERDATA_load(path, address_size=2, use_all_addr = False):
+
+    unpack_param = ">H"
+    timestep = 0.2
+    
+    if address_size == 2:
+        unpack_param = ">H"
+        timestep = 0.2
+    elif address_size == 4:
+        unpack_param = ">L"
+        timestep = 1.0
+    else:
+        print("[loadAEDAT] > SettingsError: Only address sizes implemented are 2 and 4 bytes")
 
     with open(path, 'rb') as f:
         ## Check header ##
         p = 0
         lt = f.readline()
-        while lt and lt[0] == "#":
+        while lt and lt[0] == ord("#"):
             p += len(lt)
             lt = f.readline()
         f.seek(p)
@@ -40,39 +41,43 @@ def AERDATA_load(path, use_all_addr = False):
         f.seek(0, 2)
         eof = f.tell()
 
-        num_events = math.floor((eof-p)/(2 + 4))
+        num_events = math.floor((eof-p)/(address_size + 4))
 
         f.seek(p)
 
-        addresses = [0] * int(num_events)
+        events = [0] * int(num_events)
         timestamps = [0] * int(num_events)
+
         ## Read file ##
         i = 0
         try:
             while 1:
-                buff = f.read(2)      
-                x = struct.unpack(">H", buff)[0]
-
-                addresses[i] = int(x)
+                buff = f.read(address_size)
+                x = struct.unpack(unpack_param, buff)[0]
+                events[i] = int(x)
 
                 buff = f.read(4)
                 x = struct.unpack('>L', buff)[0]
-                timestamps[i] = int(x * 0.2)
+                timestamps[i] = int(x * timestep)
+
+
                 # If I read an event from the off address and use_all_addr is off
                 # I stop the counter from advancing, the result will be evntually
                 # overwritten or discarded in the last check before returning.
-                if use_all_addr is False and addresses[i] % 2 != 0:
+                if use_all_addr is False and events[i] % 2 != 0:
                     continue
                 if use_all_addr is False:
-                    addresses[i]=addresses[i]//2
+                    events[i]=events[i]//2
                 i += 1
             f.close()
             gc.collect()
         except Exception as inst:
-            #print(inst)
             f.close()
             gc.collect()
             pass
-        result_addresses=addresses[:i]
-        result_timestamps=timestamps[:i]
-    return result_addresses, result_timestamps
+
+        results_events = events[:i]
+        results_timestamps = timestamps[:i]
+    
+    return results_events, results_timestamps
+
