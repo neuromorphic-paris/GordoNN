@@ -70,7 +70,7 @@ axs[0].scatter((data[1]-beg_recording)*1e-6, data[0], s=0.2)
 axs[0].set_title("NOISE Test raw scatter-plot")
 # axs[0].set_xlabel("Seconds")
 axs[0].set_ylabel("Channel Index")
-plt.xlabel("Seconds")
+plt.xlabel("Time (seconds)")
 
 #Change the dataset to channel centric representation
 timestamps = []

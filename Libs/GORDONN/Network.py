@@ -44,6 +44,16 @@ class GORDONN:
                 
         elif layer_type=="Cross":
             self.architecture.append(layer_type)
+            
+            [n_features, cross_tv_width, 
+                                n_input_channels, taus, 
+                                n_input_features, n_batch_files,
+                                dataset_runs] = layer_parameters
+                
+            self.layers.append(Cross_Layer(n_features, cross_tv_width,\
+                                           n_input_channels, taus, n_input_features,\
+                                           n_batch_files, dataset_runs, 
+                                           self.n_threads, self.verbose))
         elif layer_type=="Pool":
             self.architecture.append(layer_type)
         else:

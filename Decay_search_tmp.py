@@ -108,11 +108,11 @@ dataset_runs=1
 
 
 #Original
-channel_taus = np.linspace(2,9,32)
-channel_taus = channel_taus/channel_taus[0]
+# channel_taus = np.linspace(2,9,32)
+# channel_taus = channel_taus/channel_taus[0]
 
 #No Att
-channel_taus = 1
+# channel_taus = 1
 
 
 #%% First layer decay search
@@ -148,9 +148,9 @@ for Tau_T in Tau_T_first:
     svc_euclnorm_res.append(Net.layers[0].svm_norm_hist_accuracy)
 
 #%% Save Layer results
-layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
-             'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
-             'Taus_T' : Tau_T_first}
+# layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
+#              'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
+#              'Taus_T' : Tau_T_first}
 
 # with open('Results/Decay_search_tmp/no_att.pickle', 'wb') as handle:
 #     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -205,3 +205,73 @@ plt.ylabel("Recognition rates")
 plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
 plt.title("Parameter search SVM normalized classifier")
 plt.legend()
+
+#%% Second layer decay search
+
+Tau_T=125
+taus = (Tau_T*channel_taus)
+
+local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
+                    n_batch_files, dataset_runs]
+
+Net = GORDONN(n_threads=24, verbose=True)
+Net.add_layer("Local", local_layer_parameters)
+Net.learn(dataset_train,labels_train,classes)
+Net.predict(dataset_test, labels_train, labels_test, classes)
+
+#Second layer parameters
+n_input_features=n_features 
+n_input_channels=input_channels
+n_features=64
+cross_tv_width=6 
+taus=50e3
+n_batch_files=None
+dataset_runs=1
+
+
+cross_layer_parameters = [n_features, cross_tv_width, 
+                    n_input_channels, taus, 
+                    n_input_features, n_batch_files,
+                    dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+Tau_C_first = np.power(10,np.arange(0.1,4,0.3))*2
+
+
+eucl_res= []
+euclnorm_res = []
+svc_eucl_res=[]
+svc_euclnorm_res = []
+
+
+for Tau_C in Tau_C_first:
+    
+    Net.layers[1].taus=Tau_C
+    Net.learn(dataset_train,labels_train,classes, rerun_layer=1)
+    Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=1)
+    
+    print("Histogram accuracy: "+str(Net.layers[1].hist_accuracy))
+    print("Norm Histogram accuracy: "+str(Net.layers[1].norm_hist_accuracy))
+    print("SVC Histogram accuracy: "+str(Net.layers[1].svm_hist_accuracy))
+    print("SVC norm Histogram accuracy: "+str(Net.layers[1].svm_norm_hist_accuracy))
+
+
+    eucl_res.append(Net.layers[1].hist_accuracy)
+    euclnorm_res.append(Net.layers[1].norm_hist_accuracy)
+    svc_eucl_res.append(Net.layers[1].svm_hist_accuracy)
+    svc_euclnorm_res.append(Net.layers[1].svm_norm_hist_accuracy)
+
+#%% Save Layer results
+layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
+              'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
+              'Taus_T' : Tau_T_first}
+
+with open('Results/Decay_search_tmp/Lay_2.pickle', 'wb') as handle:
+    pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+# #%% Load Layer results
+# filename = "no_att"
+# with open('Results/Decay_search_tmp/'+str(filename)+'.pickle', 'rb') as handle:
+#     layer_res = pickle.load(handle)
+

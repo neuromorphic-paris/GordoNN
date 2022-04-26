@@ -216,10 +216,10 @@ def data_load(dataset_folder, number_files_dataset,  train_test_ratio,
     dataset_test = []
     
     for train_file in range(len(filenames_train)):
-        addresses, timestamps = AERDATA_load(filenames_train[train_file], use_all_addr)
+        addresses, timestamps = AERDATA_load(path=filenames_train[train_file], use_all_addr=use_all_addr)
         dataset_train.append([np.array(timestamps)[::spacing], np.array(addresses)[::spacing]])
     for test_file in range(len(filenames_test)):
-        addresses, timestamps = AERDATA_load(filenames_test[test_file], use_all_addr)
+        addresses, timestamps = AERDATA_load(path=filenames_test[test_file], use_all_addr=use_all_addr)
         dataset_test.append([np.array(timestamps)[::spacing], np.array(addresses)[::spacing]])
     
     

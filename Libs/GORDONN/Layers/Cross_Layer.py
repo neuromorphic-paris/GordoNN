@@ -153,21 +153,21 @@ class Cross_Layer:
                 # check if it is a convolutional layer.
                 if conv:
                     
-                    #Generation of cross surfaces, computed on multiple threads
-                    # results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
-                    #                     (delayed(cross_tv_generator_conv)\
-                    #                     (data_subset[recording], 
-                    #                       self.n_input_channels,\
-                    #                       n_input_features, cross_width,\
-                    #                       self.taus)\
-                    #                   for recording in range(len(data_subset)))
-                    results=[]
-                    for recording in range(len(data_subset)):
-                        result = cross_tv_generator_conv(data_subset[recording],\
-                                  self.n_input_channels,\
-                                  n_input_features, cross_width,\
-                                  self.taus)
-                        results.append(result)
+                    # Generation of cross surfaces, computed on multiple threads
+                    results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
+                                        (delayed(cross_tv_generator_conv)\
+                                        (data_subset[recording], 
+                                          self.n_input_channels,\
+                                          n_input_features, cross_width,\
+                                          self.taus)\
+                                      for recording in range(len(data_subset)))
+                    # results=[]
+                    # for recording in range(len(data_subset)):
+                    #     result = cross_tv_generator_conv(data_subset[recording],\
+                    #               self.n_input_channels,\
+                    #               n_input_features, cross_width,\
+                    #               self.taus)
+                    #     results.append(result)
                 
                 else:
                                   
@@ -334,7 +334,36 @@ class Cross_Layer:
             
         return cross_response 
         
+    def gen_histograms(self, cross_response):
+        """
+        Function used to generate histograms of cross layer response.
+        """
+        n_recordings = len(cross_response)
+        hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
+        norm_hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
+        for recording_i,data in enumerate(cross_response):
+            data = data[1:]
+            indx, occurences = np.unique(data, axis=1, return_counts=True)
+            indx = np.asarray(indx, dtype=(int))
+            hists[recording_i,indx[0],indx[1]] = occurences
+            norm_hists[recording_i,indx[0],indx[1]] = occurences/sum(occurences)
         
+        return hists, norm_hists
+    
+    def gen_signatures(self, histograms, norm_histograms, classes, labels):
+        """
+        Function used to generate signatures of cross layer response.
+        Signatures are average histograms of recording for every class.
+        """
+        n_labels = len(classes)
+        signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+        norm_signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+        for class_i in range(n_labels):
+            indx = labels==class_i
+            signatures[class_i] = np.mean(histograms[indx], axis=0)
+            norm_signatures[class_i] = np.mean(norm_histograms[indx], axis=0)
+            
+        return signatures, norm_signatures        
 
 def cross_tv_generator(recording_data, n_polarities, features_number, taus):
     """
@@ -387,36 +416,7 @@ def cross_tv_generator(recording_data, n_polarities, features_number, taus):
 
     return cross_tvs
 
-    def gen_histograms(self, cross_response):
-        """
-        Function used to generate histograms of cross layer response.
-        """
-        n_recordings = len(cross_response)
-        hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
-        norm_hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
-        for recording_i,data in enumerate(cross_response):
-            data = data[1:]
-            indx, occurences = np.unique(data, axis=1, return_counts=True)
-            indx = np.asarray(indx, dtype=(int))
-            hists[recording_i,indx[0],indx[1]] = occurences
-            norm_hists[recording_i,indx[0],indx[1]] = occurences/sum(occurences)
-        
-        return hists, norm_hists
-    
-    def gen_signatures(self, histograms, norm_histograms, classes, labels):
-        """
-        Function used to generate signatures of cross layer response.
-        Signatures are average histograms of recording for every class.
-        """
-        n_labels = len(classes)
-        signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
-        norm_signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
-        for class_i in range(n_labels):
-            indx = labels==class_i
-            signatures[class_i] = np.mean(histograms[indx], axis=0)
-            norm_signatures[class_i] = np.mean(norm_histograms[indx], axis=0)
-            
-        return signatures, norm_signatures
+
     
     #TODO adapt these methods to cross responses        
     def response_plot(self, local_response, f_index, class_name = None):
@@ -450,7 +450,7 @@ def cross_tv_generator(recording_data, n_polarities, features_number, taus):
         plt.figure()
         plt.suptitle('Heatmap file: '+ str(f_index) +' Class: '+ str(class_name), fontsize=16)
         image=plt.scatter(timestamps, channels,
-                          c=np.sum(lcs,1), s=0.1)
+                          c=np.sum(ccs,1), s=0.1)
         plt.xlim(xlims)
         plt.ylim(ylims)
         plt.colorbar(image)     

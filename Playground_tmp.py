@@ -76,8 +76,8 @@ shuffle_seed = 25 # seed used for dataset shuffling if set to 0 the process will
 # =============================================================================
 
 
-# number_files_dataset = 1000
-number_files_dataset = 10
+number_files_dataset = 1000
+# number_files_dataset = 10
 
 train_test_ratio = 0.80
 
@@ -240,6 +240,9 @@ tmp=pool.pool(local_response)
 
 #%% Network test
 
+
+
+#First layer parameters
 input_channels = 32 + 32*use_all_addr
 
 df = pd.read_csv (r'whitenoise.csv')
@@ -248,7 +251,7 @@ channel_taus = 1/mean_rate
 
 channel_taus = channel_taus/channel_taus[0]
 
-tau_K = 5000
+tau_K = 500
 
 taus = tau_K*channel_taus
 
@@ -258,11 +261,28 @@ n_input_channels=input_channels
 n_batch_files=None
 dataset_runs=1
 
-layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
+local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
                     n_batch_files, dataset_runs]
-                
+    
+
+#Second layer parameters
+n_input_features=n_features 
+n_input_channels=input_channels
+n_features=64
+cross_tv_width=6 
+taus=50e3
+n_batch_files=None
+dataset_runs=1
+
+
+cross_layer_parameters = [n_features, cross_tv_width, 
+                    n_input_channels, taus, 
+                    n_input_features, n_batch_files,
+                    dataset_runs]   
+             
 Net = GORDONN(n_threads=24, verbose=True)
-Net.add_layer("Local", layer_parameters)
+Net.add_layer("Local", local_layer_parameters)
+Net.add_layer("Cross", cross_layer_parameters)
 Net.learn(dataset_train,labels_train,classes)
 Net.predict(dataset_test, labels_train, labels_test, classes)
 
@@ -270,3 +290,30 @@ print("Histogram accuracy: "+str(Net.layers[0].hist_accuracy))
 print("Norm Histogram accuracy: "+str(Net.layers[0].norm_hist_accuracy))
 print("SVC Histogram accuracy: "+str(Net.layers[0].svm_hist_accuracy))
 print("SVC norm Histogram accuracy: "+str(Net.layers[0].svm_norm_hist_accuracy))
+
+
+print("Histogram accuracy: "+str(Net.layers[1].hist_accuracy))
+print("Norm Histogram accuracy: "+str(Net.layers[1].norm_hist_accuracy))
+print("SVC Histogram accuracy: "+str(Net.layers[1].svm_hist_accuracy))
+print("SVC norm Histogram accuracy: "+str(Net.layers[1].svm_norm_hist_accuracy))
+
+#%% Parameter change and overload
+   
+
+#Second layer parameters
+new_taus = 5e3
+Net.layers[1].taus=new_taus
+
+Net.learn(dataset_train,labels_train,classes, rerun_layer=1)
+Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=1)
+
+print("Histogram accuracy: "+str(Net.layers[0].hist_accuracy))
+print("Norm Histogram accuracy: "+str(Net.layers[0].norm_hist_accuracy))
+print("SVC Histogram accuracy: "+str(Net.layers[0].svm_hist_accuracy))
+print("SVC norm Histogram accuracy: "+str(Net.layers[0].svm_norm_hist_accuracy))
+
+
+print("Histogram accuracy: "+str(Net.layers[1].hist_accuracy))
+print("Norm Histogram accuracy: "+str(Net.layers[1].norm_hist_accuracy))
+print("SVC Histogram accuracy: "+str(Net.layers[1].svm_hist_accuracy))
+print("SVC norm Histogram accuracy: "+str(Net.layers[1].svm_norm_hist_accuracy))
