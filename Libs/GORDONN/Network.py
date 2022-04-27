@@ -87,7 +87,7 @@ class GORDONN:
             self.layer_dataset_train = []
         else:
             layers_index = np.arange(rerun_layer,n_layers)
-            layer_dataset = self.layer_dataset_train[rerun_layer]
+            layer_dataset = self.net_response_train[rerun_layer-1]
             self.layer_dataset_train = self.layer_dataset_train[:rerun_layer]
             self.net_response_train = self.net_response_train[:rerun_layer]
         
@@ -111,7 +111,7 @@ class GORDONN:
                 
     def predict(self, dataset_test, labels_train, labels_test, classes, rerun_layer=0):
         """
-        Network learning method. It saves net responses recallable with net_response_train.
+        Network learning method. It saves net responses recallable with layer_dataset_test.
         
         Arguments:
             dataset (nested lists) : the dataset used to extract features in a unsupervised 
@@ -135,7 +135,7 @@ class GORDONN:
             self.layer_dataset_test = []
         else:
             layers_index = np.arange(rerun_layer,n_layers)
-            layer_dataset = self.layer_dataset_test[rerun_layer]
+            layer_dataset = self.net_response_test[rerun_layer-1]
             self.layer_dataset_test = self.layer_dataset_test[:rerun_layer]
             self.net_response_test = self.net_response_test[:rerun_layer]
         

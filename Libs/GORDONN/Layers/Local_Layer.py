@@ -362,7 +362,9 @@ def local_tv_generator(recording_data, n_polarities, taus, context_length):
             # timestamps = [recording_data[0][j] for j in indxs_channel[(i+1-context_length):i][::-1]]
             context = recording_data[0][indxs_channel[(i+1-context_length):i][::-1]]
             new_local_tv[0] = 1         
-            new_local_tv[1:1+len(context)] = np.exp(-(timestamp-context)/taus[polarity])
+            exponent=-(timestamp-context)/taus[polarity]
+            exponent[exponent<-10] = -10 #To avoid overflow 
+            new_local_tv[1:1+len(context)] = np.exp(exponent)
             local_tvs[ind] = new_local_tv
 
     return local_tvs        

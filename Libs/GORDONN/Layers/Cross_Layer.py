@@ -365,6 +365,31 @@ class Cross_Layer:
             
         return signatures, norm_signatures        
 
+    #TODO obtain the original channel of the event
+    def response_plot(self, cross_response, f_index, class_name = None):
+        """
+        Function used to generate plots of cross layer response.
+        It Plots the input data first, and the scatter plot of events 
+        colored by feature index.
+        """
+        
+        timestamps = cross_response[f_index][0]
+        channels =  cross_response[f_index][1]
+        features = cross_response[f_index][2]
+        
+        # First print the original recording
+        plt.figure()
+        plt.suptitle('Original file: '+ str(f_index) +' Class: '+ str(class_name), fontsize=16)
+        plt.scatter(timestamps, channels, s=1)
+   
+        plt.figure()
+        for i_feature in range(self.n_features):
+            # Extract events by feature
+            indx = features==i_feature
+    
+            image = plt.scatter(timestamps[indx], channels[indx],\
+                                label='Feature '+str(i_feature))
+
 def cross_tv_generator(recording_data, n_polarities, features_number, taus):
     """
     Function used to generate cross time vectors.
@@ -418,50 +443,8 @@ def cross_tv_generator(recording_data, n_polarities, features_number, taus):
 
 
     
-    #TODO adapt these methods to cross responses        
-    def response_plot(self, local_response, f_index, class_name = None):
-        """
-        Function used to generate plots of local layer response.
-        It Plots the input data first, a heatmap of the sum(local tv)
-        to show amplitude information
-        And finally the scatter plot of events colored by feature index.
-        """
-        # Build the vector of individual taus
-        if type(self.taus) is np.ndarray or type(self.taus) is list :
-            taus = np.array(self.taus)
-        else:
-            taus = self.taus*np.ones(self.n_input_channels)
-        
-        timestamps = local_response[f_index][0]
-        channels =  local_response[f_index][1]
-        features = local_response[f_index][2]
-        
-        # First print the original recording
-        plt.figure()
-        plt.suptitle('Original file: '+ str(f_index) +' Class: '+ str(class_name), fontsize=16)
-        plt.scatter(timestamps, channels, s=1)
-        xlims = plt.xlim()
-        ylims = plt.ylim()
-        ccs = cross_tv_generator(local_response[f_index],\
-                                 self.n_input_channels,\
-                                 taus,\
-                                 self.local_tv_length)
-        # Plot heatmap
-        plt.figure()
-        plt.suptitle('Heatmap file: '+ str(f_index) +' Class: '+ str(class_name), fontsize=16)
-        image=plt.scatter(timestamps, channels,
-                          c=np.sum(ccs,1), s=0.1)
-        plt.xlim(xlims)
-        plt.ylim(ylims)
-        plt.colorbar(image)     
-        
-        plt.figure()
-        for i_feature in range(self.n_features):
-            # Extract events by feature
-            indx = features==i_feature
 
-            image = plt.scatter(timestamps[indx], channels[indx],\
-                                label='Feature '+str(i_feature))
+                
 def cross_tv_generator_conv(recording_data, n_polarities, features_number, 
                             cross_width, taus):
     """
@@ -511,9 +494,13 @@ def cross_tv_generator_conv(recording_data, n_polarities, features_number,
         polarity = recording_data[1][event_ind]
         feature = features[event_ind]
         timestamps[polarity+zerp_off, feature] = recording_data[0][event_ind]
-        timesurf = np.exp(-(new_timestamp-timestamps)/taus_m)*(timestamps!=0)   
+        exponent = -(new_timestamp-timestamps)/taus_m
+        exponent[exponent<-10] = -10 #To avoid overflow 
+        exponent[exponent>0] = 0 #To avoid positive exponentials 
+        timesurf = np.exp(exponent)*(timestamps!=0)   
         timesurf = timesurf[local_ind+polarity]
         cross_tvs_conv[event_ind,:] = (timesurf).flatten() 
 
 
     return cross_tvs_conv
+
