@@ -56,6 +56,9 @@ class GORDONN:
                                            self.n_threads, self.verbose))
         elif layer_type=="Pool":
             self.architecture.append(layer_type)
+            [n_input_channels, pool_factor] = layer_parameters
+            self.layers.append(Pool_Layer(n_input_channels, pool_factor))
+            
         else:
             print("Please select one among these three classes: Local,Cross,Pool")
 
