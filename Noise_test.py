@@ -11,13 +11,19 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from Libs.Data_loading.AERDATA_load import AERDATA_load
 import pandas as pd
+import seaborn as sns
+sns.set()
+
+palette = {0:"tab:cyan",
+           1:"tab:orange", 
+           2:"tab:purple"}
 
 
 #%% CREATE THE DATASET - DATA LOADING
 # Create the dataset 
 folder = "Data/white_noise_volumes/"
 low_v_fname = "white_noise_10.aedat"
-base_v_fname = "white_noise_60.aedat"
+base_v_fname = "white_noise_50.aedat"
 high_v_fname = "white_noise_100.aedat"
 
 low_v_data = AERDATA_load(folder+low_v_fname, address_size=4)
@@ -40,11 +46,11 @@ n_freq=32
 
 beg_recording = 2e7#ms
 
-duration = 5e6+beg_recording#ms
-beg_low = 1e6+beg_recording#ms
-end_low = 2e6+beg_recording#ms
-beg_high = 2e6+beg_recording#ms
-end_high = 3e6+beg_recording#ms
+duration = 10e5+beg_recording#ms
+beg_low = 2e5+beg_recording#ms
+end_low = 4e5+beg_recording#ms
+beg_high = 4e5+beg_recording#ms
+end_high = 6e5+beg_recording#ms
 
 data = [np.array([]),np.array([])]
 
@@ -66,7 +72,8 @@ data[0] = np.concatenate([data[0], base_v_data[0][indx]])
 data[1] = np.concatenate([data[1], base_v_data[1][indx]])
 
 fig, (axs) = plt.subplots(3)
-axs[0].scatter((data[1]-beg_recording)*1e-6, data[0], s=0.2)
+axs[0].clear()
+axs[0].scatter((data[1]-beg_recording)*1e-6, data[0], s=2)
 axs[0].set_title("NOISE Test raw scatter-plot")
 # axs[0].set_xlabel("Seconds")
 axs[0].set_ylabel("Channel Index")
@@ -113,13 +120,17 @@ for channel in range(n_freq):
 #Clusters
 kmeans = KMeans(n_clusters=3, random_state=0).fit(tvs)
 label_count = 0
+axs[1].clear()
 for channel in range(n_freq):
     ch_ts = timestamps[channel]
     n_ev = len(ch_ts)
     tv_timestamp = ch_ts[tv_l-1:]
     n_labels = len(tv_timestamp)
     ch_labels = kmeans.labels_[label_count:n_labels+label_count]
-    axs[1].scatter((tv_timestamp-beg_recording)*1e-6, channel*np.ones(len(tv_timestamp)), s=0.8, c=ch_labels)
+    # axs[1].scatter((tv_timestamp-beg_recording)*1e-6, channel*np.ones(len(tv_timestamp)), s=20, c=ch_labels)
+    sns.scatterplot(x=(tv_timestamp-beg_recording)*1e-6,\
+                    y=channel*np.ones(len(tv_timestamp)), s=20, hue=ch_labels,\
+                    ax=axs[1], legend=False, palette=palette, edgecolor="none")
     label_count += n_labels
 
 
@@ -164,6 +175,7 @@ for channel in range(n_freq):
 
 #Clusters
 kmeans = KMeans(n_clusters=3, random_state=0).fit(tvs)
+axs[2].clear()
 label_count = 0
 for channel in range(n_freq):
     ch_ts = timestamps[channel]
@@ -171,7 +183,10 @@ for channel in range(n_freq):
     tv_timestamp = ch_ts[tv_l-1:]
     n_labels = len(tv_timestamp)
     ch_labels = kmeans.labels_[label_count:n_labels+label_count]
-    axs[2].scatter((tv_timestamp-beg_recording)*1e-6, channel*np.ones(len(tv_timestamp)), s=0.8, c=ch_labels)
+    # axs[2].scatter((tv_timestamp-beg_recording)*1e-6, channel*np.ones(len(tv_timestamp)), s=20, c=ch_labels)
+    sns.scatterplot(x=(tv_timestamp-beg_recording)*1e-6,\
+                y=channel*np.ones(len(tv_timestamp)), s=20, hue=ch_labels,\
+                ax=axs[2], legend=False, palette=palette, edgecolor="none")
     label_count += n_labels
 
 
