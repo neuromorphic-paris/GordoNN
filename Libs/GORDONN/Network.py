@@ -18,15 +18,28 @@ class GORDONN:
     """
     Gordon Network, managing Layers objects, and allowing save load states.
     
-    Gordonn network arguments: 
+    Gordonn network arguments (can be acessed as attributes with the same name
+                               ex: NetObj.n_threads): 
+        n_threads (int): Number of threads used for computing and learning Time
+                         Vectors
+        verbose (boolean): Verbose mode of the network. Useful to keep track of 
+                           progress.
+        server_mode (boolean): If True the network will save verbose terminal 
+                               messages on a log, useful to keep track of progress
+                               in detached terminals
+        low_memory_mode (boolean): If False the network will save the output of 
+                                   every layer, useful for testing, but memory
+                                   intensive for deep layered networks
     """
-    def __init__(self, n_threads=8, verbose=False, server_mode=False):
+    def __init__(self, n_threads=8, verbose=False, server_mode=False, low_memory_mode=True):
         
         self.n_threads = n_threads
         self.verbose = verbose
         self.server_mode = server_mode
+        self.low_memory_mode = low_memory_mode
         self.layers = []
         self.architecture = []
+        
         
     def add_layer(self, layer_type, layer_parameters):
         
@@ -90,12 +103,18 @@ class GORDONN:
             self.layer_dataset_train = []
         else:
             layers_index = np.arange(rerun_layer,n_layers)
-            layer_dataset = self.net_response_train[rerun_layer-1]
+            layer_dataset = self.layer_dataset_train[rerun_layer]
             self.layer_dataset_train = self.layer_dataset_train[:rerun_layer]
             self.net_response_train = self.net_response_train[:rerun_layer]
         
         #Run the network
         for layer_i in layers_index:
+            
+            #Empty last layer memory if memory mode
+            if layer_i!=0 and self.low_memory_mode:
+                self.layer_dataset_train[layer_i-1]=[]
+                self.net_response_train[layer_i-1]=[]
+
             
             self.layer_dataset_train.append(layer_dataset)
             if self.architecture[layer_i]=="Pool":
@@ -114,7 +133,7 @@ class GORDONN:
                 
     def predict(self, dataset_test, labels_train, labels_test, classes, rerun_layer=0):
         """
-        Network learning method. It saves net responses recallable with layer_dataset_test.
+        Network learning method. It saves net responses recallable with net_response_test.
         
         Arguments:
             dataset (nested lists) : the dataset used to extract features in a unsupervised 
@@ -138,13 +157,19 @@ class GORDONN:
             self.layer_dataset_test = []
         else:
             layers_index = np.arange(rerun_layer,n_layers)
-            layer_dataset = self.net_response_test[rerun_layer-1]
+            layer_dataset = self.layer_dataset_test[rerun_layer]
             self.layer_dataset_test = self.layer_dataset_test[:rerun_layer]
             self.net_response_test = self.net_response_test[:rerun_layer]
         
         #Run the network
         for layer_i in layers_index:
-            
+
+            #Empty last layer memory if memory mode
+            if layer_i!=0 and self.low_memory_mode:
+                self.layer_dataset_test[layer_i-1]=[]
+                self.net_response_test[layer_i-1]=[]
+                
+                
             self.layer_dataset_test.append(layer_dataset)
             if self.architecture[layer_i]=="Pool":
                 layer_dataset=self.layers[layer_i].pool(layer_dataset)
@@ -172,7 +197,7 @@ class GORDONN:
                                                                              labels_train,\
                                                                              labels_test)
             
-                
+#TODO should move the classifiers somewhere else                
 def hist_classifier(histograms,signatures,labels):
     """
     Simple classifier based on euclidean distance between histograms and signatures
