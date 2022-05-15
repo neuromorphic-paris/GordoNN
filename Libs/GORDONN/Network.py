@@ -164,6 +164,7 @@ class GORDONN:
         #Run the network
         for layer_i in layers_index:
 
+            #TODO check memory usage of histograms and maybe remove them in low memory mode
             #Empty last layer memory if memory mode
             if layer_i!=0 and self.low_memory_mode:
                 self.layer_dataset_test[layer_i-1]=[]
