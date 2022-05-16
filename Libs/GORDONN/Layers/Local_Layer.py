@@ -180,19 +180,13 @@ class Local_Layer:
         
         if self.n_batch_files==None:
             n_batches = 1
-            n_runs = 1
             n_batch_files = n_files
         else:
             n_batch_files = self.n_batch_files
             # number of batches per run   
             n_batches=int(np.ceil(n_files/n_batch_files))  
         
-        if n_batches==1:
-            n_runs = 1
-        else:
-            n_runs = self.dataset_runs # how many time a single dataset get cycled.
-        
-        total_batches  = n_batches*n_runs
+        total_batches  = n_batches
         
         #Set the verbose parameter for the parallel function. #TODO set outside layer
         if self.verbose:
@@ -210,37 +204,36 @@ class Local_Layer:
         kmeans.cluster_centers_ = self.features
         
         local_response=[]
-        for run in range(n_runs):    
-            for i_batch_run in range(n_batches):
-                
-                rec_ind_1 = i_batch_run*n_batch_files
-                rec_ind_2 = (i_batch_run+1)*n_batch_files
+        for i_batch_run in range(n_batches):
+            
+            rec_ind_1 = i_batch_run*n_batch_files
+            rec_ind_2 = (i_batch_run+1)*n_batch_files
 
-                data_subset = layer_dataset[rec_ind_1:rec_ind_2]
-                
-                # Generation of local vectors, computed on multiple threads
-                results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
-                                    (delayed(local_tv_generator)\
-                                    (data_subset[recording],\
-                                     self.n_input_channels,\
-                                     taus, self.local_tv_length)\
-                                     for recording in range(len(data_subset)))     
+            data_subset = layer_dataset[rec_ind_1:rec_ind_2]
             
-                
-                for i_result in range(len(results)):
-                    batch_response=kmeans.predict(results[i_result])
-                    local_response.append([data_subset[i_result][0],\
-                                           data_subset[i_result][1], batch_response])
-                
-                if self.verbose is True: 
-                    batch_time = time.time()-batch_start_time
-                    i_batch = i_batch_run + n_batches*run                    
-                    expected_t = batch_time*(total_batches-i_batch-1)
-                    total_time += (time.time() - batch_start_time)
-                    print("Batch %i out of %i processed, %s seconds left "\
-                          %(i_batch+1,total_batches,expected_t))                
-                    batch_start_time = time.time()
+            # Generation of local vectors, computed on multiple threads
+            results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
+                                (delayed(local_tv_generator)\
+                                (data_subset[recording],\
+                                 self.n_input_channels,\
+                                 taus, self.local_tv_length)\
+                                 for recording in range(len(data_subset)))     
+        
             
+            for i_result in range(len(results)):
+                batch_response=kmeans.predict(results[i_result])
+                local_response.append([data_subset[i_result][0],\
+                                       data_subset[i_result][1], batch_response])
+            
+            if self.verbose is True: 
+                batch_time = time.time()-batch_start_time
+                i_batch = i_batch_run + n_batches                    
+                expected_t = batch_time*(total_batches-i_batch-1)
+                total_time += (time.time() - batch_start_time)
+                print("Batch %i out of %i processed, %s seconds left "\
+                      %(i_batch+1,total_batches,expected_t))                
+                batch_start_time = time.time()
+        
 
         if self.verbose is True:    
             print("generating time vectors took %s seconds." % (total_time))

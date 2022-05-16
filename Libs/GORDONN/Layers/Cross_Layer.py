@@ -231,19 +231,14 @@ class Cross_Layer:
         
         if self.n_batch_files==None:
             n_batches = 1
-            n_runs = 1
             n_batch_files = n_files
         else:
             n_batch_files = self.n_batch_files
             # number of batches per run   
             n_batches=int(np.ceil(n_files/n_batch_files))  
         
-        if n_batches==1:
-            n_runs = 1
-        else:
-            n_runs = self.dataset_runs # how many time a single dataset get cycled.
         
-        total_batches  = n_batches*n_runs
+        total_batches  = n_batches
         
         #Check if it is in convolutional mode or not
         if self.cross_tv_width == None or self.cross_tv_width >= self.n_input_channels :
@@ -278,55 +273,54 @@ class Cross_Layer:
         kmeans.cluster_centers_ = self.features
         
         cross_response=[]
-        for run in range(n_runs):    
-            for i_batch_run in range(n_batches):
+        for i_batch_run in range(n_batches):
+            
+            rec_ind_1 = i_batch_run*n_batch_files
+            rec_ind_2 = (i_batch_run+1)*n_batch_files
+
+            data_subset = layer_dataset[rec_ind_1:rec_ind_2]
+            
+            # check if it is a convolutional layer.
+            if conv:
                 
-                rec_ind_1 = i_batch_run*n_batch_files
-                rec_ind_2 = (i_batch_run+1)*n_batch_files
-    
-                data_subset = layer_dataset[rec_ind_1:rec_ind_2]
-                
-                # check if it is a convolutional layer.
-                if conv:
-                    
-                    #Generation of cross surfaces, computed on multiple threads
-                    results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
-                                        (delayed(cross_tv_generator_conv)\
-                                        (data_subset[recording], 
-                                          self.n_input_channels,\
-                                          n_input_features, cross_width,\
-                                          self.taus)\
-                                      for recording in range(len(data_subset)))
-    
-                    for i_result in range(len(results)):
-                        batch_response=kmeans.predict(results[i_result])
-                        cross_response.append([data_subset[i_result][0],\
-                                               data_subset[i_result][1],\
-                                                   batch_response])        
-                
-                else:
-                                  
-                    #Generation of cross surfaces, computed on multiple threads
-                    results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
-                                        (delayed(cross_tv_generator)\
-                                        (data_subset[recording], 
-                                          self.n_input_channels,\
-                                          n_input_features,self.taus)\
-                                      for recording in range(len(data_subset)))
-                                            
-                    for i_result in range(len(results)):
-                        batch_response=kmeans.predict(results[i_result])
-                        cross_response.append([data_subset[i_result][0],\
-                                               batch_response])
-                
-                if self.verbose is True: 
-                    batch_time = time.time()-batch_start_time
-                    i_batch = i_batch_run + n_batches*run                    
-                    expected_t = batch_time*(total_batches-i_batch-1)
-                    total_time += (time.time() - batch_start_time)
-                    print("Batch %i out of %i processed, %s seconds left "\
-                          %(i_batch+1,total_batches,expected_t))                
-                    batch_start_time = time.time()
+                #Generation of cross surfaces, computed on multiple threads
+                results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
+                                    (delayed(cross_tv_generator_conv)\
+                                    (data_subset[recording], 
+                                      self.n_input_channels,\
+                                      n_input_features, cross_width,\
+                                      self.taus)\
+                                  for recording in range(len(data_subset)))
+
+                for i_result in range(len(results)):
+                    batch_response=kmeans.predict(results[i_result])
+                    cross_response.append([data_subset[i_result][0],\
+                                           data_subset[i_result][1],\
+                                               batch_response])        
+            
+            else:
+                              
+                #Generation of cross surfaces, computed on multiple threads
+                results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
+                                    (delayed(cross_tv_generator)\
+                                    (data_subset[recording], 
+                                      self.n_input_channels,\
+                                      n_input_features,self.taus)\
+                                  for recording in range(len(data_subset)))
+                                        
+                for i_result in range(len(results)):
+                    batch_response=kmeans.predict(results[i_result])
+                    cross_response.append([data_subset[i_result][0],\
+                                           batch_response])
+            
+            if self.verbose is True: 
+                batch_time = time.time()-batch_start_time
+                i_batch = i_batch_run + n_batches                    
+                expected_t = batch_time*(total_batches-i_batch-1)
+                total_time += (time.time() - batch_start_time)
+                print("Batch %i out of %i processed, %s seconds left "\
+                      %(i_batch+1,total_batches,expected_t))                
+                batch_start_time = time.time()
             
     
         if self.verbose is True:    
