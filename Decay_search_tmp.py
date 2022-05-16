@@ -25,8 +25,6 @@ import matplotlib.pyplot as plt
 from matplotlib import offsetbox
 import seaborn as sns
 import os, gc, pickle
-from tensorflow.keras.callbacks import EarlyStopping
-from Libs.Solid_HOTS._General_Func import create_mlp
 import pandas as pd
 
 
@@ -35,7 +33,7 @@ import pandas as pd
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 # To allow more memory to be allocated on gpus incrementally
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+# os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     
 # Data loading Libraries
 from Libs.Data_loading.dataset_load import on_off_load, data_load
@@ -105,7 +103,7 @@ local_tv_length=10
 n_input_channels=input_channels
 n_batch_files=None
 dataset_runs=1
-n_threads=80
+n_threads=24
 
 #Original
 # channel_taus = np.linspace(2,9,32)
@@ -456,7 +454,7 @@ n_input_features=n_features
 n_input_channels=16
 n_features=128
 # n_features=64
-cross_tv_width=3 
+cross_tv_width=5 
 taus=1e6
 
 
@@ -469,12 +467,12 @@ Net.add_layer("Cross", cross_layer_parameters)
 
 #Pool Layer
 n_input_channels=16
-pool_factor=2
+pool_factor = 4
 Net.add_layer("Pool", [n_input_channels, pool_factor])
 
 #6th Cross layer
 n_input_features=n_features 
-n_input_channels=8
+n_input_channels=4
 n_features=256
 cross_tv_width=None
 taus=20e3

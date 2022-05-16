@@ -9,9 +9,15 @@ Created on Wed Mar 23 09:03:43 2022
 import numpy as np
 import time
 from joblib import Parallel, delayed 
-from Cross_Layer import Cross_Layer, \
+from .Cross_Layer import Cross_Layer, \
                         cross_tv_generator,\
                         cross_tv_generator_conv
+
+from tensorflow.keras.layers import Input, Dense, BatchNormalization,\
+                                    Dropout, Activation
+from tensorflow.keras.models import Model
+from tensorflow.keras import backend as K
+from tensorflow.keras import optimizers, regularizers
 
 class Cross_class_layer(Cross_Layer):
     """
@@ -328,3 +334,41 @@ class Cross_class_layer(Cross_Layer):
             print("generatung time vectors took %s seconds." % (total_time))
             
         return cross_response 
+    
+    
+# =============================================================================
+def create_mlp(input_size, hidden_size, output_size, learning_rate):
+    """
+    Function used to create a small mlp used for classification purposes 
+    Arguments :
+        input_size (int) : size of the input layer
+        hidden_size (int) : size of the hidden layer
+        output_size (int) : size of the output layer
+        learning_rate (int) : the learning rate for the optimization alg.
+    Returns :
+        mlp (keras model) : the freshly baked network
+    """
+    def relu_advanced(x):
+        return K.activations.relu(x, alpha=0.3)
+    
+    inputs = Input(shape=(input_size,), name='encoder_input')
+    x = BatchNormalization()(inputs)
+    x = Dense(hidden_size, activation='sigmoid')(x)
+    x = Dropout(0.3)(x)#0.3
+    x = Dense(hidden_size, activation='sigmoid')(x)
+    x = Dropout(0.7)(x)#0.7
+    # x = Dense(hidden_size, activation='sigmoid')(x)
+    # x = Dropout(0.9)(x)
+    # x = Dense(hidden_size, activation='sigmoid')(x)
+    # x = Dropout(0.5)(x)
+    # x = Dense(hidden_size, activation='sigmoid')(x)
+    # x = Dropout(0.5)(x)
+    outputs = Dense(output_size, activation='sigmoid')(x)
+    
+    
+    adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+    mlp = Model(inputs, outputs, name='mlp')
+    mlp.compile(optimizer=adam,
+              loss='binary_crossentropy', metrics=['accuracy'])
+    
+    return mlp    
