@@ -322,7 +322,7 @@ class Cross_class_layer(Cross_Layer):
             
             if self.verbose is True: 
                 batch_time = time.time()-batch_start_time
-                i_batch = i_batch_run + n_batches                    
+                i_batch = i_batch_run                     
                 expected_t = batch_time*(total_batches-i_batch-1)
                 total_time += (time.time() - batch_start_time)
                 print("Batch %i out of %i processed, %s seconds left "\
