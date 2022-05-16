@@ -7,7 +7,7 @@ Created on Fri Mar 25 12:42:52 2022
 """
 
 import numpy as np
-import time,copy
+import time,copy,sys
 from sklearn import svm
 
 from .Layers.Local_Layer import Local_Layer
@@ -39,6 +39,9 @@ class GORDONN:
         self.low_memory_mode = low_memory_mode
         self.layers = []
         self.architecture = []
+        if server_mode:
+            log = open("terminal_log.out", 'w')
+            sys.stdout = log
         
         
     def add_layer(self, layer_type, layer_parameters):
