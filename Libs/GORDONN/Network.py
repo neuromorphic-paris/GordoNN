@@ -42,6 +42,7 @@ class GORDONN:
         if server_mode:
             log = open("terminal_log.out", 'w')
             sys.stdout = log
+            sys.stderr = log
         
         
     def add_layer(self, layer_type, layer_parameters):

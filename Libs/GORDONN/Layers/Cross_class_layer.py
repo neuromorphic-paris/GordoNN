@@ -21,8 +21,8 @@ from tensorflow.keras import optimizers, regularizers
 
 class Cross_class_layer(Cross_Layer):
     """
-    This is a modified Cross layer, that rather than clastering cross vectors,
-    applyes a shallow classifier like an mlp on the vector to act as an 
+    This is a modified Cross layer, that rather than clustering cross vectors,
+    applies a shallow classifier like an mlp on the vector to act as an 
     event based classifier. This can only be selected as the last layer of the 
     network.
     
@@ -44,6 +44,10 @@ class Cross_class_layer(Cross_Layer):
                    for each channel of the cochlea, if it is
                    a single float, all channels/polarities
                    will have the same tau.
+                   
+    n_labels (int): number of labels in the dataset. 
+    
+    learning_rate (float): learning rate of the mlp.
     
     n_input_features (int): the number of features of the previous layer, None,
                             if the previous layer didn't have any features 
@@ -67,20 +71,22 @@ class Cross_class_layer(Cross_Layer):
                           the users about the current states as well as plots.
     """
     def __init__(self, n_hidden_units, cross_tv_width, n_input_channels, 
-                 taus, n_input_features=None, n_batch_files=None,
-                 dataset_runs=1, n_threads=8, verbose=False):
+                 taus, n_labels, learning_rate, n_input_features=None,
+                 n_batch_files=None, dataset_runs=1, n_threads=8, verbose=False):
         
         self.n_hidden_units = n_hidden_units
         self.cross_tv_width = cross_tv_width
         self.n_input_channels = n_input_channels
         self.taus = taus
+        self.n_labels = n_labels
+        self.learning_rate = learning_rate
         self.n_input_features = n_input_features
         self.n_batch_files = n_batch_files
         self.dataset_runs = dataset_runs
         self.n_threads = n_threads
         self.verbose = verbose
         
-    def learn(self, layer_dataset):
+    def learn(self, layer_dataset, labels):
         """
         Method to process and learn cross features.
         Since datasets can be memory intensive to process this method works 
@@ -143,12 +149,12 @@ class Cross_class_layer(Cross_Layer):
         else:
             par_verbose = 0
         
+        #input_size, hidden_size, output_size, learning_rate
         #TRAIN AN MLP HERE    
-        kmeans = MiniBatchKMeans(n_clusters=self.n_features,
-                                 verbose=self.verbose)
-        
-        kmeans._n_threads = self.n_threads
-        
+        mlp = create_mlp(input_size=n_input_features*cross_width, 
+                            hidden_size=self.n_hidden_units,
+                            output_size=self.n_labels)
+                
         for run in range(n_runs):    
             for i_batch_run in range(n_batches):
                 
