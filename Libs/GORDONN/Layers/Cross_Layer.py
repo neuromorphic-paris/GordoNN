@@ -333,14 +333,26 @@ class Cross_Layer:
         Function used to generate histograms of cross layer response.
         """
         n_recordings = len(cross_response)
-        hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
-        norm_hists = np.zeros([n_recordings,self.n_input_channels, self.n_features])
-        for recording_i,data in enumerate(cross_response):
-            data = data[1:]
-            indx, occurences = np.unique(data, axis=1, return_counts=True)
-            indx = np.asarray(indx, dtype=(int))
-            hists[recording_i,indx[0],indx[1]] = occurences
-            norm_hists[recording_i,indx[0],indx[1]] = occurences/sum(occurences)
+        if len(cross_response[0])==3:# Check if you still have channel information, or 
+                                     # the indexing is one dimensional (all channel
+                                     # info has been integrated)
+            hists = np.zeros([n_recordings, self.n_input_channels, self.n_features])
+            norm_hists = np.zeros([n_recordings, self.n_input_channels, self.n_features])
+            for recording_i,data in enumerate(cross_response):
+                data = data[1:] #discarding the timestamp information
+                indx, occurences = np.unique(data, axis=1, return_counts=True)
+                indx = np.asarray(indx, dtype=(int))
+                hists[recording_i,indx[0],0] = occurences
+                norm_hists[recording_i,indx[0],0] = occurences/sum(occurences)
+        else:
+            hists = np.zeros([n_recordings, 1, self.n_features])
+            norm_hists = np.zeros([n_recordings, 1, self.n_features])
+            for recording_i,data in enumerate(cross_response):
+                data = data[1:] #discarding the timestamp information
+                indx, occurences = np.unique(data, axis=1, return_counts=True)
+                indx = np.asarray(indx, dtype=(int))
+                hists[recording_i,0,indx[0]] = occurences
+                norm_hists[recording_i,0,indx[0]] = occurences/sum(occurences)
         
         return hists, norm_hists
     

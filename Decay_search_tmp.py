@@ -30,7 +30,7 @@ import pandas as pd
 
 # To use CPU for training
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""log
 
 # To allow more memory to be allocated on gpus incrementally
 # os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
