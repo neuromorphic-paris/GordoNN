@@ -447,7 +447,9 @@ n_hidden_units=128
 cross_tv_width=3 
 taus=120e3
 n_labels=number_of_labels
-learning_rate=1e-4
+learning_rate=1e-3
+mlp_epochs=50
+mlp_ts_batch_size=16384
 
 from Libs.GORDONN.Layers.Cross_class_layer import Cross_class_layer
 
@@ -455,7 +457,11 @@ from Libs.GORDONN.Layers.Cross_class_layer import Cross_class_layer
              
 class_layer = Cross_class_layer(n_hidden_units, cross_tv_width, 
                                 n_input_channels, taus, n_labels, learning_rate,
-                                n_input_features, n_batch_files,
-                                dataset_runs, n_threads, True)
+                                mlp_ts_batch_size, mlp_epochs, n_input_features,
+                                n_batch_files, dataset_runs, n_threads, True)
 
 class_layer.learn(Net.net_response_train[-1],labels_train)
+mlp = class_layer.mlp
+#%%
+
+class_layer.tv

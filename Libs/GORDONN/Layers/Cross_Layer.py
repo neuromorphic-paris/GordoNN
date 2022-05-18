@@ -115,11 +115,11 @@ class Cross_Layer:
         if self.cross_tv_width == None or self.cross_tv_width >= self.n_input_channels :
             #Full layer
             cross_width = self.n_input_channels
-            conv = False
+            self.conv = False
         else:
             #Convolutional mode
             cross_width = self.cross_tv_width
-            conv = True
+            self.conv = True
         
         #Check if previous layer had features or not
         if self.n_input_features == None:
@@ -151,7 +151,7 @@ class Cross_Layer:
                 data_subset = layer_dataset[rec_ind_1:rec_ind_2]
                 
                 # check if it is a convolutional layer.
-                if conv:
+                if self.conv:
                     
                     # Generation of cross surfaces, computed on multiple threads
                     results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
@@ -244,11 +244,11 @@ class Cross_Layer:
         if self.cross_tv_width == None or self.cross_tv_width >= self.n_input_channels :
             #Full layer
             cross_width = self.n_input_channels
-            conv = False
+            self.conv = False
         else:
             #Convolutional mode
             cross_width = self.cross_tv_width
-            conv = True
+            self.conv = True
         
         #Check if previous layer had features or not
         if self.n_input_features == None:
@@ -281,7 +281,7 @@ class Cross_Layer:
             data_subset = layer_dataset[rec_ind_1:rec_ind_2]
             
             # check if it is a convolutional layer.
-            if conv:
+            if self.conv:
                 
                 #Generation of cross surfaces, computed on multiple threads
                 results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
@@ -328,12 +328,12 @@ class Cross_Layer:
             
         return cross_response 
         
-    def gen_histograms(self, cross_response, conv):
+    def gen_histograms(self, cross_response):
         """
         Function used to generate histograms of cross layer response.
         """
         n_recordings = len(cross_response)
-        if conv:# Check if you still have channel information, or 
+        if self.conv:# Check if you still have channel information, or 
                 # the indexing is one dimensional (all channel
                 # info has been integrated [the layer was not conv])
             hists = np.zeros([n_recordings, self.n_input_channels, self.n_features])
@@ -356,13 +356,13 @@ class Cross_Layer:
         
         return hists, norm_hists
     
-    def gen_signatures(self, histograms, norm_histograms, classes, labels, conv):
+    def gen_signatures(self, histograms, norm_histograms, classes, labels):
         """
         Function used to generate signatures of cross layer response.
         Signatures are average histograms of recording for every class.
         """
         n_labels = len(classes)
-        if conv:# Check if you still have channel information, or 
+        if self.conv:# Check if you still have channel information, or 
                 # the indexing is one dimensional (all channel
                 # info has been integrated [the layer was not conv])
             signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
