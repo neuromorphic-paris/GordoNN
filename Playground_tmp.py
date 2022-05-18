@@ -383,3 +383,79 @@ print("Histogram accuracy: "+str(Net.layers[2].hist_accuracy))
 print("Norm Histogram accuracy: "+str(Net.layers[2].norm_hist_accuracy))
 print("SVC Histogram accuracy: "+str(Net.layers[2].svm_hist_accuracy))
 print("SVC norm Histogram accuracy: "+str(Net.layers[2].svm_norm_hist_accuracy))
+
+#%% Last layer new classifier
+
+#Actual decay
+df = pd.read_csv (r'whitenoise.csv')
+mean_rate =np.asarray(df.columns[:], dtype=float)
+channel_taus = 1/mean_rate
+channel_taus = channel_taus/channel_taus[0]
+
+n_threads=24
+
+#First Layer parameters
+Tau_T=125
+taus = (Tau_T*channel_taus)
+
+input_channels = 32 + 32*use_all_addr
+n_features=20
+local_tv_length=10
+n_input_channels=input_channels
+n_batch_files=None
+dataset_runs=1
+
+local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
+                    n_batch_files, dataset_runs]
+
+Net = GORDONN(n_threads=n_threads, verbose=True, server_mode=False)
+Net.add_layer("Local", local_layer_parameters)
+
+#Second layer parameters
+n_input_features=n_features 
+n_input_channels=32
+# n_features=64
+n_features=32
+cross_tv_width=3 
+taus=20e3
+
+
+cross_layer_parameters = [n_features, cross_tv_width, 
+                    n_input_channels, taus, 
+                    n_input_features, n_batch_files,
+                    dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+
+
+#Pool Layer
+n_input_channels=32
+pool_factor=3
+Net.add_layer("Pool", [n_input_channels, pool_factor])
+
+
+Net.learn(dataset_train,labels_train,classes)
+Net.predict(dataset_test, labels_train, labels_test, classes)
+
+#%%
+#Third layer parameters
+n_input_features=n_features 
+n_input_channels=16
+n_input_channels=11
+n_hidden_units=128
+cross_tv_width=3 
+taus=120e3
+n_labels=number_of_labels
+learning_rate=1e-4
+
+from Libs.GORDONN.Layers.Cross_class_layer import Cross_class_layer
+
+
+             
+class_layer = Cross_class_layer(n_hidden_units, cross_tv_width, 
+                                n_input_channels, taus, n_labels, learning_rate,
+                                n_input_features, n_batch_files,
+                                dataset_runs, n_threads, True)
+
+class_layer.learn(Net.net_response_train[-1],labels_train)

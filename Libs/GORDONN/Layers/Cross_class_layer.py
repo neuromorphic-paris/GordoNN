@@ -153,7 +153,8 @@ class Cross_class_layer(Cross_Layer):
         #TRAIN AN MLP HERE    
         mlp = create_mlp(input_size=n_input_features*cross_width, 
                             hidden_size=self.n_hidden_units,
-                            output_size=self.n_labels)
+                            output_size=self.n_labels, 
+                            learning_rate=self.learning_rate)
                 
         for run in range(n_runs):    
             for i_batch_run in range(n_batches):
@@ -162,6 +163,7 @@ class Cross_class_layer(Cross_Layer):
                 rec_ind_2 = (i_batch_run+1)*n_batch_files
 
                 data_subset = layer_dataset[rec_ind_1:rec_ind_2]
+                labels_subset = labels[rec_ind_1:rec_ind_2]
                 
                 # check if it is a convolutional layer.
                 if conv:
@@ -174,6 +176,7 @@ class Cross_class_layer(Cross_Layer):
                                           n_input_features, cross_width,\
                                           self.taus)\
                                       for recording in range(len(data_subset)))
+                                        
                     # results=[]
                     # for recording in range(len(data_subset)):
                     #     result = cross_tv_generator_conv(data_subset[recording],\
@@ -192,14 +195,23 @@ class Cross_class_layer(Cross_Layer):
                                           n_input_features,self.taus)\
                                       for recording in range(len(data_subset)))
           
-            
+                labels_per_ev = [labels_subset[recording]*np.ones(len(results[recording]), 
+                                      dtype=int) for recording in range(len(data_subset))]
+                
                 # The final results of the local surfaces train dataset computation
                 batch_local_tv = np.concatenate(results, axis=0)
-                
+                batch_local_labels = np.concatenate(labels_per_ev, axis=0, dtype=int)
+                batch_local_labels_one_hot = np.zeros((batch_local_labels.size, 
+                                                       batch_local_labels.max()+1),
+                                                       dtype=int)
+                batch_local_labels_one_hot[np.arange(batch_local_labels.size),batch_local_labels] = 1
+                                
                 if n_batches==1:
-                    kmeans.fit(batch_local_tv)
+                    mlp.fit(batch_local_tv, batch_local_labels_one_hot,
+                      epochs=5, batch_size=512, shuffle=True)
                 else:
-                    kmeans.partial_fit(batch_local_tv)
+                    mlp.fit(batch_local_tv, batch_local_labels_one_hot,
+                      epochs=5, batch_size=512, shuffle=True)
                 
                 if self.verbose is True: 
                     batch_time = time.time()-batch_start_time
@@ -214,7 +226,8 @@ class Cross_class_layer(Cross_Layer):
         if self.verbose is True:    
             print("learning time vectors took %s seconds." % (total_time))
             
-        self.features = kmeans.cluster_centers_
+        # self.weights = mlp.weights
+        self.mlp = mlp
             
     def predict(self, layer_dataset):
         """

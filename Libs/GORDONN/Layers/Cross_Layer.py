@@ -138,7 +138,7 @@ class Cross_Layer:
             par_verbose = 0
           
         kmeans = MiniBatchKMeans(n_clusters=self.n_features,
-                                 verbose=self.verbose)
+                                 verbose=par_verbose)
         
         kmeans._n_threads = self.n_threads
         
@@ -267,7 +267,7 @@ class Cross_Layer:
             par_verbose = 0
           
         kmeans = MiniBatchKMeans(n_clusters=self.n_features,
-                                 verbose=self.verbose)
+                                 verbose=par_verbose)
         
         kmeans._n_threads = self.n_threads
         kmeans.cluster_centers_ = self.features
@@ -328,14 +328,14 @@ class Cross_Layer:
             
         return cross_response 
         
-    def gen_histograms(self, cross_response):
+    def gen_histograms(self, cross_response, conv):
         """
         Function used to generate histograms of cross layer response.
         """
         n_recordings = len(cross_response)
-        if len(cross_response[0])==3:# Check if you still have channel information, or 
-                                     # the indexing is one dimensional (all channel
-                                     # info has been integrated)
+        if conv:# Check if you still have channel information, or 
+                # the indexing is one dimensional (all channel
+                # info has been integrated [the layer was not conv])
             hists = np.zeros([n_recordings, self.n_input_channels, self.n_features])
             norm_hists = np.zeros([n_recordings, self.n_input_channels, self.n_features])
             for recording_i,data in enumerate(cross_response):
@@ -356,14 +356,21 @@ class Cross_Layer:
         
         return hists, norm_hists
     
-    def gen_signatures(self, histograms, norm_histograms, classes, labels):
+    def gen_signatures(self, histograms, norm_histograms, classes, labels, conv):
         """
         Function used to generate signatures of cross layer response.
         Signatures are average histograms of recording for every class.
         """
         n_labels = len(classes)
-        signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
-        norm_signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+        if conv:# Check if you still have channel information, or 
+                # the indexing is one dimensional (all channel
+                # info has been integrated [the layer was not conv])
+            signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+            norm_signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
+        else:
+            signatures = np.zeros([n_labels, 1, self.n_features])
+            norm_signatures = np.zeros([n_labels, 1, self.n_features])
+            
         for class_i in range(n_labels):
             indx = labels==class_i
             signatures[class_i] = np.mean(histograms[indx], axis=0)

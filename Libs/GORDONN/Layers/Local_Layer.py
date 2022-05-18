@@ -110,7 +110,7 @@ class Local_Layer:
             par_verbose = 0
           
         kmeans = MiniBatchKMeans(n_clusters=self.n_features,
-                                 verbose=self.verbose)
+                                 verbose=par_verbose)
         
         kmeans._n_threads = self.n_threads
         
@@ -198,7 +198,7 @@ class Local_Layer:
             par_verbose = 0
           
         kmeans = MiniBatchKMeans(n_clusters=self.n_features,
-                                 verbose=self.verbose)
+                                 verbose=par_verbose)
         
         kmeans._n_threads = self.n_threads
         kmeans.cluster_centers_ = self.features
