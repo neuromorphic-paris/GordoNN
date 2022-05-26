@@ -24,20 +24,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import offsetbox
 import seaborn as sns
-import os, gc, pickle
+import os, gc, pickle, copy
 from tensorflow.keras.callbacks import EarlyStopping
 from Libs.Solid_HOTS._General_Func import create_mlp
 from joblib import Parallel, delayed 
 from sklearn import svm
 import pandas as pd
 
+from tensorflow.keras.layers import Input, Dense, BatchNormalization,\
+                                    Dropout, Activation
+from tensorflow.keras.models import Model
+from tensorflow.keras import backend as K
+from tensorflow.keras import optimizers, regularizers
 
 # To use CPU for training
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 # To allow more memory to be allocated on gpus incrementally
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+# os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     
 # Data loading Libraries
 from Libs.Data_loading.dataset_load import on_off_load, data_load
@@ -53,6 +58,8 @@ from Libs.Solid_HOTS.Network import Solid_HOTS_Net
 from Libs.GORDONN.Layers.Local_Layer import Local_Layer
 from Libs.GORDONN.Layers.Cross_Layer import Cross_Layer
 from Libs.GORDONN.Layers.Pool_Layer import Pool_Layer
+from Libs.GORDONN.Layers.MIG_Layer import MIG_Layer
+
 from Libs.GORDONN.Network import GORDONN
 
 # Plotting settings
@@ -241,7 +248,7 @@ tmp=pool.pool(local_response)
 #%% Network test
 
 
-
+    
 #First layer parameters
 input_channels = 32 + 32*use_all_addr
 
@@ -405,43 +412,67 @@ n_input_channels=input_channels
 n_batch_files=None
 dataset_runs=1
 
-local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
+local_layer_parameters = [n_features, local_tv_length, taus,\
                     n_batch_files, dataset_runs]
 
-Net = GORDONN(n_threads=n_threads, verbose=True, server_mode=False)
-Net.add_layer("Local", local_layer_parameters)
+Net = GORDONN(n_threads=n_threads, verbose=True, server_mode=False, low_memory_mode=False)
+Net.add_layer("Local", local_layer_parameters, n_input_channels)
 
 #Second layer parameters
-n_input_features=n_features 
-n_input_channels=32
-# n_features=64
-n_features=32
+n_features=64
+# n_features=32
 cross_tv_width=3 
 taus=20e3
 
 
-cross_layer_parameters = [n_features, cross_tv_width, 
-                    n_input_channels, taus, 
-                    n_input_features, n_batch_files,
-                    dataset_runs]   
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
 
 Net.add_layer("Cross", cross_layer_parameters)
 
+# Net.learn(dataset_train,labels_train,classes)
+# Net.predict(dataset_test, labels_train, labels_test, classes)
+rec = 5
+layer = 5
+timestamps = Net.net_response_train[layer][rec][0]
+channels = Net.net_response_train[layer][rec][1]
+plt.figure()
+plt.scatter(timestamps,channels)
+#%% Further addictions 
 
+
+
+#MIG Layers
+MI_factor=99
+Net.add_layer("MIG", [MI_factor])
 
 #Pool Layer
-n_input_channels=32
-pool_factor=3
-Net.add_layer("Pool", [n_input_channels, pool_factor])
+pool_factor=2
+Net.add_layer("Pool", [pool_factor])
 
+#Third layer parameters
+n_features=128
+cross_tv_width=3 
+taus=1e6
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+#MIG Layer
+MI_factor=95
+Net.add_layer("MIG", [MI_factor])
 
 Net.learn(dataset_train,labels_train,classes)
 Net.predict(dataset_test, labels_train, labels_test, classes)
 
+
+
 #%%
 #Third layer parameters
 n_input_features=n_features 
-n_input_channels=16
+# n_input_channels=16
 n_input_channels=11
 n_hidden_units=128
 cross_tv_width=3 
@@ -449,7 +480,7 @@ taus=120e3
 n_labels=number_of_labels
 learning_rate=1e-3
 mlp_epochs=50
-mlp_ts_batch_size=16384
+mlp_ts_batch_size=128
 
 from Libs.GORDONN.Layers.Cross_class_layer import Cross_class_layer
 
@@ -464,4 +495,271 @@ class_layer.learn(Net.net_response_train[-1],labels_train)
 mlp = class_layer.mlp
 #%%
 
-class_layer.tv
+train_tv, train_labels_one_hot = class_layer.tv_generation(Net.net_response_train[-1],labels_train)
+test_tv, test_labels_one_hot = class_layer.tv_generation(Net.net_response_test[-1],labels_test)
+
+#%%% Save
+with open('train_tv.npy', 'wb') as f:
+    np.save(f, train_tv)
+with open('train_labels_one_hot.npy', 'wb') as f:
+    np.save(f, train_labels_one_hot)
+with open('test_tv.npy', 'wb') as f:
+    np.save(f, test_tv)
+with open('test_labels_one_hot.npy', 'wb') as f:
+    np.save(f, test_labels_one_hot)
+with open('labels_train.npy', 'wb') as f:
+    np.save(f, labels_train)
+with open('labels_test.npy', 'wb') as f:
+    np.save(f, labels_test)
+# with open('dataset_train.npy', 'wb') as f:
+#     np.save(f, dataset_train)
+# with open('dataset_test.npy', 'wb') as f:
+#     np.save(f, dataset_test)    
+#%%% Load
+with open('train_tv.npy', 'rb') as f:
+    train_tv=np.load(f)
+with open('train_labels_one_hot.npy', 'rb') as f:
+    train_labels_one_hot=np.load(f)
+with open('test_tv.npy', 'rb') as f:
+    test_tv=np.load(f)
+with open('test_labels_one_hot.npy', 'rb') as f:
+    test_labels_one_hot=np.load(f)
+with open('labels_train.npy', 'rb') as f:
+    labels_train=np.load(f)
+with open('labels_test.npy', 'rb') as f:
+    labels_test=np.load(f)
+# with open('dataset_train.npy', 'rb') as f:
+#     dataset_train=np.load(f)
+# with open('dataset_test.npy', 'rb') as f:
+#     dataset_test=np.load(f)
+#%%
+
+#Third layer parameters
+n_input_features=32 
+# n_input_channels=16
+n_input_channels=11
+n_hidden_units=128
+cross_tv_width=3 
+taus=120e36
+n_labels=number_of_labels
+learning_rate=1e-3
+mlp_epochs=50
+mlp_ts_batch_size=128
+
+mlp = create_mlp(n_input_features*cross_tv_width, n_hidden_units, n_labels, learning_rate)
+mlp.fit(train_tv, train_labels_one_hot, epochs=mlp_epochs, batch_size=mlp_ts_batch_size, 
+        shuffle=True)
+#%% Test the code 
+pred_test=mlp.predict(test_tv)
+
+ev_count = 0
+n_test_recs = len(dataset_test)
+responses = np.zeros([n_test_recs, len(classes)])
+for test_rec_i in range(n_test_recs):
+    n_ev = len(dataset_test[test_rec_i][0])
+    responses[test_rec_i] = sum(pred_test[ev_count:ev_count+n_ev,:])
+    
+predicted_labels = np.argmax(responses,1)
+percent_correct=100*sum((labels_test-predicted_labels)==0)/n_test_recs
+#%%
+
+# =============================================================================
+def create_mlp(input_size, hidden_size, output_size, learning_rate):
+    """
+    Function used to create a small mlp used for classification purposes 
+    Arguments :
+        input_size (int) : size of the input layer
+        hidden_size (int) : size of the hidden layer
+        output_size (int) : size of the output layer
+        learning_rate (int) : the learning rate for the optimization alg.
+    Returns :
+        mlp (keras model) : the freshly baked network
+    """
+    def relu_advanced(x):
+        return K.activations.relu(x, alpha=0.3)
+    
+    inputs = Input(shape=(input_size,), name='encoder_input')
+    # x = BatchNormalization()(inputs)
+    x = Dense(hidden_size, activation='sigmoid')(inputs)
+    # x = Dropout(0.3)(x)#0.3
+    x = Dense(hidden_size, activation='sigmoid')(x)
+    # x = Dropout(0.7)(x)#0.7
+    # x = Dense(hidden_size, activation='sigmoid')(x)
+    # x = Dropout(0.9)(x)
+    # x = Dense(hidden_size, activation='sigmoid')(x)
+    # x = Dropout(0.5)(x)
+    # x = Dense(hidden_size, activation='sigmoid')(x)
+    # x = Dropout(0.5)(x)
+    outputs = Dense(output_size, activation='sigmoid')(x)
+    
+    
+    adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+    mlp = Model(inputs, outputs, name='mlp')
+    # mlp.compile(optimizer=adam,
+    #           loss='categorical_crossentropy', metrics=['accuracy'])
+    mlp.compile(optimizer=adam,
+              loss='MSE', metrics=['accuracy'])    
+    return mlp      
+
+#%% Net Mutual info layer 2 
+i_layer = 1
+MI_factor = 90
+
+n_recordings = len(Net.net_response_train[i_layer])
+n_clusters = len(Net.layers[i_layer].features)
+labels = labels_train
+activity = np.zeros([n_recordings, n_clusters])
+for recording in range(n_recordings): 
+    clusters = np.unique(Net.net_response_train[i_layer][recording][-1])
+    activity[recording, clusters]=1;
+
+p_r_s = np.zeros([number_of_labels, n_clusters])
+p_s = 1/number_of_labels
+p_r = np.sum(activity,axis=0)/(n_recordings)
+p_not_r = 1-p_r
+
+for label in range(number_of_labels):
+    indx = labels==label
+    p_r_s[label]+=np.sum(activity[indx,:],axis=0)/sum(labels==label)
+
+p_not_r_s = 1-p_r_s
+
+MI_cluster_on = p_r_s*np.log2(p_r_s/((p_r)+np.logical_not(p_r)) + np.logical_not(p_r_s))
+MI_cluster_off = p_not_r_s*np.log2(p_not_r_s/((p_not_r)+np.logical_not(p_not_r)) + np.logical_not(p_not_r_s))
+
+MI = p_s*(MI_cluster_on+MI_cluster_off)
+
+featMI = np.sum(MI, axis=0)
+sortfeats = np.argsort(featMI)[::-1]
+featMI = featMI[sortfeats]
+cumMI = (np.cumsum(featMI)/sum(featMI))*100
+
+topfeats = sortfeats[cumMI<=MI_factor]
+
+plt.figure()
+plt.plot(np.cumsum(featMI))
+plt.ylabel("Bits of information (over 3)")
+plt.xlabel("#Features")
+plt.title("Sorted MI per cluster")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+# topclusters = np.argsort(clusterMI)[-150:]
+rel_clusterMI = featMI/(1+0.01*np.arange(n_clusters))
+
+
+plt.figure()
+plt.plot(rel_clusterMI)
+plt.ylabel("Bits of information (over 3)/#Features")
+plt.xlabel("#Features")
+plt.title("Relative sorted MI")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+#%%  MI calculation 
+    
+n_clusters = len(featMI)
+
+
+# The histograms for each class, also known as "signatures"     
+signatures = Net.layers[i_layer].sign[:,:,sortfeats]
+signatures_norm = Net.layers[i_layer].norm_sign[:,:,sortfeats]
+
+hist_train = Net.layers[i_layer].hists[:,:,sortfeats]
+norm_hist_train = Net.layers[i_layer].norm_hists[:,:,sortfeats]
+
+hist_test = Net.layers[i_layer].hists_test[:,:,sortfeats]
+norm_hist_test = Net.layers[i_layer].norm_hists_test[:,:,sortfeats]
+
+accuracy=np.zeros(n_clusters)
+norm_accuracy=np.zeros(n_clusters)
+
+for cluster_i in range(n_clusters):
+    for recording in range(len(hist_train)):
+        
+        closest_file=np.argmin(np.sum((hist_train[recording,:,:cluster_i+1]-signatures[:,:,:cluster_i+1])**2, axis=(1,2)))
+        closest_file_norm=np.argmin(np.sum((norm_hist_train[recording,:,:cluster_i+1]-signatures_norm[:,:,:cluster_i+1])**2, axis=(1,2)))
+
+    
+        label = labels_train[recording]
+        if closest_file==label:
+            accuracy[cluster_i]+=1/len(hist_train)
+       
+        if closest_file_norm==label:
+            norm_accuracy[cluster_i]+=1/len(hist_train)
+    
+accuracy_test=np.zeros(n_clusters)
+norm_accuracy_test=np.zeros(n_clusters)
+
+for cluster_i in range(n_clusters):
+    for recording in range(len(hist_test)):
+        
+        closest_file=np.argmin(np.sum((hist_test[recording,:,:cluster_i+1]-signatures[:,:,:cluster_i+1])**2, axis=(1,2)))
+        closest_file_norm=np.argmin(np.sum((norm_hist_test[recording,:,:cluster_i+1]-signatures_norm[:,:,:cluster_i+1])**2, axis=(1,2)))
+    
+        label = labels_test[recording]
+        if closest_file==label:
+            accuracy_test[cluster_i]+=1/len(hist_test)
+       
+        if closest_file_norm==label:
+            norm_accuracy_test[cluster_i]+=1/len(hist_test)
+
+# print("Accuracy is; "+str(accuracy*100))
+# print("Accuracy of normalized signatures is; "+str(norm_accuracy*100))
+
+plt.figure()
+plt.plot(accuracy)
+plt.ylabel("% Correct recordings")
+plt.title("Accuracy by MI Gating")
+plt.xlabel("#Features")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+plt.figure()
+plt.plot(accuracy_test)
+plt.ylabel("% Correct recordings")
+plt.title("Test Accuracy by MI Gating")
+plt.xlabel("#Features")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+plt.figure()
+plt.plot(norm_accuracy)
+plt.ylabel("% Correct recordings")
+plt.title("Norm Accuracy by MI Gating")
+plt.xlabel("#Features")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+plt.figure()
+plt.plot(norm_accuracy_test)
+plt.ylabel("% Correct recordings")
+plt.title("Norm Test Accuracy by MI Gating")
+plt.xlabel("#Features")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+#%% Remove events
+
+data = Net.net_response_train[-1]
+
+def feature_events_pruning(rec_data, feature_idxs):
+    """
+    This function is used to remove all events in a recording that have an 
+    index equal to indexes present in feature_idxs (a list of indexes).
+    It returns the same rec data with a new set reassigned indexes for the
+    remaining events (to avoid missing cluster indexes)
+    """
+    
+    n_data_dim = len(rec_data)
+    f_index_data = rec_data[-1]
+    new_f_index_data = copy.deepcopy(f_index_data)
+    
+    for f_index in feature_idxs:
+        new_f_index_data[f_index_data==f_index]=-1
+        new_f_index_data[new_f_index_data>f_index]--1
+        feature_idxs[feature_idxs>f_index]--1
+    
+    relevant_ev_indxs = new_f_index_data>-1
+    
+    new_rec_data = []
+    for data_dim in range(n_data_dim-1):
+        new_rec_data.append(rec_data[data_dim][relevant_ev_indxs])
+    
+    new_rec_data.append(new_f_index_data)    
+    
+    return new_rec_data

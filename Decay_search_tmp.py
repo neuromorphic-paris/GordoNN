@@ -113,271 +113,271 @@ n_threads=24
 # channel_taus = 1
 
 
-# #%% First layer decay search
+#%% First layer decay search
 
-# Tau_T_first = np.power(10,np.arange(0.1,4,0.3))*2
+Tau_T_first = np.power(10,np.arange(0.1,4,0.3))*2
 
-# eucl_res= []
-# euclnorm_res = []
-# svc_eucl_res=[]
-# svc_euclnorm_res = []
+eucl_res= []
+euclnorm_res = []
+svc_eucl_res=[]
+svc_euclnorm_res = []
 
-# for Tau_T in Tau_T_first:
+for Tau_T in Tau_T_first:
     
-#     taus = (Tau_T*channel_taus)
+    taus = (Tau_T*channel_taus)
     
-#     layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
-#                         n_batch_files, dataset_runs]
+    layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
+                        n_batch_files, dataset_runs]
                     
-#     Net = GORDONN(n_threads=24, verbose=True)
-#     Net.add_layer("Local", layer_parameters)
-#     Net.learn(dataset_train,labels_train,classes)
-#     Net.predict(dataset_test, labels_train, labels_test, classes)
+    Net = GORDONN(n_threads=24, verbose=True)
+    Net.add_layer("Local", layer_parameters)
+    Net.learn(dataset_train,labels_train,classes)
+    Net.predict(dataset_test, labels_train, labels_test, classes)
     
-#     print("Histogram accuracy: "+str(Net.layers[0].hist_accuracy))
-#     print("Norm Histogram accuracy: "+str(Net.layers[0].norm_hist_accuracy))
-#     print("SVC Histogram accuracy: "+str(Net.layers[0].svm_hist_accuracy))
-#     print("SVC norm Histogram accuracy: "+str(Net.layers[0].svm_norm_hist_accuracy))
+    print("Histogram accuracy: "+str(Net.layers[0].hist_accuracy))
+    print("Norm Histogram accuracy: "+str(Net.layers[0].norm_hist_accuracy))
+    print("SVC Histogram accuracy: "+str(Net.layers[0].svm_hist_accuracy))
+    print("SVC norm Histogram accuracy: "+str(Net.layers[0].svm_norm_hist_accuracy))
 
 
-#     eucl_res.append(Net.layers[0].hist_accuracy)
-#     euclnorm_res.append(Net.layers[0].norm_hist_accuracy)
-#     svc_eucl_res.append(Net.layers[0].svm_hist_accuracy)
-#     svc_euclnorm_res.append(Net.layers[0].svm_norm_hist_accuracy)
+    eucl_res.append(Net.layers[0].hist_accuracy)
+    euclnorm_res.append(Net.layers[0].norm_hist_accuracy)
+    svc_eucl_res.append(Net.layers[0].svm_hist_accuracy)
+    svc_euclnorm_res.append(Net.layers[0].svm_norm_hist_accuracy)
 
-# #%% Save Layer results
-# # layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
-# #              'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
-# #              'Taus_T' : Tau_T_first}
-
-# # with open('Results/Decay_search_tmp/no_att.pickle', 'wb') as handle:
-# #     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
-# # #%% Load Layer results
-# filename = "no_att"
-# with open('Results/Decay_search_tmp/'+str(filename)+'.pickle', 'rb') as handle:
-#     layer_res = pickle.load(handle)
-
-
-# #%% Load Layer results
-# filename_old = "model_actual"
-# with open('Results/Decay_search_tmp/'+str(filename_old)+'.pickle', 'rb') as handle:
-#     layer_res_old = pickle.load(handle)
-
-# #%% Comparison HOTS layer and Hack Layer norm eucl
-# plt.figure()
-# plt.plot(layer_res_old['Taus_T'], layer_res_old['Norm_eucl_res'], label=filename_old)
-# plt.plot(layer_res['Taus_T'], layer_res['Norm_eucl_res'], label=filename)
-# plt.xlabel("Tau first layer (us)")
-# plt.ylabel("Recognition rates")
-# plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
-# plt.title("Parameter search simple Euclidean classifier")
-# plt.legend()
-
-# #%% Comparison HOTS layer and Hack Layer eucl
-# plt.figure()
-# plt.plot(layer_res_old['Taus_T'], layer_res_old['Eucl_res'], label=filename_old)
-# plt.plot(layer_res['Taus_T'], layer_res['Eucl_res'], label=filename)
-# plt.xlabel("Tau first layer (us)")
-# plt.ylabel("Recognition rates")
-# plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
-# plt.title("Parameter search simple normalized Euclidean classifier")
-# plt.legend()
-
-# #%% Comparison HOTS layer and Hack Layer svc 
-# plt.figure()
-# plt.plot(layer_res_old['Taus_T'], layer_res_old['svc_Eucl_res'], label=filename_old)
-# plt.plot(layer_res['Taus_T'], layer_res['svc_Eucl_res'], label=filename)
-# plt.xlabel("Tau first layer (us)")
-# plt.ylabel("Recognition rates")
-# plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
-# plt.title("Parameter search SVM classifier")
-# plt.legend()
-
-# #%% Comparison HOTS layer and Hack Layer svc norm
-# plt.figure()
-# plt.plot(layer_res_old['Taus_T'], layer_res_old['svc_Norm_eucl_res'], label=filename_old)
-# plt.plot(layer_res['Taus_T'], layer_res['svc_Norm_eucl_res'], label=filename)
-# plt.xlabel("Tau first layer (us)")
-# plt.ylabel("Recognition rates")
-# plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
-# plt.title("Parameter search SVM normalized classifier")
-# plt.legend()
-
-# #%% Second layer decay search
-
-# Tau_T=125
-# taus = (Tau_T*channel_taus)
-
-# local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
-#                     n_batch_files, dataset_runs]
-
-# Net = GORDONN(n_threads=24, verbose=True)
-# Net.add_layer("Local", local_layer_parameters)
-# Net.learn(dataset_train, labels_train, classes)
-# Net.predict(dataset_test, labels_train, labels_test, classes)
-
-# #Second layer parameters
-# n_input_features=n_features 
-# n_input_channels=input_channels
-# n_features=64
-# # cross_tv_width=6 
-# cross_tv_width=3 
-# taus=50e3
-
-
-# cross_layer_parameters = [n_features, cross_tv_width, 
-#                     n_input_channels, taus, 
-#                     n_input_features, n_batch_files,
-#                     dataset_runs]   
-
-# Net.add_layer("Cross", cross_layer_parameters)
-
-# # Tau_C_first = np.power(10,np.arange(0.1,5,0.3))*2
-
-# # Tau_C_first = np.power(10,np.arange(4,4.8,0.05))*2
-
-# Tau_C_first = np.power(10,np.arange(0.1,4.8,0.1))*20
-
-# eucl_res= []
-# euclnorm_res = []
-# svc_eucl_res=[]
-# svc_euclnorm_res = []
-
-
-# for Tau_indx, Tau_C in enumerate(Tau_C_first):
-    
-#     Net.layers[1].taus=Tau_C
-#     if Tau_indx==0:
-#         Net.learn(dataset_train, labels_train, classes)
-#         Net.predict(dataset_test, labels_train, labels_test, classes)
-#     else:        
-#         Net.learn(dataset_train, labels_train, classes, rerun_layer=1)
-#         Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=1)
-    
-#     print("Histogram accuracy: "+str(Net.layers[1].hist_accuracy))
-#     print("Norm Histogram accuracy: "+str(Net.layers[1].norm_hist_accuracy))
-#     print("SVC Histogram accuracy: "+str(Net.layers[1].svm_hist_accuracy))
-#     print("SVC norm Histogram accuracy: "+str(Net.layers[1].svm_norm_hist_accuracy))
-
-
-#     eucl_res.append(Net.layers[1].hist_accuracy)
-#     euclnorm_res.append(Net.layers[1].norm_hist_accuracy)
-#     svc_eucl_res.append(Net.layers[1].svm_hist_accuracy)
-#     svc_euclnorm_res.append(Net.layers[1].svm_norm_hist_accuracy)
-
-# #%% Save Layer results
+#%% Save Layer results
 # layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
-#               'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
-#               'Taus_C' : Tau_C_first}
+#              'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
+#              'Taus_T' : Tau_T_first}
 
-# with open('Results/Decay_search_tmp/Lay_2_small.pickle', 'wb') as handle:
+# with open('Results/Decay_search_tmp/no_att.pickle', 'wb') as handle:
 #     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 # #%% Load Layer results
-# filename = "Lay_2_small"
-# with open('Results/Decay_search_tmp/'+str(filename)+'.pickle', 'rb') as handle:
-#     layer_res = pickle.load(handle)
-
-# #%% Plot layer 2 results
-
-# plt.plot(layer_res['Taus_C'], layer_res['Eucl_res'], label="Eucl_res")
-# plt.plot(layer_res['Taus_C'], layer_res['Norm_eucl_res'], label="Norm_eucl_res")
-# plt.plot(layer_res['Taus_C'], layer_res['svc_Eucl_res'], label="svc_Eucl_res")
-# plt.plot(layer_res['Taus_C'], layer_res['svc_Norm_eucl_res'], label="svc_Norm_eucl_res")
-
-# plt.xlabel("Tau second layer (us)")
-# plt.ylabel("Recognition rates")
-# plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
-# plt.title("Classifier performance")
-# plt.legend()
-
-# #%% Fourth (Second cross layer) layer decay search
-
-# #First Layer parameters
-# Tau_T=125
-# taus = (Tau_T*channel_taus)
-
-# input_channels = 32 + 32*use_all_addr
-# n_features=20
-# local_tv_length=10
-# n_input_channels=input_channels
-# n_batch_files=None
-# dataset_runs=1
-
-# local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
-#                     n_batch_files, dataset_runs]
-
-# Net = GORDONN(n_threads=24, verbose=True)
-# Net.add_layer("Local", local_layer_parameters)
-
-# #Second layer parameters
-# n_input_features=n_features 
-# n_input_channels=32
-# n_features=64
-# cross_tv_width=3 
-# taus=20e3
+filename = "no_att"
+with open('Results/Decay_search_tmp/'+str(filename)+'.pickle', 'rb') as handle:
+    layer_res = pickle.load(handle)
 
 
-# cross_layer_parameters = [n_features, cross_tv_width, 
-#                     n_input_channels, taus, 
-#                     n_input_features, n_batch_files,
-#                     dataset_runs]   
+#%% Load Layer results
+filename_old = "model_actual"
+with open('Results/Decay_search_tmp/'+str(filename_old)+'.pickle', 'rb') as handle:
+    layer_res_old = pickle.load(handle)
 
-# Net.add_layer("Cross", cross_layer_parameters)
+#%% Comparison HOTS layer and Hack Layer norm eucl
+plt.figure()
+plt.plot(layer_res_old['Taus_T'], layer_res_old['Norm_eucl_res'], label=filename_old)
+plt.plot(layer_res['Taus_T'], layer_res['Norm_eucl_res'], label=filename)
+plt.xlabel("Tau first layer (us)")
+plt.ylabel("Recognition rates")
+plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
+plt.title("Parameter search simple Euclidean classifier")
+plt.legend()
+
+#%% Comparison HOTS layer and Hack Layer eucl
+plt.figure()
+plt.plot(layer_res_old['Taus_T'], layer_res_old['Eucl_res'], label=filename_old)
+plt.plot(layer_res['Taus_T'], layer_res['Eucl_res'], label=filename)
+plt.xlabel("Tau first layer (us)")
+plt.ylabel("Recognition rates")
+plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
+plt.title("Parameter search simple normalized Euclidean classifier")
+plt.legend()
+
+#%% Comparison HOTS layer and Hack Layer svc 
+plt.figure()
+plt.plot(layer_res_old['Taus_T'], layer_res_old['svc_Eucl_res'], label=filename_old)
+plt.plot(layer_res['Taus_T'], layer_res['svc_Eucl_res'], label=filename)
+plt.xlabel("Tau first layer (us)")
+plt.ylabel("Recognition rates")
+plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
+plt.title("Parameter search SVM classifier")
+plt.legend()
+
+#%% Comparison HOTS layer and Hack Layer svc norm
+plt.figure()
+plt.plot(layer_res_old['Taus_T'], layer_res_old['svc_Norm_eucl_res'], label=filename_old)
+plt.plot(layer_res['Taus_T'], layer_res['svc_Norm_eucl_res'], label=filename)
+plt.xlabel("Tau first layer (us)")
+plt.ylabel("Recognition rates")
+plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
+plt.title("Parameter search SVM normalized classifier")
+plt.legend()
+
+#%% Second layer decay search
+
+Tau_T=125
+taus = (Tau_T*channel_taus)
+
+local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
+                    n_batch_files, dataset_runs]
+
+Net = GORDONN(n_threads=24, verbose=True)
+Net.add_layer("Local", local_layer_parameters)
+Net.learn(dataset_train, labels_train, classes)
+Net.predict(dataset_test, labels_train, labels_test, classes)
+
+#Second layer parameters
+n_input_features=n_features 
+n_input_channels=input_channels
+n_features=64
+# cross_tv_width=6 
+cross_tv_width=3 
+taus=50e3
 
 
+cross_layer_parameters = [n_features, cross_tv_width, 
+                    n_input_channels, taus, 
+                    n_input_features, n_batch_files,
+                    dataset_runs]   
 
-# #Pool Layer
-# n_input_channels=32
-# pool_factor=2
-# Net.add_layer("Pool", [n_input_channels, pool_factor])
+Net.add_layer("Cross", cross_layer_parameters)
 
+# Tau_C_first = np.power(10,np.arange(0.1,5,0.3))*2
 
-# #4th Cross layer
-# n_input_features=n_features 
-# n_input_channels=16
-# n_features=128
-# cross_tv_width=3 
-# taus=20e3
+# Tau_C_first = np.power(10,np.arange(4,4.8,0.05))*2
 
+Tau_C_first = np.power(10,np.arange(0.1,4.8,0.1))*20
 
-# cross_layer_parameters = [n_features, cross_tv_width, 
-#                     n_input_channels, taus, 
-#                     n_input_features, n_batch_files,
-#                     dataset_runs]   
-
-# Net.add_layer("Cross", cross_layer_parameters)
+eucl_res= []
+euclnorm_res = []
+svc_eucl_res=[]
+svc_euclnorm_res = []
 
 
-# Tau_C_first = np.power(10,np.arange(0.1,4.8,0.1))*20
-
-# eucl_res= []
-# euclnorm_res = []
-# svc_eucl_res=[]
-# svc_euclnorm_res = []
-
-
-# for Tau_indx, Tau_C in enumerate(Tau_C_first):
+for Tau_indx, Tau_C in enumerate(Tau_C_first):
     
-#     Net.layers[3].taus=Tau_C
-#     if Tau_indx==0:
-#         Net.learn(dataset_train, labels_train, classes)
-#         Net.predict(dataset_test, labels_train, labels_test, classes)
-#     else:  
-#         Net.learn(dataset_train, labels_train, classes, rerun_layer=3)
-#         Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=3)
+    Net.layers[1].taus=Tau_C
+    if Tau_indx==0:
+        Net.learn(dataset_train, labels_train, classes)
+        Net.predict(dataset_test, labels_train, labels_test, classes)
+    else:        
+        Net.learn(dataset_train, labels_train, classes, rerun_layer=1)
+        Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=1)
     
-#     print("Histogram accuracy: "+str(Net.layers[3].hist_accuracy))
-#     print("Norm Histogram accuracy: "+str(Net.layers[3].norm_hist_accuracy))
-#     print("SVC Histogram accuracy: "+str(Net.layers[3].svm_hist_accuracy))
-#     print("SVC norm Histogram accuracy: "+str(Net.layers[3].svm_norm_hist_accuracy))
+    print("Histogram accuracy: "+str(Net.layers[1].hist_accuracy))
+    print("Norm Histogram accuracy: "+str(Net.layers[1].norm_hist_accuracy))
+    print("SVC Histogram accuracy: "+str(Net.layers[1].svm_hist_accuracy))
+    print("SVC norm Histogram accuracy: "+str(Net.layers[1].svm_norm_hist_accuracy))
 
 
-#     eucl_res.append(Net.layers[3].hist_accuracy)
-#     euclnorm_res.append(Net.layers[3].norm_hist_accuracy)
-#     svc_eucl_res.append(Net.layers[3].svm_hist_accuracy)
-#     svc_euclnorm_res.append(Net.layers[3].svm_norm_hist_accuracy)
+    eucl_res.append(Net.layers[1].hist_accuracy)
+    euclnorm_res.append(Net.layers[1].norm_hist_accuracy)
+    svc_eucl_res.append(Net.layers[1].svm_hist_accuracy)
+    svc_euclnorm_res.append(Net.layers[1].svm_norm_hist_accuracy)
+
+#%% Save Layer results
+layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
+              'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
+              'Taus_C' : Tau_C_first}
+
+with open('Results/Decay_search_tmp/Lay_2_small.pickle', 'wb') as handle:
+    pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+#%% Load Layer results
+filename = "Lay_2_small"
+with open('Results/Decay_search_tmp/'+str(filename)+'.pickle', 'rb') as handle:
+    layer_res = pickle.load(handle)
+
+#%% Plot layer 2 results
+
+plt.plot(layer_res['Taus_C'], layer_res['Eucl_res'], label="Eucl_res")
+plt.plot(layer_res['Taus_C'], layer_res['Norm_eucl_res'], label="Norm_eucl_res")
+plt.plot(layer_res['Taus_C'], layer_res['svc_Eucl_res'], label="svc_Eucl_res")
+plt.plot(layer_res['Taus_C'], layer_res['svc_Norm_eucl_res'], label="svc_Norm_eucl_res")
+
+plt.xlabel("Tau second layer (us)")
+plt.ylabel("Recognition rates")
+plt.grid(axis = 'y', linestyle = '--', linewidth = 0.5)
+plt.title("Classifier performance")
+plt.legend()
+
+#%% Fourth (Second cross layer) layer decay search
+
+#First Layer parameters
+Tau_T=125
+taus = (Tau_T*channel_taus)
+
+input_channels = 32 + 32*use_all_addr
+n_features=20
+local_tv_length=10
+n_input_channels=input_channels
+n_batch_files=None
+dataset_runs=1
+
+local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
+                    n_batch_files, dataset_runs]
+
+Net = GORDONN(n_threads=24, verbose=True)
+Net.add_layer("Local", local_layer_parameters)
+
+#Second layer parameters
+n_input_features=n_features 
+n_input_channels=32
+n_features=64
+cross_tv_width=3 
+taus=20e3
+
+
+cross_layer_parameters = [n_features, cross_tv_width, 
+                    n_input_channels, taus, 
+                    n_input_features, n_batch_files,
+                    dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+
+
+#Pool Layer
+n_input_channels=32
+pool_factor=2
+Net.add_layer("Pool", [n_input_channels, pool_factor])
+
+
+#4th Cross layer
+n_input_features=n_features 
+n_input_channels=16
+n_features=128
+cross_tv_width=3 
+taus=20e3
+
+
+cross_layer_parameters = [n_features, cross_tv_width, 
+                    n_input_channels, taus, 
+                    n_input_features, n_batch_files,
+                    dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+
+Tau_C_first = np.power(10,np.arange(0.1,4.8,0.1))*20
+
+eucl_res= []
+euclnorm_res = []
+svc_eucl_res=[]
+svc_euclnorm_res = []
+
+
+for Tau_indx, Tau_C in enumerate(Tau_C_first):
+    
+    Net.layers[3].taus=Tau_C
+    if Tau_indx==0:
+        Net.learn(dataset_train, labels_train, classes)
+        Net.predict(dataset_test, labels_train, labels_test, classes)
+    else:  
+        Net.learn(dataset_train, labels_train, classes, rerun_layer=3)
+        Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=3)
+    
+    print("Histogram accuracy: "+str(Net.layers[3].hist_accuracy))
+    print("Norm Histogram accuracy: "+str(Net.layers[3].norm_hist_accuracy))
+    print("SVC Histogram accuracy: "+str(Net.layers[3].svm_hist_accuracy))
+    print("SVC norm Histogram accuracy: "+str(Net.layers[3].svm_norm_hist_accuracy))
+
+
+    eucl_res.append(Net.layers[3].hist_accuracy)
+    euclnorm_res.append(Net.layers[3].norm_hist_accuracy)
+    svc_eucl_res.append(Net.layers[3].svm_hist_accuracy)
+    svc_euclnorm_res.append(Net.layers[3].svm_norm_hist_accuracy)
 
 #%% Save Layer results
 # layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\

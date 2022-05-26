@@ -7,12 +7,14 @@ Created on Fri Mar 25 12:42:52 2022
 """
 
 import numpy as np
-import time,copy,sys
-from sklearn import svm
+import sys
+
+from .Classifiers.Histogram_Classifiers import hist_classifier, svm_hist_classifier
 
 from .Layers.Local_Layer import Local_Layer
 from .Layers.Cross_Layer import Cross_Layer
 from .Layers.Pool_Layer import Pool_Layer
+from .Layers.MIG_Layer import MIG_Layer
 
 class GORDONN:
     """
@@ -45,39 +47,78 @@ class GORDONN:
             sys.stderr = log
         
         
-    def add_layer(self, layer_type, layer_parameters):
+    def add_layer(self, layer_type, layer_parameters, n_input_channels = None, 
+                  n_input_features = None):
+        """
+        Method used to add layers to the network.
+        
+        Arguments: 
+            layer_type (string): is the name of the type of layer that you 
+                                 want to add, it can be Local, Cross, Pool, MIG.
+                                 
+            layer_parameters (list): is the list of all the parameters for that
+                                     layer except for n_threads, verbose, 
+                                     n_input_channels and n_input_features;
+                                     which are set separeately. For the list 
+                                     of parameters check the help of each 
+                                     layer
+             
+            n_input_channels (int): the total number of the input channels of 
+                                    the layer. This is only used for the input
+                                    layer
+                                                              
+            
+            n_input_features (int): the total number of the input features of 
+                                    the layer.This is only used for the input
+                                    layer  
+                                 
+        """
+        
+          
         
         if layer_type=="Local": 
             
             self.architecture.append(layer_type)
             
-            [n_features, local_tv_length, n_input_channels, taus,\
+            [n_features, local_tv_length, taus,\
                 n_batch_files, dataset_runs] = layer_parameters
                 
-            self.layers.append(Local_Layer(n_features, local_tv_length,\
-                                           n_input_channels, taus, \
+            self.layers.append(Local_Layer(n_features, local_tv_length, taus,\
+                                           n_input_channels, n_input_features,\
                                            n_batch_files, dataset_runs, 
                                            self.n_threads, self.verbose))
                 
         elif layer_type=="Cross":
+            
             self.architecture.append(layer_type)
             
-            [n_features, cross_tv_width, 
-                                n_input_channels, taus, 
-                                n_input_features, n_batch_files,
+            [n_features, cross_tv_width, taus, n_batch_files,
                                 dataset_runs] = layer_parameters
                 
-            self.layers.append(Cross_Layer(n_features, cross_tv_width,\
-                                           n_input_channels, taus, n_input_features,\
+            self.layers.append(Cross_Layer(n_features, cross_tv_width, taus,\
+                                           n_input_channels, n_input_features,\
                                            n_batch_files, dataset_runs, 
                                            self.n_threads, self.verbose))
         elif layer_type=="Pool":
+            
             self.architecture.append(layer_type)
-            [n_input_channels, pool_factor] = layer_parameters
-            self.layers.append(Pool_Layer(n_input_channels, pool_factor))
+            
+            [pool_factor] = layer_parameters
+            
+            self.layers.append(Pool_Layer(n_input_channels, n_input_features,
+                                          pool_factor, self.n_threads, self.verbose))
+            
+        elif layer_type=="MIG":
+            
+            self.architecture.append(layer_type)
+            
+            [MI_factor] = layer_parameters
+            
+            self.layers.append(MIG_Layer(n_input_channels, n_input_features,
+                                          MI_factor, self.n_threads, self.verbose))
             
         else:
-            print("Please select one among these three classes: Local,Cross,Pool")
+            print("Please select one among these three classes: Local,Cross,Pool,MIG")
 
             
         
@@ -103,7 +144,7 @@ class GORDONN:
         #check if you only want to rerun a layer
         if rerun_layer == 0:
             layers_index = np.arange(n_layers)
-            self.net_response_train=[]
+            self.net_response_train = []
             self.layer_dataset_train = []
         else:
             layers_index = np.arange(rerun_layer,n_layers)
@@ -114,6 +155,10 @@ class GORDONN:
         #Run the network
         for layer_i in layers_index:
             
+            if self.verbose:
+                print("###################")
+                print("LEARNING LAYER "+str(layer_i)+" "+self.architecture[layer_i])
+            
             #Empty last layer memory if memory mode
             if layer_i!=0 and self.low_memory_mode:
                 self.layer_dataset_train[layer_i-1]=[]
@@ -121,19 +166,27 @@ class GORDONN:
 
             
             self.layer_dataset_train.append(layer_dataset)
-            if self.architecture[layer_i]=="Pool":
-                layer_dataset=self.layers[layer_i].pool(layer_dataset)
-                self.net_response_train.append(layer_dataset)
-            else:
-                self.layers[layer_i].learn(layer_dataset)
-                layer_dataset=self.layers[layer_i].predict(layer_dataset)
-                self.net_response_train.append(layer_dataset)
-                hists, norm_hists = self.layers[layer_i].gen_histograms(layer_dataset)
-                sign, norm_sign = self.layers[layer_i].gen_signatures(hists, norm_hists, classes, labels_train)
-                self.layers[layer_i].hists = hists
-                self.layers[layer_i].norm_hists = norm_hists
-                self.layers[layer_i].sign = sign
-                self.layers[layer_i].norm_sign = norm_sign
+            self.layers[layer_i].learn(layer_dataset, labels_train)
+            layer_dataset=self.layers[layer_i].predict(layer_dataset, labels_train)
+            self.net_response_train.append(layer_dataset)
+            
+            # If this is not the last layer prepare next layer input dimensions
+            # to the output of the current one
+            if layer_i != layers_index[-1]:
+                self.layers[layer_i+1].n_input_channels = self.layers[layer_i].n_output_channels
+                self.layers[layer_i+1].n_input_features = self.layers[layer_i].n_output_features
+
+            
+            hists, norm_hists = self.layers[layer_i].gen_histograms(layer_dataset)
+            sign, norm_sign = self.layers[layer_i].gen_signatures(hists, norm_hists, classes, labels_train)
+            
+            self.layers[layer_i].hists = hists
+            self.layers[layer_i].norm_hists = norm_hists
+            self.layers[layer_i].sign = sign
+            self.layers[layer_i].norm_sign = norm_sign
+                
+            
+                
                 
     def predict(self, dataset_test, labels_train, labels_test, classes, rerun_layer=0):
         """
@@ -167,71 +220,48 @@ class GORDONN:
         
         #Run the network
         for layer_i in layers_index:
-
-            #TODO check memory usage of histograms and maybe remove them in low memory mode
+            
+            if self.verbose:
+                print("###################")
+                print("PREDICTING LAYER "+str(layer_i)+" "+self.architecture[layer_i])
+                
             #Empty last layer memory if memory mode
             if layer_i!=0 and self.low_memory_mode:
                 self.layer_dataset_test[layer_i-1]=[]
                 self.net_response_test[layer_i-1]=[]
+
                 
                 
             self.layer_dataset_test.append(layer_dataset)
-            if self.architecture[layer_i]=="Pool":
-                layer_dataset=self.layers[layer_i].pool(layer_dataset)
-                self.net_response_test.append(layer_dataset)
-            else:
-                layer_dataset=self.layers[layer_i].predict(layer_dataset)
-                self.net_response_test.append(layer_dataset)
-                hists, norm_hists = self.layers[layer_i].gen_histograms(layer_dataset)
-                self.layers[layer_i].hists_test = hists
-                self.layers[layer_i].norm_hists_test = norm_hists
-                self.layers[layer_i].hist_accuracy = hist_classifier(hists,\
-                                                                     self.layers[layer_i].sign,\
-                                                                     labels_test)
-                self.layers[layer_i].norm_hist_accuracy = hist_classifier(norm_hists,\
-                                                                     self.layers[layer_i].norm_sign,\
-                                                                     labels_test)
-                    
-                self.layers[layer_i].svm_hist_accuracy = svm_hist_classifier(self.layers[layer_i].hists,\
-                                                                             hists,\
-                                                                             labels_train,\
-                                                                             labels_test)
-                    
-                self.layers[layer_i].svm_norm_hist_accuracy = svm_hist_classifier(self.layers[layer_i].norm_hists,\
-                                                                             norm_hists,\
-                                                                             labels_train,\
-                                                                             labels_test)
+            layer_dataset=self.layers[layer_i].predict(layer_dataset, labels_test)
+            self.net_response_test.append(layer_dataset)
             
-#TODO should move the classifiers somewhere else                
-def hist_classifier(histograms,signatures,labels):
-    """
-    Simple classifier based on euclidean distance between histograms and signatures
-    """
-    
-    accuracy=0
-    n_labels = len(labels)
-    for ind,label in enumerate(labels):
-        hist = histograms[ind]
-        pred_label = np.argmin(np.sum((hist-signatures)**2, axis=(1,2)))
-        if pred_label==label:
-            accuracy += 1
-    accuracy=accuracy*100/n_labels 
-    return accuracy
-    
-def svm_hist_classifier(train_histograms, test_histograms, train_labels,\
-                        test_labels):
-    """
-    Simple classifier based on euclidean distance between histograms and signatures
-    """
-    
-    flat_train_hist = train_histograms.reshape(train_histograms.shape[0],\
-                        train_histograms.shape[1]*train_histograms.shape[2]) 
+            hists, norm_hists = self.layers[layer_i].gen_histograms(layer_dataset)
+            
+            self.layers[layer_i].hists_test = hists
+            self.layers[layer_i].norm_hists_test = norm_hists
+            self.layers[layer_i].hist_accuracy = hist_classifier(hists,\
+                                                                 self.layers[layer_i].sign,\
+                                                                 labels_test)
+            self.layers[layer_i].norm_hist_accuracy = hist_classifier(norm_hists,\
+                                                                 self.layers[layer_i].norm_sign,\
+                                                                 labels_test)
+                
+            self.layers[layer_i].svm_hist_accuracy = svm_hist_classifier(self.layers[layer_i].hists,\
+                                                                         hists,\
+                                                                         labels_train,\
+                                                                         labels_test)
+                
+            self.layers[layer_i].svm_norm_hist_accuracy = svm_hist_classifier(self.layers[layer_i].norm_hists,\
+                                                                         norm_hists,\
+                                                                         labels_train,\
+                                                                         labels_test)
+                
+            if self.verbose:
+                layer = self.layers[layer_i]
+                print("LAYER "+str(layer_i)+" HISTOGRAM ACCURACY: ")
+                print("Histogram accuracy: "+str(layer.hist_accuracy))
+                print("Norm Histogram accuracy: "+str(layer.norm_hist_accuracy))
+                print("SVC Histogram accuracy: "+str(layer.svm_hist_accuracy))
+                print("SVC norm Histogram accuracy: "+str(layer.svm_norm_hist_accuracy))
         
-    flat_test_hist = test_histograms.reshape(test_histograms.shape[0],\
-                        test_histograms.shape[1]*test_histograms.shape[2])   
-    SVC = svm.SVC(decision_function_shape='ovo')
-    SVC.fit(flat_train_hist, train_labels)
-    pred_labels = SVC.predict(flat_test_hist)
-    n_correct_labels = sum((pred_labels-test_labels)==0)
-    accuracy=n_correct_labels*100/len(test_labels) 
-    return accuracy    

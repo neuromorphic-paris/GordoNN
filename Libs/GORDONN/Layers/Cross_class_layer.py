@@ -36,14 +36,15 @@ class Cross_class_layer(Cross_Layer):
                           on the reference event anymore. IF NUMBER
                           IT HAS TO BE ODD
     
-    n_input_channels (int): the total number of channels or polarities of the 
-                           previous layer.
-                                                      
     taus (float):  a list containing the time coefficient 
                    used for the local time vector creations 
                    for each channel of the cochlea, if it is
                    a single float, all channels/polarities
                    will have the same tau.
+                   
+    n_input_channels (int): the total number of channels or polarities of the 
+                           previous layer.
+                                                      
                    
     n_labels (int): number of labels in the dataset. 
     
@@ -70,6 +71,7 @@ class Cross_class_layer(Cross_Layer):
     verbose (boolean) : If True, the layer will output messages to inform the 
                           the users about the current states as well as plots.
     """
+    #TODO change the order here to better fit the layer
     def __init__(self, n_hidden_units, cross_tv_width, n_input_channels, 
                  taus, n_labels, learning_rate, mlp_ts_batch_size, mlp_epochs,
                  n_input_features=None, n_batch_files=None, dataset_runs=1,
@@ -77,8 +79,8 @@ class Cross_class_layer(Cross_Layer):
         
         self.n_hidden_units = n_hidden_units
         self.cross_tv_width = cross_tv_width
-        self.n_input_channels = n_input_channels
         self.taus = taus
+        self.n_input_channels = n_input_channels
         self.n_labels = n_labels
         self.learning_rate = learning_rate
         self.mlp_ts_batch_size = mlp_ts_batch_size
@@ -88,6 +90,10 @@ class Cross_class_layer(Cross_Layer):
         self.dataset_runs = dataset_runs
         self.n_threads = n_threads
         self.verbose = verbose
+        
+        # Output arguments for next layers
+        self.n_output_features = n_features
+        #Output channels is calculated only after training
         
     def learn(self, layer_dataset, labels):
         """
@@ -233,6 +239,11 @@ class Cross_class_layer(Cross_Layer):
             
         # self.weights = mlp.weights
         self.mlp = mlp
+        #TODO add a calculation for featues after removing zero pad
+        if self.conv:
+            self.n_output_channels = self.n_input_channels
+        else:
+            self.n_output_channels = None
             
     def predict(self, layer_dataset):
         """
