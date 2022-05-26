@@ -67,8 +67,9 @@ class MIG_Layer:
         # a recording or not
         activity = np.zeros([n_recordings, n_features])
         for recording in range(n_recordings): 
-            features = np.unique(layer_dataset[recording][-1])
-            activity[recording, features]=1;
+            if len(layer_dataset[recording][-1]):
+                features = np.unique(layer_dataset[recording][-1])
+                activity[recording, features]=1;
             
         p_r_s = np.zeros([n_labels, n_features])
         p_s = 1/n_labels
@@ -134,68 +135,6 @@ class MIG_Layer:
         return MIG_response
 
 
-    # def gen_histograms(self, MIG_response):
-    #     """
-    #     Function used to generate histograms of the MIG layer response.
-    #     """
-    #     n_recordings = len(MIG_response)
-        
-    #     if self.n_output_channels==None:
-    #         n_output_channels=1
-    #     else:
-    #         n_output_channels=self.n_output_channels
-            
-    #     if self.n_output_features==None:
-    #         n_output_features=1
-    #     else:
-    #         n_output_features=self.n_output_features
-        
-    #     hists = np.zeros([n_recordings, n_output_channels, n_output_features])
-    #     norm_hists = np.zeros([n_recordings, n_output_channels, n_output_features])
-    #     for recording_i,data in enumerate(MIG_response):
-    #         data = data[1:] #discarding the timestamp information
-    #         indx, occurences = np.unique(data, axis=1, return_counts=True)
-    #         indx = np.asarray(indx, dtype=(int))
-    #         if self.n_output_channels==None:
-    #             hists[recording_i,0,indx[0]] = occurences
-    #             norm_hists[recording_i,0,indx[0]] = occurences/sum(occurences)
-    #         elif self.n_output_features==None:
-    #             hists[recording_i,indx[0],0] = occurences
-    #             norm_hists[recording_i,indx[0],0] = occurences/sum(occurences)
-    #         else:
-    #             hists[recording_i,indx[0],indx[1]] = occurences
-    #             norm_hists[recording_i,indx[0],indx[1]] = occurences/sum(occurences)
-                
-
-    #     return hists, norm_hists
-    
-    # def gen_signatures(self, histograms, norm_histograms, classes, labels):
-    #     """
-    #     Function used to generate signatures of MIG layer response.
-    #     Signatures are average histograms of recording for every class.
-    #     """
-    #     n_labels = len(classes)
-        
-    #     if self.n_output_channels==None:
-    #         n_output_channels=1
-    #     else:
-    #         n_output_channels=self.n_output_channels
-            
-    #     if self.n_output_features==None:
-    #         n_output_features=1
-    #     else:
-    #         n_output_features=self.n_output_features
-        
-    #     signatures = np.zeros([n_labels, n_output_channels, n_output_features])
-    #     norm_signatures = np.zeros([n_labels, n_output_channels, n_output_features])
-        
-           
-    #     for class_i in range(n_labels):
-    #         indx = labels==class_i
-    #         signatures[class_i] = np.mean(histograms[indx], axis=0)
-    #         norm_signatures[class_i] = np.mean(norm_histograms[indx], axis=0)
-            
-    #     return signatures, norm_signatures
     
     #Importing Classifiers Methods
     from Libs.GORDONN.Classifiers.Histogram_Classifiers import gen_histograms
@@ -214,19 +153,21 @@ def feature_events_pruning(rec_data, feature_idxs):
     n_data_dim = len(rec_data)
     n_events = len(rec_data[0])
     f_index_data = rec_data[-1]
-    new_f_index_data = -1*np.ones(n_events, dtype=int)
-    sort_feature_idxs = np.sort(feature_idxs)
+    new_rec_data = [[] for i in range(n_data_dim)] 
     
-    for i_index, f_index in enumerate(sort_feature_idxs):
-        new_f_index_data[f_index_data==f_index]=i_index
-    
-    relevant_ev_indxs = new_f_index_data>-1
-    
-    new_rec_data = []
-    for data_dim in range(n_data_dim-1):
-        new_rec_data.append(rec_data[data_dim][relevant_ev_indxs])
-    
-    new_rec_data.append(new_f_index_data[relevant_ev_indxs])    
+    if n_events:
+        new_f_index_data = -1*np.ones(n_events, dtype=int)
+        sort_feature_idxs = np.sort(feature_idxs)
+        for i_index, f_index in enumerate(sort_feature_idxs):
+            new_f_index_data[f_index_data==f_index]=i_index
+        
+        relevant_ev_indxs = new_f_index_data>-1
+        
+        for data_dim in range(n_data_dim-1):
+            new_rec_data[data_dim]=rec_data[data_dim][relevant_ev_indxs]
+        
+        new_rec_data[-1]=new_f_index_data[relevant_ev_indxs]   
+        
     
     return new_rec_data
         

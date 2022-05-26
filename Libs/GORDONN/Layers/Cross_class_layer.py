@@ -72,28 +72,25 @@ class Cross_class_layer(Cross_Layer):
                           the users about the current states as well as plots.
     """
     #TODO change the order here to better fit the layer
-    def __init__(self, n_hidden_units, cross_tv_width, n_input_channels, 
-                 taus, n_labels, learning_rate, mlp_ts_batch_size, mlp_epochs,
+    def __init__(self, n_hidden_units, cross_tv_width, taus, n_labels,
+                 learning_rate, mlp_ts_batch_size, mlp_epochs, n_input_channels,
                  n_input_features=None, n_batch_files=None, dataset_runs=1,
                  n_threads=8, verbose=False):
         
         self.n_hidden_units = n_hidden_units
         self.cross_tv_width = cross_tv_width
         self.taus = taus
-        self.n_input_channels = n_input_channels
         self.n_labels = n_labels
         self.learning_rate = learning_rate
         self.mlp_ts_batch_size = mlp_ts_batch_size
         self.mlp_epochs = mlp_epochs
+        self.n_input_channels = n_input_channels
         self.n_input_features = n_input_features
         self.n_batch_files = n_batch_files
         self.dataset_runs = dataset_runs
         self.n_threads = n_threads
         self.verbose = verbose
         
-        # Output arguments for next layers
-        self.n_output_features = n_features
-        #Output channels is calculated only after training
         
     def learn(self, layer_dataset, labels):
         """

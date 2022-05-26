@@ -432,19 +432,44 @@ Net.add_layer("Cross", cross_layer_parameters)
 
 # Net.learn(dataset_train,labels_train,classes)
 # Net.predict(dataset_test, labels_train, labels_test, classes)
-rec = 5
-layer = 5
-timestamps = Net.net_response_train[layer][rec][0]
-channels = Net.net_response_train[layer][rec][1]
-plt.figure()
-plt.scatter(timestamps,channels)
+
 #%% Further addictions 
 
 
 
 #MIG Layers
-MI_factor=99
+MI_factor=99.99
 Net.add_layer("MIG", [MI_factor])
+
+#Pool Layer
+pool_factor=2
+Net.add_layer("Pool", [pool_factor])
+
+#Third layer parameters
+n_features=128
+cross_tv_width=3
+taus=1e6
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+#MIG Layer
+MI_factor=95
+Net.add_layer("MIG", [MI_factor])
+
+Net.learn(dataset_train,labels_train,classes)
+Net.predict(dataset_test, labels_train, labels_test, classes)
+#%%
+Net.layers[5].MI_factor=95
+Net.layers[4].cross_tv_width=5
+Net.layers[4].n_features=64
+
+Net.learn(dataset_train,labels_train,classes,rerun_layer=4)
+Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=4)
+
+#%% Add layers
 
 #Pool Layer
 pool_factor=2
@@ -460,13 +485,25 @@ cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
 
 Net.add_layer("Cross", cross_layer_parameters)
 
-#MIG Layer
-MI_factor=95
-Net.add_layer("MIG", [MI_factor])
+Net.learn(dataset_train,labels_train,classes,rerun_layer=5)
+Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=5)
+#%%
 
-Net.learn(dataset_train,labels_train,classes)
-Net.predict(dataset_test, labels_train, labels_test, classes)
+rec = 10
 
+n_layers = len(Net.architecture)
+fig, axs = plt.subplots(1, n_layers)
+
+for layer in range(n_layers):
+    word = classes[labels_train[rec]]
+    fig_title = "Word: '"+word+"' Layer: "+str(layer)+" "+Net.architecture[layer]
+    timestamps = Net.net_response_train[layer][rec][0]
+    channels = Net.net_response_train[layer][rec][1]
+    features = Net.net_response_train[layer][rec][2]
+    axs[layer].scatter(timestamps,channels, c=features)
+    axs[layer].set_title(fig_title)
+    axs[layer].set_ylabel("Channel Index")
+    axs[layer].set_xlabel("Microseconds")
 
 
 #%%
@@ -484,11 +521,10 @@ mlp_ts_batch_size=128
 
 from Libs.GORDONN.Layers.Cross_class_layer import Cross_class_layer
 
-
              
-class_layer = Cross_class_layer(n_hidden_units, cross_tv_width, 
-                                n_input_channels, taus, n_labels, learning_rate,
-                                mlp_ts_batch_size, mlp_epochs, n_input_features,
+class_layer = Cross_class_layer(n_hidden_units, cross_tv_width, taus, n_labels,
+                                learning_rate, mlp_ts_batch_size, mlp_epochs,
+                                n_input_channels, n_input_features,
                                 n_batch_files, dataset_runs, n_threads, True)
 
 class_layer.learn(Net.net_response_train[-1],labels_train)
@@ -602,8 +638,8 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
     return mlp      
 
 #%% Net Mutual info layer 2 
-i_layer = 1
-MI_factor = 90
+i_layer = 4
+MI_factor = 95
 
 n_recordings = len(Net.net_response_train[i_layer])
 n_clusters = len(Net.layers[i_layer].features)
@@ -637,7 +673,7 @@ cumMI = (np.cumsum(featMI)/sum(featMI))*100
 topfeats = sortfeats[cumMI<=MI_factor]
 
 plt.figure()
-plt.plot(np.cumsum(featMI))
+plt.plot(np.cumsum(featMI)/sum(featMI))
 plt.ylabel("Bits of information (over 3)")
 plt.xlabel("#Features")
 plt.title("Sorted MI per cluster")
@@ -648,7 +684,7 @@ rel_clusterMI = featMI/(1+0.01*np.arange(n_clusters))
 
 
 plt.figure()
-plt.plot(rel_clusterMI)
+plt.plot(rel_clusterMI/n_clusters)
 plt.ylabel("Bits of information (over 3)/#Features")
 plt.xlabel("#Features")
 plt.title("Relative sorted MI")

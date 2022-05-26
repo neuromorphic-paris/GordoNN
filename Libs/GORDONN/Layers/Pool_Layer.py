@@ -103,8 +103,6 @@ class Pool_Layer:
         else:
             par_verbose = 0
         
-        for recording in range(len(layer_dataset)):
-            pool_response[recording][1] =  pool_response[recording][1]//p_f
             
         pool_response = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
                             (delayed(channel_pooling)\
@@ -123,7 +121,8 @@ def channel_pooling(rec_data, pool_factor):
     """
     Internal Function used to pool channel information of a single recording
     """
-    rec_data[1] =  rec_data[1]//pool_factor
+    if len(rec_data[1]):
+        rec_data[1] =  rec_data[1]//pool_factor
     
     return rec_data
     

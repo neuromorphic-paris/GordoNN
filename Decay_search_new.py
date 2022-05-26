@@ -101,6 +101,7 @@ n_threads=24
 verbose = True
 server_mode = True
 
+
 # input_channels = 32 + 32*use_all_addr
 # n_features=20
 # local_tv_length=10
@@ -207,75 +208,96 @@ server_mode = True
 # plt.title("Parameter search SVM normalized classifier")
 # plt.legend()
 
-#%% Second layer decay search
+#%% Third layer decay search
 
-# Tau_T=125
-# taus = (Tau_T*channel_taus)
+Tau_T=125
+taus = (Tau_T*channel_taus)
 
-# local_layer_parameters = [n_features, local_tv_length, n_input_channels, taus,\
-#                     n_batch_files, dataset_runs]
+input_channels = 32 + 32*use_all_addr
+n_features=20
+local_tv_length=10
+n_input_channels=input_channels
+n_batch_files=None
+dataset_runs=1
 
-# Net = GORDONN(n_threads=24, verbose=True)
-# Net.add_layer("Local", local_layer_parameters)
-# Net.learn(dataset_train, labels_train, classes)
+local_layer_parameters = [n_features, local_tv_length, taus,\
+                    n_batch_files, dataset_runs]
+
+Net = GORDONN(n_threads=n_threads, verbose=verbose, server_mode=server_mode, low_memory_mode=False)
+Net.add_layer("Local", local_layer_parameters, n_input_channels)
+
+#Second layer parameters
+n_features=64
+# n_features=32
+cross_tv_width=3 
+taus=20e3
+
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+# Net.learn(dataset_train,labels_train,classes)
 # Net.predict(dataset_test, labels_train, labels_test, classes)
 
-# #Second layer parameters
-# n_input_features=n_features 
-# n_input_channels=input_channels
-# n_features=64
-# # cross_tv_width=6 
-# cross_tv_width=3 
-# taus=50e3
+#%% Further addictions 
 
 
-# cross_layer_parameters = [n_features, cross_tv_width, 
-#                     n_input_channels, taus, 
-#                     n_input_features, n_batch_files,
-#                     dataset_runs]   
 
-# Net.add_layer("Cross", cross_layer_parameters)
+#MIG Layers
+MI_factor=99.99
+Net.add_layer("MIG", [MI_factor])
 
-# # Tau_C_first = np.power(10,np.arange(0.1,5,0.3))*2
+#Pool Layer
+pool_factor=2
+Net.add_layer("Pool", [pool_factor])
 
-# # Tau_C_first = np.power(10,np.arange(4,4.8,0.05))*2
+#Third layer parameters
+n_features=128
+cross_tv_width=3
+taus=1e6
 
-# Tau_C_first = np.power(10,np.arange(0.1,4.8,0.1))*20
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
 
-# eucl_res= []
-# euclnorm_res = []
-# svc_eucl_res=[]
-# svc_euclnorm_res = []
+Net.add_layer("Cross", cross_layer_parameters)
 
 
-# for Tau_indx, Tau_C in enumerate(Tau_C_first):
+# Tau_C_first = np.power(10,np.arange(0.1,5,0.3))*2
+
+# Tau_C_first = np.power(10,np.arange(4,4.8,0.05))*2
+
+Tau_C_first = np.power(10,np.arange(0.1,4.8,0.1))*20
+
+eucl_res= []
+euclnorm_res = []
+svc_eucl_res=[]
+svc_euclnorm_res = []
+
+
+for Tau_indx, Tau_C in enumerate(Tau_C_first):
     
-#     Net.layers[1].taus=Tau_C
-#     if Tau_indx==0:
-#         Net.learn(dataset_train, labels_train, classes)
-#         Net.predict(dataset_test, labels_train, labels_test, classes)
-#     else:        
-#         Net.learn(dataset_train, labels_train, classes, rerun_layer=1)
-#         Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=1)
+    Net.layers[5].taus=Tau_C
+    if Tau_indx==0:
+        Net.learn(dataset_train, labels_train, classes)
+        Net.predict(dataset_test, labels_train, labels_test, classes)
+    else:        
+        Net.learn(dataset_train, labels_train, classes, rerun_layer=5)
+        Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=5)
     
-#     print("Histogram accuracy: "+str(Net.layers[1].hist_accuracy))
-#     print("Norm Histogram accuracy: "+str(Net.layers[1].norm_hist_accuracy))
-#     print("SVC Histogram accuracy: "+str(Net.layers[1].svm_hist_accuracy))
-#     print("SVC norm Histogram accuracy: "+str(Net.layers[1].svm_norm_hist_accuracy))
-
-
-#     eucl_res.append(Net.layers[1].hist_accuracy)
-#     euclnorm_res.append(Net.layers[1].norm_hist_accuracy)
-#     svc_eucl_res.append(Net.layers[1].svm_hist_accuracy)
-#     svc_euclnorm_res.append(Net.layers[1].svm_norm_hist_accuracy)
+    eucl_res.append(Net.layers[5].hist_accuracy)
+    euclnorm_res.append(Net.layers[5].norm_hist_accuracy)
+    svc_eucl_res.append(Net.layers[5].svm_hist_accuracy)
+    svc_euclnorm_res.append(Net.layers[5].svm_norm_hist_accuracy)
 
 #%% Save Layer results
-# layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
-#               'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
-#               'Taus_C' : Tau_C_first}
+layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
+              'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
+              'Taus_C' : Tau_C_first}
 
-# with open('Results/Decay_search_tmp/Lay_2_small.pickle', 'wb') as handle:
-#     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
+with open('Results/Decay_search_new/Lay_5.pickle', 'wb') as handle:
+    pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 #%% Load Layer results
 # filename = "Lay_2_small"
@@ -411,103 +433,103 @@ server_mode = True
 
 #%% Sixth (3th cross layer) layer decay search
 
-#First Layer parameters
-Tau_T=125
-taus = (Tau_T*channel_taus)
+# #First Layer parameters
+# Tau_T=125
+# taus = (Tau_T*channel_taus)
 
-input_channels = 32 + 32*use_all_addr
-n_features=20
-local_tv_length=10
-n_input_channels=input_channels
-n_batch_files=None
-dataset_runs=1
+# input_channels = 32 + 32*use_all_addr
+# n_features=20
+# local_tv_length=10
+# n_input_channels=input_channels
+# n_batch_files=None
+# dataset_runs=1
 
-local_layer_parameters = [n_features, local_tv_length, taus, n_batch_files,
-                          dataset_runs]
+# local_layer_parameters = [n_features, local_tv_length, taus, n_batch_files,
+#                           dataset_runs]
 
-Net = GORDONN(n_threads=n_threads, verbose=verbose, server_mode=server_mode)
-Net.add_layer("Local", local_layer_parameters, n_input_channels)
+# Net = GORDONN(n_threads=n_threads, verbose=verbose, server_mode=server_mode)
+# Net.add_layer("Local", local_layer_parameters, n_input_channels)
 
-#Second layer parameters
-n_features=64
-cross_tv_width=3 
-taus=20e3
-
-
-cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
-                          dataset_runs]   
-
-Net.add_layer("Cross", cross_layer_parameters)
-
-#MIG Layer
-MI_factor=99
-Net.add_layer("MIG", [MI_factor])
-
-#Pool Layer
-pool_factor=2
-Net.add_layer("Pool", [pool_factor])
+# #Second layer parameters
+# n_features=32
+# cross_tv_width=3 
+# taus=20e3
 
 
-#Third layer parameters
-n_features=128
-cross_tv_width=3 
-taus=1e6
+# cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+#                           dataset_runs]   
 
-cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
-                          dataset_runs]    
+# Net.add_layer("Cross", cross_layer_parameters)
 
-Net.add_layer("Cross", cross_layer_parameters)
+# #MIG Layer
+# MI_factor=99
+# Net.add_layer("MIG", [MI_factor])
 
-#MIG Layer
-MI_factor=95
-Net.add_layer("MIG", [MI_factor])
-
-#Pool Layer
-pool_factor = 2
-Net.add_layer("Pool", [pool_factor])
-
-#6th Cross layer
-n_features=128
-cross_tv_width=3
-taus=20e3
+# #Pool Layer
+# pool_factor=2
+# Net.add_layer("Pool", [pool_factor])
 
 
-cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
-                          dataset_runs]     
+# #Third layer parameters
+# n_features=64
+# cross_tv_width=3 
+# taus=1e6
 
-Net.add_layer("Cross", cross_layer_parameters)
+# cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+#                           dataset_runs]    
 
-Tau_C_first = np.power(10,np.arange(0.1,4.8,0.1))*20
+# Net.add_layer("Cross", cross_layer_parameters)
 
-eucl_res= []
-euclnorm_res = []
-svc_eucl_res=[]
-svc_euclnorm_res = []
+# #MIG Layer
+# MI_factor=98
+# Net.add_layer("MIG", [MI_factor])
+
+# #Pool Layer
+# pool_factor = 2
+# Net.add_layer("Pool", [pool_factor])
+
+# #6th Cross layer
+# n_features=128
+# cross_tv_width=3
+# taus=20e3
 
 
-for Tau_indx, Tau_C in enumerate(Tau_C_first):
+# cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+#                           dataset_runs]     
+
+# Net.add_layer("Cross", cross_layer_parameters)
+
+# Tau_C_first = np.power(10,np.arange(0.1,4.8,0.1))*20
+
+# eucl_res= []
+# euclnorm_res = []
+# svc_eucl_res=[]
+# svc_euclnorm_res = []
+
+
+# for Tau_indx, Tau_C in enumerate(Tau_C_first):
     
-    Net.layers[-1].taus=Tau_C
-    if Tau_indx==0:
-        Net.learn(dataset_train, labels_train, classes)
-        Net.predict(dataset_test, labels_train, labels_test, classes)
-    else:  
-        Net.learn(dataset_train, labels_train, classes, rerun_layer=7)
-        Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=7)
+#     Net.layers[-1].taus=Tau_C
+#     if Tau_indx==0:
+#         Net.learn(dataset_train, labels_train, classes)
+#         Net.predict(dataset_test, labels_train, labels_test, classes)
+#     else:  
+#         Net.learn(dataset_train, labels_train, classes, rerun_layer=7)
+#         Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=7)
 
 
-    eucl_res.append(Net.layers[-1].hist_accuracy)
-    euclnorm_res.append(Net.layers[-1].norm_hist_accuracy)
-    svc_eucl_res.append(Net.layers[-1].svm_hist_accuracy)
-    svc_euclnorm_res.append(Net.layers[-1].svm_norm_hist_accuracy)
+#     eucl_res.append(Net.layers[-1].hist_accuracy)
+#     euclnorm_res.append(Net.layers[-1].norm_hist_accuracy)
+#     svc_eucl_res.append(Net.layers[-1].svm_hist_accuracy)
+#     svc_euclnorm_res.append(Net.layers[-1].svm_norm_hist_accuracy)
 
-#%% Save Layer results
-layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
-              'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
-              'Taus_C' : Tau_C_first}
+# #%% Save Layer results
+# layer_res = {'Eucl_res': eucl_res, 'Norm_eucl_res': euclnorm_res,\
+#               'svc_Eucl_res': svc_eucl_res, 'svc_Norm_eucl_res': svc_euclnorm_res,\
+#               'Taus_C' : Tau_C_first}
 
-with open('Results/Decay_search_tmp/Lay_7_not_final.pickle', 'wb') as handle:
-    pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
+# with open('Results/Decay_search_tmp/Lay_7_not_final.pickle', 'wb') as handle:
+#     pickle.dump(layer_res, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 #%% Load Layer results
 # filename = "Lay_6"

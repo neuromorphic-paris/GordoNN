@@ -307,10 +307,15 @@ class Cross_Layer:
                                   for recording in range(len(data_subset)))
 
                 for i_result in range(len(results)):
-                    batch_response=kmeans.predict(results[i_result])
-                    cross_response.append([data_subset[i_result][0],\
-                                           data_subset[i_result][1],\
-                                               batch_response])        
+                    if len(results[i_result]):
+                        batch_response=kmeans.predict(results[i_result])
+                        cross_response.append([data_subset[i_result][0],\
+                                               data_subset[i_result][1],\
+                                                   batch_response]) 
+                    else:
+                        cross_response.append([[],[],[]])
+
+       
             
             else:
                               
@@ -342,55 +347,7 @@ class Cross_Layer:
             
         return cross_response 
         
-    # def gen_histograms(self, cross_response):
-    #     """
-    #     Function used to generate histograms of cross layer response.
-    #     """
-    #     n_recordings = len(cross_response)
-    #     if self.conv:# Check if you still have channel information, or 
-    #             # the indexing is one dimensional (all channel
-    #             # info has been integrated [the layer was not conv])
-    #         hists = np.zeros([n_recordings, self.n_input_channels, self.n_features])
-    #         norm_hists = np.zeros([n_recordings, self.n_input_channels, self.n_features])
-    #         for recording_i,data in enumerate(cross_response):
-    #             data = data[1:] #discarding the timestamp information
-    #             indx, occurences = np.unique(data, axis=1, return_counts=True)
-    #             indx = np.asarray(indx, dtype=(int))
-    #             hists[recording_i,indx[0],indx[1]] = occurences
-    #             norm_hists[recording_i,indx[0],indx[1]] = occurences/sum(occurences)
-    #     else:
-    #         hists = np.zeros([n_recordings, 1, self.n_features])
-    #         norm_hists = np.zeros([n_recordings, 1, self.n_features])
-    #         for recording_i,data in enumerate(cross_response):
-    #             data = data[1:] #discarding the timestamp information
-    #             indx, occurences = np.unique(data, axis=1, return_counts=True)
-    #             indx = np.asarray(indx, dtype=(int))
-    #             hists[recording_i,0,indx[0]] = occurences
-    #             norm_hists[recording_i,0,indx[0]] = occurences/sum(occurences)
-        
-    #     return hists, norm_hists
     
-    # def gen_signatures(self, histograms, norm_histograms, classes, labels):
-    #     """
-    #     Function used to generate signatures of cross layer response.
-    #     Signatures are average histograms of recording for every class.
-    #     """
-    #     n_labels = len(classes)
-    #     if self.conv:# Check if you still have channel information, or 
-    #             # the indexing is one dimensional (all channel
-    #             # info has been integrated [the layer was not conv])
-    #         signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
-    #         norm_signatures = np.zeros([n_labels, self.n_input_channels, self.n_features])
-    #     else:
-    #         signatures = np.zeros([n_labels, 1, self.n_features])
-    #         norm_signatures = np.zeros([n_labels, 1, self.n_features])
-            
-    #     for class_i in range(n_labels):
-    #         indx = labels==class_i
-    #         signatures[class_i] = np.mean(histograms[indx], axis=0)
-    #         norm_signatures[class_i] = np.mean(norm_histograms[indx], axis=0)
-            
-    #     return signatures, norm_signatures       
     
     #Importing Classifiers Methods
     from Libs.GORDONN.Classifiers.Histogram_Classifiers import gen_histograms
