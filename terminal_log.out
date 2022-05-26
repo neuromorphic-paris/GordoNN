@@ -1,0 +1,688 @@
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 174.80009961128235 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generating time vectors took 177.06774020195007 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 993.0544021129608 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 333.1598038673401 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 1733.5505578517914 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 664.9295282363892 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 710.392439365387 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 887.8772277832031 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generating time vectors took 67.30600070953369 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 109.80216813087463 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 188.7107434272766 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 233.54895687103271 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 35.875
+Norm Histogram accuracy: 38.3125
+SVC Histogram accuracy: 12.4375
+SVC norm Histogram accuracy: 34.1875
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 822.0926051139832 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 902.8310134410858 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 239.30569863319397 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.25
+Norm Histogram accuracy: 37.875
+SVC Histogram accuracy: 13.625
+SVC norm Histogram accuracy: 32.4375
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 729.3249289989471 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 915.6126570701599 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 236.43340635299683 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.6875
+Norm Histogram accuracy: 38.1875
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 34.0625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2082.675030708313 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 907.2677989006042 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 240.35893774032593 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.3125
+Norm Histogram accuracy: 39.3125
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 33.75
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 1930.5002553462982 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 918.660680770874 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 245.07343792915344 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.0625
+Norm Histogram accuracy: 38.4375
+SVC Histogram accuracy: 14.875
+SVC norm Histogram accuracy: 31.625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 1430.2654440402985 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 924.4480657577515 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 243.97709202766418 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.125
+Norm Histogram accuracy: 38.625
+SVC Histogram accuracy: 12.375
+SVC norm Histogram accuracy: 32.3125
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2153.751799106598 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 924.2255969047546 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 237.82205414772034 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.8125
+Norm Histogram accuracy: 38.0625
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 30.8125
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 726.1033630371094 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 934.2711267471313 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 240.5162799358368 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 35.8125
+Norm Histogram accuracy: 37.5
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 27.5625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 718.1081783771515 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 926.6824350357056 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 246.6491129398346 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.0
+Norm Histogram accuracy: 38.0
+SVC Histogram accuracy: 12.625
+SVC norm Histogram accuracy: 29.5
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 1368.1808269023895 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 920.9282424449921 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 249.3283247947693 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.1875
+Norm Histogram accuracy: 37.6875
+SVC Histogram accuracy: 13.9375
+SVC norm Histogram accuracy: 30.75
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 1988.7638881206512 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 920.0355474948883 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 243.23101902008057 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 38.0625
+Norm Histogram accuracy: 38.5
+SVC Histogram accuracy: 12.625
+SVC norm Histogram accuracy: 28.75
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2238.63161110878 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 922.1817791461945 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 243.43897438049316 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.75
+Norm Histogram accuracy: 38.5625
+SVC Histogram accuracy: 14.4375
+SVC norm Histogram accuracy: 28.125
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2146.376853942871 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 937.5977449417114 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 243.09975051879883 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.125
+Norm Histogram accuracy: 38.3125
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 21.6875
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 732.3462221622467 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 919.7049922943115 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 243.8559365272522 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 34.5625
+Norm Histogram accuracy: 36.5
+SVC Histogram accuracy: 12.5625
+SVC norm Histogram accuracy: 24.875
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 713.2359824180603 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 940.3100888729095 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 245.6490797996521 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.1875
+Norm Histogram accuracy: 37.625
+SVC Histogram accuracy: 12.5625
+SVC norm Histogram accuracy: 28.0625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2497.5713543891907 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 950.4609777927399 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 253.77906966209412 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.0
+Norm Histogram accuracy: 38.6875
+SVC Histogram accuracy: 12.5625
+SVC norm Histogram accuracy: 28.0
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2402.4574291706085 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 933.4983673095703 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 251.15887451171875 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.5
+Norm Histogram accuracy: 37.625
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 26.0
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2089.5845210552216 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 930.951046705246 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 253.00729393959045 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.6875
+Norm Histogram accuracy: 36.875
+SVC Histogram accuracy: 12.6875
+SVC norm Histogram accuracy: 30.0625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2657.7947561740875 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 925.3851058483124 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 254.5507094860077 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.3125
+Norm Histogram accuracy: 38.25
+SVC Histogram accuracy: 12.4375
+SVC norm Histogram accuracy: 27.4375
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2998.3368701934814 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 923.8757016658783 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 248.1671371459961 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.3125
+Norm Histogram accuracy: 37.4375
+SVC Histogram accuracy: 12.8125
+SVC norm Histogram accuracy: 28.375
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2482.0821571350098 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 926.402636051178 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 254.79517436027527 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.4375
+Norm Histogram accuracy: 37.4375
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 27.25
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 728.4169552326202 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 935.4766173362732 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 247.89559125900269 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 34.0
+Norm Histogram accuracy: 35.25
+SVC Histogram accuracy: 12.5625
+SVC norm Histogram accuracy: 28.4375
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2074.4464163780212 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 936.1955683231354 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 250.52348613739014 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 35.3125
+Norm Histogram accuracy: 36.25
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 27.1875
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2734.478530406952 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 933.7245097160339 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 254.05607914924622 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.375
+Norm Histogram accuracy: 36.4375
+SVC Histogram accuracy: 12.375
+SVC norm Histogram accuracy: 26.8125
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2920.3216156959534 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 940.4034895896912 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 252.16015911102295 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.4375
+Norm Histogram accuracy: 36.6875
+SVC Histogram accuracy: 12.4375
+SVC norm Histogram accuracy: 28.0
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2858.4150128364563 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 954.6635043621063 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 251.97987508773804 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.125
+Norm Histogram accuracy: 36.25
+SVC Histogram accuracy: 12.4375
+SVC norm Histogram accuracy: 28.1875
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2888.4454505443573 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 950.4074568748474 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 256.74785232543945 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 35.5
+Norm Histogram accuracy: 36.1875
+SVC Histogram accuracy: 12.8125
+SVC norm Histogram accuracy: 26.0
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2669.6478474140167 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 953.0041356086731 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 255.43254280090332 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.875
+Norm Histogram accuracy: 36.75
+SVC Histogram accuracy: 12.4375
+SVC norm Histogram accuracy: 30.4375
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3065.957500934601 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 955.8516628742218 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 254.60839748382568 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 34.9375
+Norm Histogram accuracy: 36.3125
+SVC Histogram accuracy: 12.5625
+SVC norm Histogram accuracy: 28.0625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3147.8515424728394 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 970.309716463089 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 258.98205399513245 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.3125
+Norm Histogram accuracy: 37.8125
+SVC Histogram accuracy: 12.9375
+SVC norm Histogram accuracy: 27.5
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2758.0124135017395 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 957.104807138443 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 260.8697831630707 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.1875
+Norm Histogram accuracy: 38.8125
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 30.875
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3173.9848823547363 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 952.6821236610413 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 264.2565817832947 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 35.9375
+Norm Histogram accuracy: 37.5
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 28.875
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3292.5460002422333 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 951.9204087257385 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 265.6344747543335 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.125
+Norm Histogram accuracy: 36.875
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 28.5
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2770.789169549942 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 960.7922506332397 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 265.3387885093689 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.0
+Norm Histogram accuracy: 38.9375
+SVC Histogram accuracy: 12.625
+SVC norm Histogram accuracy: 30.625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3221.7560720443726 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 1016.9684295654297 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 263.5502178668976 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.25
+Norm Histogram accuracy: 37.625
+SVC Histogram accuracy: 12.4375
+SVC norm Histogram accuracy: 27.9375
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3230.0222206115723 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 958.0036818981171 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 265.3314051628113 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.8125
+Norm Histogram accuracy: 36.375
+SVC Histogram accuracy: 12.6875
+SVC norm Histogram accuracy: 29.5625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2835.3223416805267 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 949.8744130134583 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 266.86625957489014 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.1875
+Norm Histogram accuracy: 37.1875
+SVC Histogram accuracy: 12.5
+SVC norm Histogram accuracy: 29.9375
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2556.810898065567 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 953.3453142642975 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 264.77897810935974 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 38.4375
+Norm Histogram accuracy: 37.8125
+SVC Histogram accuracy: 12.4375
+SVC norm Histogram accuracy: 30.125
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3091.311113357544 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 956.6602892875671 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 262.97717094421387 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.875
+Norm Histogram accuracy: 36.5
+SVC Histogram accuracy: 12.375
+SVC norm Histogram accuracy: 31.125
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 2820.6008574962616 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 954.0945363044739 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 265.6753902435303 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 37.75
+Norm Histogram accuracy: 36.625
+SVC Histogram accuracy: 12.625
+SVC norm Histogram accuracy: 31.0625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3283.16153717041 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 963.2588863372803 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 266.5667071342468 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 36.375
+Norm Histogram accuracy: 36.25
+SVC Histogram accuracy: 12.6875
+SVC norm Histogram accuracy: 30.875
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3241.402187347412 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 956.1469247341156 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 266.0516242980957 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 35.375
+Norm Histogram accuracy: 35.9375
+SVC Histogram accuracy: 12.6875
+SVC norm Histogram accuracy: 27.0625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3343.670550107956 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 949.3768923282623 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 260.4873104095459 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 34.25
+Norm Histogram accuracy: 34.6875
+SVC Histogram accuracy: 12.625
+SVC norm Histogram accuracy: 29.3125
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3465.5277466773987 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 961.2373442649841 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 265.3339788913727 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 33.5625
+Norm Histogram accuracy: 33.25
+SVC Histogram accuracy: 12.6875
+SVC norm Histogram accuracy: 26.75
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3711.1101019382477 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 974.8822438716888 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 264.6049647331238 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 33.25
+Norm Histogram accuracy: 32.875
+SVC Histogram accuracy: 12.625
+SVC norm Histogram accuracy: 28.125
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3409.3883781433105 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 967.195109128952 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 265.6329884529114 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 32.0
+Norm Histogram accuracy: 32.125
+SVC Histogram accuracy: 12.875
+SVC norm Histogram accuracy: 25.5625
+Batch 1 out of 1 processed, 0.0 seconds left 
+learning time vectors took 3588.537801504135 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 965.8338673114777 seconds.
+Batch 1 out of 1 processed, 0.0 seconds left 
+generatung time vectors took 269.31430315971375 seconds.
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+/usr/local/lib/python3.6/dist-packages/sklearn/svm/base.py:193: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.
+  "avoid this warning.", FutureWarning)
+Histogram accuracy: 30.375
+Norm Histogram accuracy: 29.5625
+SVC Histogram accuracy: 13.4375
+SVC norm Histogram accuracy: 25.8125
