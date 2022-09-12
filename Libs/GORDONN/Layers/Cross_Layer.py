@@ -152,48 +152,19 @@ class Cross_Layer:
         for run in range(n_runs):    
             for i_batch_run in range(n_batches):
                 
-                rec_ind_1 = i_batch_run*n_batch_files
-                rec_ind_2 = (i_batch_run+1)*n_batch_files
-
-                data_subset = layer_dataset[rec_ind_1:rec_ind_2]
-                
-                # check if it is a convolutional layer.
-                if self.conv:
-                    
-                    # Generation of cross surfaces, computed on multiple threads
-                    results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
-                                        (delayed(cross_tv_generator_conv)\
-                                        (data_subset[recording], 
-                                          self.n_input_channels,\
-                                          n_input_features, cross_width,\
-                                          self.taus)\
-                                      for recording in range(len(data_subset)))
-                    # results=[]
-                    # for recording in range(len(data_subset)):
-                    #     result = cross_tv_generator_conv(data_subset[recording],\
-                    #               self.n_input_channels,\
-                    #               n_input_features, cross_width,\
-                    #               self.taus)
-                    #     results.append(result)
-                
-                else:
-                                  
-                    #Generation of cross surfaces, computed on multiple threads
-                    results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
-                                        (delayed(cross_tv_generator)\
-                                        (data_subset[recording], 
-                                          self.n_input_channels,\
-                                          n_input_features,self.taus)\
-                                      for recording in range(len(data_subset)))
+                cross_batch_tv = self.batch_tv_generator(layer_dataset,
+                                                         n_batch_files,
+                                                         i_batch_run, 
+                                                         par_verbose)
           
             
                 # The final results of the local surfaces train dataset computation
-                batch_local_tv = np.concatenate(results, axis=0)
+                cross_batch_tv = np.concatenate(cross_batch_tv, axis=0)
                 
                 if n_batches==1:
-                    kmeans.fit(batch_local_tv)
+                    kmeans.fit(cross_batch_tv)
                 else:
-                    kmeans.partial_fit(batch_local_tv)
+                    kmeans.partial_fit(cross_batch_tv)
                 
                 if self.verbose is True: 
                     batch_time = time.time()-batch_start_time
@@ -234,11 +205,7 @@ class Cross_Layer:
                             array is removed.
         """
         
-        # Build the vector of individual taus
-        if type(self.taus) is np.ndarray or type(self.taus) is list :
-            taus = np.array(self.taus)
-        else:
-            taus = self.taus*np.ones(self.n_input_channels)
+
             
         # Check the runtime mode (multiple batches or single batch)
         n_files = len(layer_dataset)
@@ -251,25 +218,7 @@ class Cross_Layer:
             # number of batches per run   
             n_batches=int(np.ceil(n_files/n_batch_files))  
         
-        
         total_batches  = n_batches
-        
-        #Check if it is in convolutional mode or not
-        if self.cross_tv_width == None or self.cross_tv_width >= self.n_input_channels :
-            #Full layer
-            cross_width = self.n_input_channels
-            self.conv = False
-        else:
-            #Convolutional mode
-            cross_width = self.cross_tv_width
-            self.conv = True
-        
-        #Check if previous layer had features or not
-        if self.n_input_features == None:
-            n_input_features = 1
-        else:
-            n_input_features = self.n_input_features
-            
         
         #Set the verbose parameter for the parallel function. #TODO set outside layer
         if self.verbose:
@@ -289,48 +238,18 @@ class Cross_Layer:
         cross_response=[]
         for i_batch_run in range(n_batches):
             
-            rec_ind_1 = i_batch_run*n_batch_files
-            rec_ind_2 = (i_batch_run+1)*n_batch_files
-
-            data_subset = layer_dataset[rec_ind_1:rec_ind_2]
+            cross_batch_tv = self.batch_tv_generator(layer_dataset,
+                                                     n_batch_files,
+                                                     i_batch_run, 
+                                                     par_verbose)
             
-            # check if it is a convolutional layer.
-            if self.conv:
-                
-                #Generation of cross surfaces, computed on multiple threads
-                results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
-                                    (delayed(cross_tv_generator_conv)\
-                                    (data_subset[recording], 
-                                      self.n_input_channels,\
-                                      n_input_features, cross_width,\
-                                      self.taus)\
-                                  for recording in range(len(data_subset)))
-
-                for i_result in range(len(results)):
-                    if len(results[i_result]):
-                        batch_response=kmeans.predict(results[i_result])
-                        cross_response.append([data_subset[i_result][0],\
-                                               data_subset[i_result][1],\
-                                                   batch_response]) 
-                    else:
-                        cross_response.append([[],[],[]])
-
-       
+            cross_batch_response = self.batch_response_generator(layer_dataset,
+                                                                 cross_batch_tv,
+                                                                 n_batch_files,
+                                                                 i_batch_run, 
+                                                                 kmeans)
             
-            else:
-                              
-                #Generation of cross surfaces, computed on multiple threads
-                results = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
-                                    (delayed(cross_tv_generator)\
-                                    (data_subset[recording], 
-                                      self.n_input_channels,\
-                                      n_input_features,self.taus)\
-                                  for recording in range(len(data_subset)))
-                                        
-                for i_result in range(len(results)):
-                    batch_response=kmeans.predict(results[i_result])
-                    cross_response.append([data_subset[i_result][0],\
-                                           batch_response])
+            cross_response = cross_response+cross_batch_response
             
             if self.verbose is True: 
                 batch_time = time.time()-batch_start_time
@@ -340,18 +259,143 @@ class Cross_Layer:
                 print("Batch %i out of %i processed, %s seconds left "\
                       %(i_batch+1,total_batches,expected_t))                
                 batch_start_time = time.time()
-            
     
         if self.verbose is True:    
             print("generatung time vectors took %s seconds." % (total_time))
             
         return cross_response 
         
+    def batch_tv_generator(self, layer_dataset, n_batch_files, i_batch_run, 
+                           par_verbose):
+        """
+        Method to make the layer generate a single batch of time-vectors, can be
+        used by the predict method or the neural network method, to speedup 
+        computation and reduce memory usage
+        
+        Arguments: 
+            layer_dataset: list of individual event based recoriding as
+                           generated by the cochlea
+                           
+                          
+        Returns: 
+            cross_batch_tv: list of individual timevectores produced from 
+                                  from a single batch.       
+        """
+        # Build the vector of individual taus
+        if type(self.taus) is np.ndarray or type(self.taus) is list :
+            taus = np.array(self.taus)
+        else:
+            taus = self.taus*np.ones(self.n_input_channels)
+            
+        #Check if it is in convolutional mode or not
+        if self.cross_tv_width == None or self.cross_tv_width >= self.n_input_channels :
+            #Full layer
+            cross_width = self.n_input_channels
+            self.conv = False
+        else:
+            #Convolutional mode
+            cross_width = self.cross_tv_width
+            self.conv = True
+        
+        #Check if previous layer had features or not
+        if self.n_input_features == None:
+            n_input_features = 1
+        else:
+            n_input_features = self.n_input_features
+        
+        rec_ind_1 = i_batch_run*n_batch_files
+        rec_ind_2 = (i_batch_run+1)*n_batch_files
+        
+        data_subset = layer_dataset[rec_ind_1:rec_ind_2]
+        
+        # check if it is a convolutional layer.
+        if self.conv:
+            
+            #Generation of cross surfaces, computed on multiple threads
+            cross_batch_tv = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
+                                (delayed(cross_tv_generator_conv)\
+                                (data_subset[recording], 
+                                  self.n_input_channels,\
+                                  n_input_features, cross_width,\
+                                  taus)\
+                              for recording in range(len(data_subset)))
+        
+      
+        
+        
+        else:
+                          
+            #Generation of cross surfaces, computed on multiple threads
+            cross_batch_tv = Parallel(n_jobs=self.n_threads, verbose=par_verbose)\
+                                (delayed(cross_tv_generator)\
+                                (data_subset[recording], 
+                                  self.n_input_channels,\
+                                  n_input_features,taus)\
+                              for recording in range(len(data_subset)))
+                                          
+
+    
+        return cross_batch_tv  
+    
+    def batch_response_generator(self, layer_dataset, cross_batch_tv, 
+                                       n_batch_files, i_batch_run, kmeans):
+        """
+        Method to make the layer generate a single batch of time-vectors, can be
+        used by the predict method or the neural network method, to speedup 
+        computation and reduce memory usage
+        
+        Arguments: 
+            layer_dataset: list of individual event based recoriding as
+                           generated by the cochlea
+                           
+                          
+        Returns: 
+            cross_batch_response: list of individual timevectores produced from 
+                                  from a single batch.       
+        """
+        
+        
+        
+        rec_ind_1 = i_batch_run*n_batch_files
+        rec_ind_2 = (i_batch_run+1)*n_batch_files
+        
+        data_subset = layer_dataset[rec_ind_1:rec_ind_2]
+        
+        cross_batch_response=[]
+        # check if it is a convolutional layer.
+        if self.conv:
+            
+        
+            for i_result in range(len(cross_batch_tv)):
+                if len(cross_batch_tv[i_result]):
+                    batch_response=kmeans.predict(cross_batch_tv[i_result])
+                    cross_batch_response.append([data_subset[i_result][0],\
+                                           data_subset[i_result][1],\
+                                               batch_response])
+                else:
+                    cross_batch_response.append([[],[],[]])
+        
+        
+        
+        else:
+                          
+                                    
+            for i_result in range(len(cross_batch_tv)):
+                batch_response=kmeans.predict(cross_batch_tv[i_result])
+                cross_batch_response.append([data_subset[i_result][0],\
+                                       batch_response])
+        
+
+    
+        return cross_batch_response 
     
     
     #Importing Classifiers Methods
     from Libs.GORDONN.Classifiers.Histogram_Classifiers import gen_histograms
     from Libs.GORDONN.Classifiers.Histogram_Classifiers import gen_signatures
+    from Libs.GORDONN.Classifiers.Time_Vector_Classifiers import train_mlp
+    from Libs.GORDONN.Classifiers.Time_Vector_Classifiers import test_mlp
+
     
     #TODO obtain the original channel of the event
     def response_plot(self, cross_response, f_index, class_name = None):
@@ -378,6 +422,10 @@ class Cross_Layer:
             image = plt.scatter(timestamps[indx], channels[indx],\
                                 label='Feature '+str(i_feature))
 
+    
+
+    
+    
 def cross_tv_generator(recording_data, n_polarities, features_number, taus):
     """
     Function used to generate cross time vectors.

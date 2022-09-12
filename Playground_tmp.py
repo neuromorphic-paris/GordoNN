@@ -419,8 +419,8 @@ Net = GORDONN(n_threads=n_threads, verbose=True, server_mode=False, low_memory_m
 Net.add_layer("Local", local_layer_parameters, n_input_channels)
 
 #Second layer parameters
-n_features=64
-# n_features=32
+# n_features=64
+n_features=32
 cross_tv_width=3 
 taus=20e3
 
@@ -446,7 +446,9 @@ pool_factor=2
 Net.add_layer("Pool", [pool_factor])
 
 #Third layer parameters
-n_features=128
+# n_features=128
+n_features=64
+
 cross_tv_width=3
 taus=1e6
 
@@ -461,10 +463,86 @@ Net.add_layer("MIG", [MI_factor])
 
 Net.learn(dataset_train,labels_train,classes)
 Net.predict(dataset_test, labels_train, labels_test, classes)
+
+
+#%% Last layer new classifier (New)
+
+#Actual decay
+df = pd.read_csv (r'whitenoise.csv')
+mean_rate =np.asarray(df.columns[:], dtype=float)
+channel_taus = 1/mean_rate
+channel_taus = channel_taus/channel_taus[0]
+
+n_threads=24
+
+#First Layer parameters
+Tau_T=125
+taus = (Tau_T*channel_taus)
+
+input_channels = 32 + 32*use_all_addr
+n_features=20
+local_tv_length=10
+n_input_channels=input_channels
+n_batch_files=None
+dataset_runs=1
+
+local_layer_parameters = [n_features, local_tv_length, taus,\
+                    n_batch_files, dataset_runs]
+
+Net = GORDONN(n_threads=n_threads, verbose=True, server_mode=False, low_memory_mode=False)
+Net.add_layer("Local", local_layer_parameters, n_input_channels)
+
+#Second layer parameters
+n_features=64
+cross_tv_width=3 
+taus=20e3
+
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+
+#MIG Layers
+MI_factor=76
+Net.add_layer("MIG", [MI_factor])
+
+#Pool Layer
+pool_factor=2
+Net.add_layer("Pool", [pool_factor])
+
+
+#Third layer parameters
+n_features=128
+cross_tv_width=3
+taus=16e4
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+#MIG Layers
+MI_factor=50
+Net.add_layer("MIG", [MI_factor])
+
+
+Net.learn(dataset_train,labels_train,classes)
+Net.predict(dataset_test, labels_train, labels_test, classes)
 #%%
 Net.layers[5].MI_factor=95
 Net.layers[4].cross_tv_width=5
 Net.layers[4].n_features=64
+
+Net.learn(dataset_train,labels_train,classes,rerun_layer=4)
+Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=4)
+
+#%%
+Net.layers[4].n_features = 128
+Net.layers[4].n_output_features = 128
+Net.layers[5].MI_factor = 75
+
 
 Net.learn(dataset_train,labels_train,classes,rerun_layer=4)
 Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=4)
@@ -489,7 +567,7 @@ Net.learn(dataset_train,labels_train,classes,rerun_layer=5)
 Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=5)
 #%%
 
-rec = 10
+rec = 300
 
 n_layers = len(Net.architecture)
 fig, axs = plt.subplots(1, n_layers)
@@ -638,8 +716,8 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
     return mlp      
 
 #%% Net Mutual info layer 2 
-i_layer = 4
-MI_factor = 95
+i_layer = 1
+MI_factor = 99
 
 n_recordings = len(Net.net_response_train[i_layer])
 n_clusters = len(Net.layers[i_layer].features)
@@ -690,6 +768,248 @@ plt.xlabel("#Features")
 plt.title("Relative sorted MI")
 plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
 
+#%% Net Mutual info layer 2 
+i_layer = 1
+MI_factor = 99
+
+
+
+n_recordings = len(Net.net_response_train[i_layer])
+n_clusters = len(Net.layers[i_layer].features)
+labels = labels_train
+activity = np.zeros([n_recordings, n_clusters])
+
+
+n_labels=number_of_labels
+n_features=n_clusters
+
+for recording in range(n_recordings): 
+    clusters = np.unique(Net.net_response_train[i_layer][recording][-1])
+    activity[recording, clusters]=1;
+
+p_r = np.sum(activity,axis=0)/(n_recordings)
+
+r_s_table = np.zeros([n_labels, n_features])
+
+for label in range(number_of_labels):
+    indx = labels==label
+    p_r_s[label]+=np.sum(activity[indx,:],axis=0)/sum(labels==label)
+
+for label in range(n_labels):
+    indx = labels==label
+    r_s_table[label] += np.sum(activity[indx,:],axis=0)
+    
+# Entropy of label
+H_s = np.log2(n_labels)
+        
+
+featMI = np.zeros(n_features)
+for i_feat in range(n_features):
+    #probability of the cluster being on
+    p_on = p_r[i_feat]
+    p_off = 1-p_on
+    #probability of all labels conditioned to the on cluster
+    p_s_on = r_s_table[:,i_feat]/sum(r_s_table[:,i_feat])
+    r_s_table_off = 800-r_s_table#TODO find this value
+    p_s_off = r_s_table_off[:,i_feat]/sum(r_s_table_off[:,i_feat]+1e-9)
+    # p_s_off = 1-p_s_on
+    H_s_on = -p_s_on*np.log2(p_s_on+1e-9)#to avoid zero log
+    H_s_off = -p_s_off*np.log2(p_s_off+1e-9)#to avoid zero log
+    H_s_r = p_on*sum(H_s_on) + p_off*sum(H_s_off)
+    featMI[i_feat] = H_s - H_s_r
+    
+sortfeats = np.argsort(featMI)[::-1]
+featMI = featMI[sortfeats]
+cumMI = (np.cumsum(featMI)/sum(featMI))*100
+
+topfeats = sortfeats[cumMI<=MI_factor]
+
+plt.figure()
+plt.plot(np.cumsum(featMI)/sum(featMI))
+plt.ylabel("Bits of information (over 3)")
+plt.xlabel("#Features")
+plt.title("Sorted MI per cluster")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+# topclusters = np.argsort(clusterMI)[-150:]
+rel_clusterMI = featMI/(1+0.01*np.arange(n_clusters))
+
+
+plt.figure()
+plt.plot(rel_clusterMI/n_clusters)
+plt.ylabel("Bits of information (over 3)/#Features")
+plt.xlabel("#Features")
+plt.title("Relative sorted MI")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+#%% Net Mutual info layer 2 (rate)
+i_layer = 4
+MI_factor = 75
+
+
+
+n_recordings = len(Net.net_response_train[i_layer])
+n_clusters = len(Net.layers[i_layer].features)
+labels = labels_train
+activity = np.zeros([n_recordings, n_clusters])
+
+
+n_labels=number_of_labels
+n_features=n_clusters
+
+norm_hists = np.mean(Net.layers[i_layer].norm_hists,1)
+
+
+n_bins = int(1e3)
+# n_bins = int(1e5)
+
+
+#Check histogram too ge the bins
+norm_hists_concat = np.concatenate(norm_hists)
+plt.figure()
+plt.hist(norm_hists_concat, bins=n_bins)
+
+max_response = np.max(norm_hists)
+binsize = max_response/n_bins
+
+
+norm_hists_binned = np.asarray(norm_hists//binsize, dtype=int)# Maybe try fractional bins
+# norm_hists_binned+=1
+# norm_hists_binned[norm_hists==0]=0
+max_rate = np.max(norm_hists_binned)
+
+r_s_table = np.zeros([max_rate, n_labels, n_features])
+
+for rate in range(max_rate):
+    for label in range(n_labels):
+        label_indx = labels==label
+        rate_pos=norm_hists_binned[label_indx]==rate
+        r_s_table[rate,label] = np.sum(rate_pos,axis=0)
+
+p_r = np.sum(r_s_table,axis=1)/n_recordings
+    
+# Entropy of label
+H_s = np.log2(n_labels)
+        
+
+featMI = np.zeros(n_features)+H_s
+for rate in range(max_rate):
+    for i_feat in range(n_features):
+        p_x = p_r[rate, i_feat]
+        #probability of all labels conditioned to the on cluster
+        p_s_x = r_s_table[rate,:,i_feat]/sum(r_s_table[rate,:,i_feat]+1e-9)
+        # p_s_off = 1-p_s_on
+        H_s_x = -p_s_x*np.log2(p_s_x+1e-9)#to avoid zero log
+        H_s_r = p_x*sum(H_s_x) 
+        featMI[i_feat] -= H_s_r
+    
+sortfeats = np.argsort(featMI)[::-1]
+featMI = featMI[sortfeats]
+cumMI = (np.cumsum(featMI)/sum(featMI))*100
+
+topfeats = sortfeats[cumMI<=MI_factor]
+
+plt.figure()
+plt.plot(np.cumsum(featMI)/sum(featMI))
+plt.ylabel("Bits of information (over 3)")
+plt.xlabel("#Features")
+plt.title("Sorted MI per cluster")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+# topclusters = np.argsort(clusterMI)[-150:]
+rel_clusterMI = featMI/(1+0.01*np.arange(n_clusters))
+
+
+plt.figure()
+plt.plot(rel_clusterMI/n_clusters)
+plt.ylabel("Bits of information (over 3)/#Features")
+plt.xlabel("#Features")
+plt.title("Relative sorted MI")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+
+#%% Net Mutual info layer 2 (rate) HISTS abs
+i_layer = 1
+MI_factor = 75
+
+
+
+n_recordings = len(Net.net_response_train[i_layer])
+n_clusters = len(Net.layers[i_layer].features)
+labels = labels_train
+activity = np.zeros([n_recordings, n_clusters])
+
+
+n_labels=number_of_labels
+n_features=n_clusters
+
+hists = np.sum(Net.layers[i_layer].hists,1)
+norm_hists = hists/np.max(hists)
+
+#Check histogram too ge the bins
+norm_hists_concat = np.concatenate(norm_hists)
+plt.figure()
+plt.hist(norm_hists_concat, bins=100)
+
+
+binsize = 0.01
+#set the zero apart
+
+norm_hists_binned = np.asarray(norm_hists//binsize, dtype=int)# Maybe try fractional bins
+norm_hists_binned+=1
+norm_hists_binned[norm_hists==0]=0
+max_rate = np.max(norm_hists_binned)
+
+r_s_table = np.zeros([max_rate, n_labels, n_features])
+
+for rate in range(max_rate):
+    for label in range(n_labels):
+        label_indx = labels==label
+        rate_pos=norm_hists_binned[label_indx]==rate
+        r_s_table[rate,label] = np.sum(rate_pos,axis=0)
+
+p_r = np.sum(r_s_table,axis=1)/n_recordings
+    
+# Entropy of label
+H_s = np.log2(n_labels)
+        
+
+featMI = np.zeros(n_features)+H_s
+for rate in range(max_rate):
+    for i_feat in range(n_features):
+        p_x = p_r[rate, i_feat]
+        #probability of all labels conditioned to the on cluster
+        p_s_x = r_s_table[rate,:,i_feat]/sum(r_s_table[rate,:,i_feat]+1e-9)
+        # p_s_off = 1-p_s_on
+        H_s_x = -p_s_x*np.log2(p_s_x+1e-9)#to avoid zero log
+        H_s_r = p_x*sum(H_s_x) 
+        featMI[i_feat] -= H_s_r
+    
+sortfeats = np.argsort(featMI)[::-1]
+featMI = featMI[sortfeats]
+cumMI = (np.cumsum(featMI)/sum(featMI))*100
+
+topfeats = sortfeats[cumMI<=MI_factor]
+
+plt.figure()
+plt.plot(np.cumsum(featMI)/sum(featMI))
+plt.ylabel("Bits of information (over 3)")
+plt.xlabel("#Features")
+plt.title("Sorted MI per cluster")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+# topclusters = np.argsort(clusterMI)[-150:]
+rel_clusterMI = featMI/(1+0.01*np.arange(n_clusters))
+
+
+plt.figure()
+plt.plot(rel_clusterMI/n_clusters)
+plt.ylabel("Bits of information (over 3)/#Features")
+plt.xlabel("#Features")
+plt.title("Relative sorted MI")
+plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+
+
 #%%  MI calculation 
     
 n_clusters = len(featMI)
@@ -710,9 +1030,13 @@ norm_accuracy=np.zeros(n_clusters)
 
 for cluster_i in range(n_clusters):
     for recording in range(len(hist_train)):
+        cut_hist=hist_train[recording,:,:cluster_i+1]
+        cut_sign=signatures[:,:,:cluster_i+1]
+        cut_norm_hist=norm_hist_train[recording,:,:cluster_i+1]
+        cut_norm_sign=signatures_norm[:,:,:cluster_i+1]
         
-        closest_file=np.argmin(np.sum((hist_train[recording,:,:cluster_i+1]-signatures[:,:,:cluster_i+1])**2, axis=(1,2)))
-        closest_file_norm=np.argmin(np.sum((norm_hist_train[recording,:,:cluster_i+1]-signatures_norm[:,:,:cluster_i+1])**2, axis=(1,2)))
+        closest_file=np.argmin(np.sum((cut_hist-cut_sign)**2, axis=(1,2)))
+        closest_file_norm=np.argmin(np.sum((cut_norm_hist-cut_norm_sign)**2, axis=(1,2)))
 
     
         label = labels_train[recording]
@@ -742,32 +1066,28 @@ for cluster_i in range(n_clusters):
 # print("Accuracy of normalized signatures is; "+str(norm_accuracy*100))
 
 plt.figure()
-plt.plot(accuracy)
+plt.plot(np.cumsum(featMI)/sum(featMI),accuracy,label="Accuracy")
+plt.plot(np.cumsum(featMI)/sum(featMI),accuracy_test,label="Test Accuracy")
+plt.plot(np.cumsum(featMI)/sum(featMI),norm_accuracy,label="Norm Accuracy")
+plt.plot(np.cumsum(featMI)/sum(featMI),norm_accuracy_test,label="Norm Test Accuracy")
+plt.xlabel("%MI")
+plt.ylabel("% Correct recordings")
+plt.title("Accuracy by MI Gating")
+plt.legend()
+
+
+plt.figure()
+MI_factor = 75
+plt.plot(accuracy,label="Accuracy")
+plt.plot(accuracy_test,label="Test Accuracy")
+plt.plot(norm_accuracy,label="Norm Accuracy")
+plt.plot(norm_accuracy_test,label="Norm Test Accuracy")
 plt.ylabel("% Correct recordings")
 plt.title("Accuracy by MI Gating")
 plt.xlabel("#Features")
-plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
+plt.vlines(len(sortfeats[cumMI<=MI_factor]),plt.ylim()[0],plt.ylim()[1])
+plt.legend()
 
-plt.figure()
-plt.plot(accuracy_test)
-plt.ylabel("% Correct recordings")
-plt.title("Test Accuracy by MI Gating")
-plt.xlabel("#Features")
-plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
-
-plt.figure()
-plt.plot(norm_accuracy)
-plt.ylabel("% Correct recordings")
-plt.title("Norm Accuracy by MI Gating")
-plt.xlabel("#Features")
-plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
-
-plt.figure()
-plt.plot(norm_accuracy_test)
-plt.ylabel("% Correct recordings")
-plt.title("Norm Test Accuracy by MI Gating")
-plt.xlabel("#Features")
-plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
 
 #%% Remove events
 
@@ -799,3 +1119,32 @@ def feature_events_pruning(rec_data, feature_idxs):
     new_rec_data.append(new_f_index_data)    
     
     return new_rec_data
+
+#%% MLP Test (adding another layer) 
+
+# Add another layer 
+#6th layer parameters
+n_features=64
+
+cross_tv_width=3
+taus=1e6
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+
+Net.learn(dataset_train,labels_train,classes,rerun_layer=5)
+Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=5)
+
+#%% MLP Test (adding another layer) 
+
+Net.layers[-1].mlp_hidden_size=[30]
+Net.layers[-1].mlp_learning_rate=9e-5
+Net.layers[-1].mlp_minibatchsize = 2042
+Net.layers[-1].mlp_epochs = 20
+
+Net.layers[-1].train_mlp(Net.layer_dataset_train[-1],labels_train)
+
+Net.layers[-1].test_mlp(Net.layer_dataset_test[-1],labels_test)
