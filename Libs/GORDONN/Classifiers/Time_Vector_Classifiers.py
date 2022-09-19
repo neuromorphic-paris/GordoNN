@@ -17,6 +17,7 @@ from tensorflow.keras.layers import Input, Dense, BatchNormalization,\
 from tensorflow.keras.models import Model
 from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers, regularizers
+from tensorflow.keras import activations
 
 ###METHODS###
 def train_mlp(self, layer_dataset, labels):
@@ -84,6 +85,10 @@ def train_mlp(self, layer_dataset, labels):
                 
                 labels_subset = labels[rec_ind_1:rec_ind_2]
                 
+                #Cut to only the last timevectors
+                print("MODDATP")
+                cross_batch_tv = [cross_batch_tv[i][-500:] for i in range(len(labels_subset))]
+                
                 ev_labels=[]
                 for i in range(len(labels_subset)):
                     ev_labels.append(labels_subset[i]*np.ones(cross_batch_tv[i].shape[0]))
@@ -137,20 +142,12 @@ def test_mlp(self, layer_dataset, labels):
         
         if self.n_batch_files==None:
             n_batches = 1
-            n_runs = 1
             n_batch_files = n_files
         else:
             n_batch_files = self.n_batch_files
             # number of batches per run   
             n_batches=int(np.ceil(n_files/n_batch_files))  
-        
-        if n_batches==1:
-            n_runs = 1
-        else:
-            n_runs = self.dataset_runs # how many time a single dataset get cycled.
-        
-        total_batches  = n_batches*n_runs
-        
+                     
             
         
         #Set the verbose parameter for the parallel function. #TODO set outside layer
@@ -162,7 +159,6 @@ def test_mlp(self, layer_dataset, labels):
         else:
             par_verbose = 0
             
-        input_size = self.features.shape[-1]
         mlp_output_size = np.max(labels)+1
         
         #DEFINE MLP
@@ -181,6 +177,10 @@ def test_mlp(self, layer_dataset, labels):
             
             labels_subset = labels[rec_ind_1:rec_ind_2]
             
+            #Cut to only the last timevectors
+            cross_batch_tv = [cross_batch_tv[i][-500:] for i in range(len(labels_subset))]
+                
+                
             ev_labels=[]
             for i in range(len(labels_subset)):
                 ev_labels.append(np.ones(cross_batch_tv[i].shape[0]))
@@ -195,7 +195,7 @@ def test_mlp(self, layer_dataset, labels):
 
 
             
-            accuracy+=mlp.evaluate(cross_batch_tv,ev_labels)[1]
+            accuracy+=mlp.predict(cross_batch_tv)
             
             
 
@@ -220,28 +220,29 @@ def create_mlp(input_size, hidden_size, output_size, learning_rate):
         mlp (keras model) : the freshly baked network
     """
     def relu_advanced(x):
-        return K.activations.relu(x, alpha=0.3)
+        return activations.relu(x, alpha=0.3)
     
+    print("Network Creation")
     inputs = Input(shape=(input_size,), name='encoder_input')
     # x = BatchNormalization()(inputs)
     n_layers = len(hidden_size)
     if n_layers>0:
         for i in range(n_layers):
             if i==0:
-                x = Dense(hidden_size[i], activation='sigmoid')(inputs)
+                x = Dense(hidden_size[i], activation=relu_advanced)(inputs)
             else:
-                x = Dense(hidden_size[i], activation='sigmoid')(x)
+                x = Dense(hidden_size[i], activation=relu_advanced)(x)
                 # x = Dropout(0.7)(x)#0.7
                 
-        outputs = Dense(output_size, activation='sigmoid')(x)
+        outputs = Dense(output_size, activation='softmax')(x)
     else:
-        outputs = Dense(output_size, activation='sigmoid')(inputs)
+        outputs = Dense(output_size, activation='softmax')(inputs)
     
     
-    adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+    # adam=optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     mlp = Model(inputs, outputs, name='mlp')
     # mlp.compile(optimizer=adam,
     #           loss='categorical_crossentropy', metrics=['accuracy'])
-    mlp.compile(optimizer=adam,
+    mlp.compile(optimizer='rmsprop',
               loss='categorical_crossentropy', metrics=['accuracy'])    
     return mlp      

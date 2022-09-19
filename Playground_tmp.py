@@ -493,7 +493,7 @@ Net = GORDONN(n_threads=n_threads, verbose=True, server_mode=False, low_memory_m
 Net.add_layer("Local", local_layer_parameters, n_input_channels)
 
 #Second layer parameters
-n_features=64
+n_features=16
 cross_tv_width=3 
 taus=20e3
 
@@ -514,8 +514,8 @@ Net.add_layer("Pool", [pool_factor])
 
 
 #Third layer parameters
-n_features=128
-cross_tv_width=3
+n_features=32
+cross_tv_width=5
 taus=16e4
 
 cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
@@ -524,8 +524,8 @@ cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
 Net.add_layer("Cross", cross_layer_parameters)
 
 #MIG Layers
-MI_factor=50
-Net.add_layer("MIG", [MI_factor])
+# MI_factor=50
+# Net.add_layer("MIG", [MI_factor])
 
 
 Net.learn(dataset_train,labels_train,classes)
@@ -843,7 +843,7 @@ plt.title("Relative sorted MI")
 plt.vlines(len(topfeats),plt.ylim()[0],plt.ylim()[1])
 
 #%% Net Mutual info layer 2 (rate)
-i_layer = 4
+i_layer = 1
 MI_factor = 75
 
 
@@ -1140,11 +1140,142 @@ Net.predict(dataset_test, labels_train, labels_test, classes, rerun_layer=5)
 
 #%% MLP Test (adding another layer) 
 
-Net.layers[-1].mlp_hidden_size=[30]
+#%% Last layer new classifier (New)
+
+#Actual decay
+df = pd.read_csv (r'whitenoise.csv')
+mean_rate =np.asarray(df.columns[:], dtype=float)
+channel_taus = 1/mean_rate
+channel_taus = channel_taus/channel_taus[0]
+
+n_threads=24
+
+#First Layer parameters
+Tau_T=125
+taus = (Tau_T*channel_taus)
+
+input_channels = 32 + 32*use_all_addr
+n_features=20
+local_tv_length=10
+n_input_channels=input_channels
+n_batch_files=None
+dataset_runs=1
+
+local_layer_parameters = [n_features, local_tv_length, taus,\
+                    n_batch_files, dataset_runs]
+
+Net = GORDONN(n_threads=n_threads, verbose=True, server_mode=False, low_memory_mode=False)
+Net.add_layer("Local", local_layer_parameters, n_input_channels)
+
+#Second layer parameters
+n_features=8
+cross_tv_width=3 
+taus=20e3
+
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+
+#Pool Layer
+pool_factor=2
+Net.add_layer("Pool", [pool_factor])
+
+
+#Third layer parameters
+n_features=16
+cross_tv_width=5
+taus=16e4
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+#Pool Layer
+pool_factor=4
+Net.add_layer("Pool", [pool_factor])
+
+#Fourth layer parameters
+n_features=32
+cross_tv_width=None
+taus=1e6
+
+cross_layer_parameters = [n_features, cross_tv_width, taus, n_batch_files,
+                          dataset_runs]   
+
+Net.add_layer("Cross", cross_layer_parameters)
+
+Net.learn(dataset_train,labels_train,classes)
+Net.predict(dataset_test, labels_train, labels_test, classes)
+
+#%% MLP Test (adding another layer) 
+
+Net.layers[-1].mlp_hidden_size=[]
 Net.layers[-1].mlp_learning_rate=9e-5
-Net.layers[-1].mlp_minibatchsize = 2042
+Net.layers[-1].mlp_minibatchsize = 8000
 Net.layers[-1].mlp_epochs = 20
 
 Net.layers[-1].train_mlp(Net.layer_dataset_train[-1],labels_train)
 
 Net.layers[-1].test_mlp(Net.layer_dataset_test[-1],labels_test)
+
+Net.layers[-1].test_mlp(Net.layer_dataset_train[-1],labels_train)
+
+#%% Train
+
+from keras.utils.np_utils import to_categorical  
+
+
+tvs = Net.layers[-1].batch_tv_generator(Net.layer_dataset_train[-1],6400,0,True)
+
+#Cut to only the last timevectors
+cross_batch_tv = [tvs[i][-500:] for i in range(len(tvs))]
+    
+    
+ev_labels=[]
+for i in range(len(labels_train)):
+    ev_labels.append(labels_train[i]*np.ones(cross_batch_tv[i].shape[0]))
+ev_labels = np.concatenate(ev_labels, axis=0)
+
+ev_labels_cat = to_categorical(ev_labels,num_classes=8)
+
+
+# The final results of the local surfaces train dataset computation
+cross_batch_tv = np.concatenate(cross_batch_tv, axis=0)
+cross_batch_tv.reshape(-1, cross_batch_tv.shape[-1])
+            
+            
+labels_probs= Net.layers[-1].mlp_classifier.predict(cross_batch_tv)
+label_pred = np.argmax(labels_probs,1)
+np.mean(ev_labels==label_pred)
+
+#%% Test
+
+from keras.utils.np_utils import to_categorical  
+
+
+tvs = Net.layers[-1].batch_tv_generator(Net.layer_dataset_test[-1],6400,0,True)
+
+#Cut to only the last timevectors
+cross_batch_tv = [tvs[i][-500:] for i in range(len(tvs))]
+    
+    
+ev_labels=[]
+for i in range(len(labels_test)):
+    ev_labels.append(labels_test[i]*np.ones(cross_batch_tv[i].shape[0]))
+ev_labels = np.concatenate(ev_labels, axis=0)
+
+ev_labels_cat = to_categorical(ev_labels,num_classes=8)
+
+
+# The final results of the local surfaces train dataset computation
+cross_batch_tv = np.concatenate(cross_batch_tv, axis=0)
+cross_batch_tv.reshape(-1, cross_batch_tv.shape[-1])
+            
+            
+labels_probs= Net.layers[-1].mlp_classifier.predict(cross_batch_tv)
+label_pred = np.argmax(labels_probs,1)
+np.mean(ev_labels==label_pred)
